@@ -57,6 +57,12 @@ Hodnoty jsou nastavení pro první pocitový test. Nejsou schválenými pravidly
 
 Prototype 0.2 zatím neobsahuje gold, banku, crafting, offline postup, účty ani market. Tyto systémy patří do dalších testovacích verzí. Drop rate je záměrně vysoký, aby šel loot během krátkého testu vyhodnotit. Kompletní dosavadní návrh je v souboru [`docs/navrh-hry.md`](docs/navrh-hry.md).
 
+## Grafika
+
+Portréty Poutníka a Goblina používají upravené SVG ikony z open-source balíčku
+[game-icons.net](https://game-icons.net) (licence CC BY 3.0). Zdroje a autoři jsou uvedeni
+v [`assets/icons/CREDITS.md`](assets/icons/CREDITS.md).
+
 ## Struktura
 
 - `index.html` — struktura rozhraní,

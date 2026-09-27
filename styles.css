@@ -317,46 +317,14 @@ h2 {
   z-index: 1;
   width: 120px;
   height: 160px;
+  background-repeat: no-repeat;
+  background-position: bottom center;
+  background-size: contain;
   filter: drop-shadow(0 20px 24px rgba(0, 0, 0, 0.42));
 }
 
-.figure span {
-  position: absolute;
-  display: block;
-  background: #383d38;
-}
-
-.figure-head {
-  top: 15px;
-  left: 43px;
-  width: 40px;
-  height: 43px;
-  border-radius: 45% 45% 40% 40%;
-}
-
-.figure-body {
-  top: 53px;
-  left: 29px;
-  width: 66px;
-  height: 96px;
-  border-radius: 38% 38% 20% 20%;
-  clip-path: polygon(22% 0, 78% 0, 100% 100%, 0 100%);
-}
-
-.player-figure .figure-head,
-.player-figure .figure-body {
-  background: linear-gradient(145deg, #747c72, #303530);
-}
-
-.figure-weapon {
-  top: 31px;
-  right: 6px;
-  width: 5px;
-  height: 112px;
-  border-radius: 5px;
-  background: linear-gradient(#c7cabb, #666e67) !important;
-  transform: rotate(18deg);
-  transform-origin: bottom;
+.player-figure {
+  background-image: url("assets/icons/wanderer.svg");
 }
 
 .health-fill {
@@ -465,32 +433,10 @@ h2 {
   display: none;
 }
 
-.goblin-figure .figure-head,
-.goblin-figure .figure-body,
-.goblin-figure .figure-ear {
-  background: linear-gradient(145deg, #78875c, #343d2e);
-}
-
-.goblin-figure .figure-ear {
-  top: 20px;
-  width: 32px;
-  height: 18px;
-}
-
-.goblin-figure .figure-ear.left {
-  left: 17px;
-  clip-path: polygon(100% 0, 100% 100%, 0 50%);
-}
-
-.goblin-figure .figure-ear.right {
-  right: 11px;
-  clip-path: polygon(0 0, 100% 50%, 0 100%);
-}
-
-.goblin-figure .figure-weapon {
-  right: 7px;
-  height: 90px;
-  background: linear-gradient(#8b7b62, #554839) !important;
+.goblin-figure {
+  width: 150px;
+  height: 150px;
+  background-image: url("assets/icons/goblin.svg");
 }
 
 .enemy-health-block {
@@ -754,6 +700,11 @@ h2 {
   font-size: 1.15rem;
 }
 
+.slot-symbol svg, .item-icon-small svg {
+  width: 24px;
+  height: 24px;
+}
+
 .slot-empty span, .equipped-copy span, .inventory-item-type { color: var(--muted); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; }
 .slot-empty strong, .equipped-copy strong { display: block; margin-top: 4px; font-size: 0.76rem; }
 .equipped-stats { color: var(--muted); font-size: 0.65rem; line-height: 1.55; text-align: right; }
@@ -841,6 +792,7 @@ h2 {
 .drop-reveal.visible .drop-card { transform: translateY(0) scale(1); }
 .drop-rarity { color: var(--drop-color); font-size: 0.66rem; font-weight: 800; letter-spacing: 0.13em; text-transform: uppercase; }
 .drop-icon { display: grid; width: 94px; height: 94px; margin: 22px auto 18px; place-items: center; border: 1px solid var(--drop-color); border-radius: 22px; color: var(--drop-color); background: rgba(255, 255, 255, 0.025); font-size: 2.4rem; }
+.drop-icon svg { width: 46px; height: 46px; }
 .drop-card h2 { color: var(--drop-color); font-size: 2rem; }
 .drop-type { margin: 5px 0 20px; color: var(--muted); font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; }
 .drop-stats { display: grid; gap: 1px; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--border); }
