@@ -87,6 +87,42 @@ const ITEM_TEMPLATES = Object.freeze([
     tradeable: false,
     flavorText: "Malý přívěsek hřeje na dotek a jeho záře nikdy úplně nezhasne, ani ve tmě.",
   },
+
+  // "Chitinová" sada — kořist z lokace Pustina ticha (viz world-data.js pro
+  // nepřátele/drop tabulky). Jde o BĚŽNOU kořist s vlastním artworkem, ne o
+  // signature sadu jako andělské kusy výše: nemá vlastní glowColor (jejich
+  // vzácnost se řeší standardně přes common/rare/epic) a je obchodovatelná.
+  // Prozatímní/dočasné hodnoty rollů — snadno doladitelné na jednom místě.
+  {
+    name: "Můří čepel", slot: "weapon", icon: "chitin-weapon",
+    image: "assets/icons/items/chitin-weapon.png",
+    rolls: { damageMin: [1, 3], damageMax: [3, 6], critChance: [0.3, 1] },
+  },
+  {
+    name: "Chitinové brnění", slot: "armor", icon: "chitin-armor",
+    image: "assets/icons/items/chitin-armor.png",
+    rolls: { maxHp: [9, 16], damageMin: [0, 1] },
+  },
+  {
+    name: "Chitinová přilba", slot: "helmet", icon: "chitin-helmet",
+    image: "assets/icons/items/chitin-helmet.png",
+    rolls: { maxHp: [6, 11], critChance: [0.2, 0.7] },
+  },
+  {
+    name: "Chitinové rukavice", slot: "gloves", icon: "chitin-gloves",
+    image: "assets/icons/items/chitin-gloves.png",
+    rolls: { damageMin: [0, 2], damageMax: [1, 3], critChance: [0.2, 0.8] },
+  },
+  {
+    name: "Chitinové boty", slot: "boots", icon: "chitin-boots",
+    image: "assets/icons/items/chitin-boots.png",
+    rolls: { maxHp: [5, 10], critChance: [0.15, 0.6] },
+  },
+  {
+    name: "Chitinové kalhoty", slot: "pants", icon: "chitin-pants",
+    image: "assets/icons/items/chitin-pants.png",
+    rolls: { maxHp: [7, 13], damageMin: [0, 1] },
+  },
 ]);
 
 // Finds the template a dropped/equipped item instance was created from

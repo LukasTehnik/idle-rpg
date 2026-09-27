@@ -41,6 +41,7 @@
         <div class="run-stats">
           <div><span>Vítězství</span><strong id="killsValue">0</strong></div>
           <div><span>Nalezené předměty</span><strong id="dropsValue">0</strong></div>
+          <div><span>Gold</span><strong id="goldValue">0</strong></div>
           <div><span>Čas výpravy</span><strong id="runTimeValue">00:00</strong></div>
         </div>
       </section>
@@ -81,7 +82,7 @@
           <div class="location-line">
             <span class="location-mark" aria-hidden="true">⌖</span>
             <div>
-              <p class="eyebrow">OKRAJ STARÉHO LESA</p>
+              <p class="eyebrow" id="currentLocationName">OKRAJ STARÉHO LESA</p>
               <p class="muted">Vybraný nepřítel se po porážce vrací</p>
             </div>
           </div>
@@ -90,19 +91,20 @@
             <div id="slashEffect" class="slash-effect" aria-hidden="true"></div>
             <div class="enemy-meta">
               <span class="tag danger">NEPŘÍTEL</span>
-              <h2>Goblin</h2>
-              <p>Úroveň 1</p>
+              <h2 id="enemyName">Goblin</h2>
+              <p id="enemyLevel">Úroveň 1</p>
             </div>
 
             <div id="enemyPortrait" class="portrait enemy-portrait" aria-hidden="true">
               <div class="rune">G</div>
-              <div class="figure goblin-figure" role="img" aria-label="Goblin"></div>
+              <div id="goblinFigure" class="figure goblin-figure" role="img" aria-label="Goblin"></div>
+              <img id="enemyImage" class="figure enemy-image hidden" alt="" />
             </div>
 
             <div class="health-block enemy-health-block">
               <div class="bar-label">
                 <span>Životy nepřítele</span>
-                <span><strong id="enemyHpValue">48</strong> / 48</span>
+                <span><strong id="enemyHpValue">48</strong> / <span id="enemyMaxHpValue">48</span></span>
               </div>
               <div class="progress-track health-track enemy-health-track">
                 <div id="enemyHpBar" class="progress-fill enemy-health-fill"></div>
@@ -118,6 +120,9 @@
             <button id="fightButton" class="primary-button" type="button">
               <span id="fightButtonIcon">▶</span>
               <span id="fightButtonText">Zahájit boj</span>
+            </button>
+            <button id="mapButton" class="icon-button" type="button" aria-label="Otevřít mapu" title="Otevřít mapu">
+              🗺
             </button>
             <button id="resetButton" class="icon-button" type="button" aria-label="Resetovat prototyp" title="Resetovat prototyp">
               ↻
@@ -142,7 +147,7 @@
           </ol>
           <div class="log-legend">
             <span><i class="legend-dot player"></i> Poutník</span>
-            <span><i class="legend-dot enemy"></i> Goblin</span>
+            <span><i class="legend-dot enemy"></i> <span id="legendEnemyLabel">Goblin</span></span>
             <span><i class="legend-dot event"></i> Událost</span>
           </div>
         </aside>
@@ -209,42 +214,71 @@
       </footer>
     </main>
 
-    <div id="dropReveal" class="drop-reveal" aria-hidden="true">
-      <div class="drop-backdrop"></div>
-      <section class="drop-card" role="dialog" aria-modal="true" aria-labelledby="dropTitle">
-        <p class="eyebrow">NALEZENA KOŘIST</p>
-        <div id="dropRarity" class="drop-rarity">Běžný předmět</div>
-        <div id="dropIcon" class="drop-icon" aria-hidden="true">⚔</div>
-        <h2 id="dropTitle">Železný meč</h2>
-        <p id="dropType" class="drop-type">Zbraň</p>
-        <div id="dropStats" class="drop-stats"></div>
-        <p id="dropComparison" class="drop-comparison"></p>
-        <div class="drop-actions">
-          <button id="equipDropButton" class="primary-button" type="button">Vybavit</button>
-          <button id="keepDropButton" class="secondary-button" type="button">Ponechat v inventáři</button>
-        </div>
-      </section>
-    </div>
+    <!-- Neblokující oznámení o dropu (Oprava 1): nahrazuje bývalý modal, který
+         se otevíral po každém dropu a vyžadoval ruční potvrzení. Boj i tik
+         hry běží dál beze změny, toast sám zmizí a nic nezakrývá ovládání. -->
+    <div id="dropToastStack" class="drop-toast-stack" aria-live="polite" aria-atomic="false"></div>
 
     <div id="itemDetailModal" class="drop-reveal" aria-hidden="true">
       <div class="drop-backdrop"></div>
       <section class="drop-card item-detail-card" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
-        <p class="eyebrow">DETAIL PŘEDMĚTU</p>
-        <div id="detailRarity" class="drop-rarity">Běžný předmět</div>
-        <div id="detailIcon" class="drop-icon detail-icon" aria-hidden="true"></div>
-        <h2 id="detailTitle">Železný meč</h2>
-        <p id="detailType" class="drop-type">Zbraň</p>
-        <div id="detailStats" class="drop-stats"></div>
-        <div id="detailMeta" class="detail-meta"></div>
-        <p id="detailFlavor" class="detail-flavor hidden"></p>
-        <div class="drop-actions">
-          <button id="detailActionButton" class="primary-button hidden" type="button">Vybavit</button>
-          <button id="detailCloseButton" class="secondary-button" type="button">Zavřít</button>
+        <!-- Oprava 2: popup rozdělen na velkou vizuální část (asset jako
+             dominanta, object-fit:contain, průhledné pozadí) a kompaktní
+             datovou část se staty/akcemi. Karta samotná je výškově omezená
+             na výšku obrazovky (viz .item-detail-card v styles.css) a
+             datová část se v případě potřeby posouvá. -->
+        <div class="detail-visual">
+          <p class="eyebrow">DETAIL PŘEDMĚTU</p>
+          <div id="detailRarity" class="drop-rarity">Běžný předmět</div>
+          <div id="detailIcon" class="drop-icon detail-icon" aria-hidden="true"></div>
+        </div>
+        <div class="detail-data">
+          <h2 id="detailTitle">Železný meč</h2>
+          <p id="detailType" class="drop-type">Zbraň</p>
+          <div id="detailStats" class="drop-stats"></div>
+          <div id="detailMeta" class="detail-meta"></div>
+          <p id="detailFlavor" class="detail-flavor hidden"></p>
+          <div class="drop-actions">
+            <button id="detailActionButton" class="primary-button hidden" type="button">Vybavit</button>
+            <button id="detailCloseButton" class="secondary-button" type="button">Zavřít</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Mapa → lokace → výběr nepřítele. Jeden modal se dvěma pohledy
+         (seznam lokací / seznam nepřátel dané lokace), stylově navazuje na
+         zbytek rozhraní (viz .map-* v styles.css). -->
+    <div id="mapModal" class="drop-reveal map-reveal" aria-hidden="true">
+      <div class="drop-backdrop"></div>
+      <section class="map-card" role="dialog" aria-modal="true" aria-labelledby="mapTitle">
+        <div id="mapLocationsView" class="map-view">
+          <div class="panel-heading map-heading">
+            <div>
+              <p class="eyebrow">MAPA</p>
+              <h2 id="mapTitle">Dostupné lokace</h2>
+            </div>
+            <button id="mapCloseButton" class="icon-button" type="button" aria-label="Zavřít mapu">✕</button>
+          </div>
+          <p class="muted map-hint">Vyber lokaci a poté konkrétního nepřítele, kterého chceš farmit.</p>
+          <div id="mapLocationsGrid" class="map-locations-grid"></div>
+        </div>
+        <div id="mapEnemiesView" class="map-view hidden">
+          <div class="panel-heading map-heading">
+            <div>
+              <button id="mapBackButton" class="text-button" type="button">← Lokace</button>
+              <h2 id="mapLocationTitle">Pustina ticha</h2>
+            </div>
+            <button id="mapCloseButton2" class="icon-button" type="button" aria-label="Zavřít mapu">✕</button>
+          </div>
+          <p class="muted map-hint">Všichni nepřátelé této lokace jsou dostupní od začátku. Klikni na jednoho a nastav ho jako cíl farmení.</p>
+          <div id="mapEnemyGrid" class="map-enemy-grid"></div>
         </div>
       </section>
     </div>
 
     <script src="item-data.js"></script>
+    <script src="world-data.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

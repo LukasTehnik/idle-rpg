@@ -6,16 +6,22 @@ const CONFIG = Object.freeze({
   enemyRespawnMs: 3000,
   playerRespawnMs: 5000,
   betweenFightHealPercent: 0.1,
-  dropChance: 0.42,
+  dropChance: 0.42, // fallback only -- each enemy in ENEMIES sets its own dropChance
   inventoryCapacity: 18,
   maxLogEntries: 80,
   saveKey: "idle-rpg-prototype-v02",
-  enemy: { name: "Goblin", maxHp: 48, minDamage: 5, maxDamage: 8, xp: 18 },
 });
 
 // RARITIES, SLOT_META, ICONS, ITEM_TEMPLATES and renderItemIcon() now live in
-// item-data.js (loaded before this file in index.html) so the item catalog
-// (item-catalog.html) can share the exact same data instead of duplicating it.
+// item-data.js; LOCATIONS, ENEMIES and DEFAULT_ENEMY_ID live in world-data.js
+// (both loaded before this file in index.html).
+
+// Returns the data-config of whichever enemy is currently selected as the
+// farming target (see world-data.js). Falls back to the default enemy if
+// state.currentEnemyId is ever missing/invalid (e.g. a corrupted save).
+function getCurrentEnemy() {
+  return ENEMIES[state?.currentEnemyId] ?? ENEMIES[DEFAULT_ENEMY_ID];
+}
 
 const initialState = () => ({
   running: false,
@@ -24,12 +30,16 @@ const initialState = () => ({
   xp: 0,
   kills: 0,
   drops: 0,
+  gold: 0,
   elapsedSeconds: 0,
   inventory: [],
   equipment: { weapon: null, armor: null, charm: null, helmet: null, gloves: null, boots: null, pants: null },
-  activeDropId: null,
+  // Which location/enemy the player has selected on the map as their
+  // current farming target. Defaults to the original Goblin encounter so
+  // existing saves (and a fresh game) behave exactly as before.
+  currentEnemyId: DEFAULT_ENEMY_ID,
   player: { hp: 100, baseMaxHp: 100, baseMinDamage: 9, baseMaxDamage: 13, baseCritChance: 0.1 },
-  enemy: { hp: CONFIG.enemy.maxHp, maxHp: CONFIG.enemy.maxHp },
+  enemy: { hp: ENEMIES[DEFAULT_ENEMY_ID].maxHp, maxHp: ENEMIES[DEFAULT_ENEMY_ID].maxHp },
   lastPlayerAttackAt: 0,
   lastEnemyAttackAt: 0,
   phaseEndsAt: 0,
@@ -43,11 +53,15 @@ const elements = {
   level: document.querySelector("#levelValue"), xp: document.querySelector("#xpValue"),
   xpGoal: document.querySelector("#xpGoal"), xpBar: document.querySelector("#xpBar"),
   kills: document.querySelector("#killsValue"), drops: document.querySelector("#dropsValue"),
+  gold: document.querySelector("#goldValue"),
   runTime: document.querySelector("#runTimeValue"), playerHp: document.querySelector("#playerHpValue"),
   playerMaxHp: document.querySelector("#playerMaxHp"), playerHpBar: document.querySelector("#playerHpBar"),
   damage: document.querySelector("#damageValue"), crit: document.querySelector("#critValue"),
-  enemyHp: document.querySelector("#enemyHpValue"), enemyHpBar: document.querySelector("#enemyHpBar"),
+  enemyHp: document.querySelector("#enemyHpValue"), enemyMaxHp: document.querySelector("#enemyMaxHpValue"), enemyHpBar: document.querySelector("#enemyHpBar"),
   enemyPortrait: document.querySelector("#enemyPortrait"), encounterMessage: document.querySelector("#encounterMessage"),
+  enemyName: document.querySelector("#enemyName"), enemyLevel: document.querySelector("#enemyLevel"),
+  goblinFigure: document.querySelector("#goblinFigure"), enemyImage: document.querySelector("#enemyImage"),
+  currentLocationName: document.querySelector("#currentLocationName"), legendEnemyLabel: document.querySelector("#legendEnemyLabel"),
   fightButton: document.querySelector("#fightButton"), fightButtonText: document.querySelector("#fightButtonText"),
   fightButtonIcon: document.querySelector("#fightButtonIcon"), resetButton: document.querySelector("#resetButton"),
   clearLogButton: document.querySelector("#clearLogButton"), combatLog: document.querySelector("#combatLog"),
@@ -58,11 +72,7 @@ const elements = {
   armorSlot: document.querySelector("#armorSlot"), charmSlot: document.querySelector("#charmSlot"),
   helmetSlot: document.querySelector("#helmetSlot"), glovesSlot: document.querySelector("#glovesSlot"),
   bootsSlot: document.querySelector("#bootsSlot"), pantsSlot: document.querySelector("#pantsSlot"),
-  dropReveal: document.querySelector("#dropReveal"), dropCard: document.querySelector(".drop-card"),
-  dropRarity: document.querySelector("#dropRarity"), dropIcon: document.querySelector("#dropIcon"),
-  dropTitle: document.querySelector("#dropTitle"), dropType: document.querySelector("#dropType"),
-  dropStats: document.querySelector("#dropStats"), dropComparison: document.querySelector("#dropComparison"),
-  equipDropButton: document.querySelector("#equipDropButton"), keepDropButton: document.querySelector("#keepDropButton"),
+  dropToastStack: document.querySelector("#dropToastStack"),
   itemDetailModal: document.querySelector("#itemDetailModal"), detailCard: document.querySelector(".item-detail-card"),
   detailRarity: document.querySelector("#detailRarity"), detailIcon: document.querySelector("#detailIcon"),
   detailTitle: document.querySelector("#detailTitle"), detailType: document.querySelector("#detailType"),
@@ -72,6 +82,11 @@ const elements = {
   deleteModeButton: document.querySelector("#deleteModeButton"), bulkDeleteBar: document.querySelector("#bulkDeleteBar"),
   selectedCount: document.querySelector("#selectedCount"), confirmDeleteButton: document.querySelector("#confirmDeleteButton"),
   cancelDeleteButton: document.querySelector("#cancelDeleteButton"),
+  mapButton: document.querySelector("#mapButton"), mapModal: document.querySelector("#mapModal"),
+  mapLocationsView: document.querySelector("#mapLocationsView"), mapEnemiesView: document.querySelector("#mapEnemiesView"),
+  mapLocationsGrid: document.querySelector("#mapLocationsGrid"), mapEnemyGrid: document.querySelector("#mapEnemyGrid"),
+  mapLocationTitle: document.querySelector("#mapLocationTitle"), mapBackButton: document.querySelector("#mapBackButton"),
+  mapCloseButton: document.querySelector("#mapCloseButton"), mapCloseButton2: document.querySelector("#mapCloseButton2"),
 };
 
 // Bulk-delete UI state. Transient/UI-only -- deliberately NOT part of
@@ -122,14 +137,22 @@ function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(CONFIG.saveKey));
     if (!saved || saved.version !== 2) return fresh;
+    // currentEnemyId is new -- only trust it if it names a real, still-valid
+    // enemy (protects against a corrupted save or a future removed enemy id
+    // crashing the app on load).
+    const currentEnemyId = typeof saved.currentEnemyId === "string" && ENEMIES[saved.currentEnemyId]
+      ? saved.currentEnemyId : fresh.currentEnemyId;
     return {
       ...fresh,
       level: saved.level ?? fresh.level, xp: saved.xp ?? fresh.xp,
       kills: saved.kills ?? fresh.kills, drops: saved.drops ?? fresh.drops,
+      gold: saved.gold ?? fresh.gold,
       elapsedSeconds: saved.elapsedSeconds ?? fresh.elapsedSeconds,
       inventory: Array.isArray(saved.inventory) ? saved.inventory : [],
       equipment: { ...fresh.equipment, ...(saved.equipment ?? {}) },
       player: { ...fresh.player, ...(saved.player ?? {}) },
+      currentEnemyId,
+      enemy: { hp: ENEMIES[currentEnemyId].maxHp, maxHp: ENEMIES[currentEnemyId].maxHp },
     };
   } catch { return fresh; }
 }
@@ -137,6 +160,7 @@ function loadState() {
 function saveState() {
   const payload = {
     version: 2, level: state.level, xp: state.xp, kills: state.kills, drops: state.drops,
+    gold: state.gold, currentEnemyId: state.currentEnemyId,
     elapsedSeconds: state.elapsedSeconds, inventory: state.inventory, equipment: state.equipment,
     player: {
       hp: state.player.hp, baseMaxHp: state.player.baseMaxHp,
@@ -180,6 +204,7 @@ function render() {
   elements.xpBar.style.width = `${clampPercent(state.xp, goal)}%`;
   elements.kills.textContent = state.kills;
   elements.drops.textContent = state.drops;
+  elements.gold.textContent = state.gold;
   elements.runTime.textContent = formatTime(state.elapsedSeconds);
   elements.playerHp.textContent = Math.ceil(state.player.hp);
   elements.playerMaxHp.textContent = stats.maxHp;
@@ -187,6 +212,7 @@ function render() {
   elements.damage.textContent = `${stats.minDamage}–${stats.maxDamage}`;
   elements.crit.textContent = `${Math.round(stats.critChance * 1000) / 10} %`;
   elements.enemyHp.textContent = Math.max(0, Math.ceil(state.enemy.hp));
+  elements.enemyMaxHp.textContent = state.enemy.maxHp;
   elements.enemyHpBar.style.width = `${clampPercent(state.enemy.hp, state.enemy.maxHp)}%`;
   elements.enemyPortrait.classList.toggle("defeated", state.phase === "searching");
   elements.fightButton.classList.toggle("running", state.running);
@@ -228,49 +254,81 @@ function animateHit(target) {
   window.setTimeout(() => elements.arena.classList.remove(className), 260);
 }
 
+// Refreshes every bit of UI that names/shows the currently selected enemy:
+// the arena heading, its portrait (raster image for the new location
+// enemies, or the original hand-drawn figure for Goblin), the location
+// eyebrow above the arena, and the combat-log legend. Called once at
+// startup and again whenever the target changes via the map.
+function updateArenaHeader() {
+  const enemyCfg = getCurrentEnemy();
+  const location = LOCATIONS[enemyCfg.locationId];
+  elements.enemyName.textContent = enemyCfg.name;
+  elements.enemyLevel.textContent = `Úroveň ${enemyCfg.level}`;
+  elements.currentLocationName.textContent = (location?.name ?? "").toUpperCase();
+  elements.legendEnemyLabel.textContent = enemyCfg.name;
+  elements.enemyPortrait.setAttribute("aria-label", enemyCfg.name);
+  if (enemyCfg.image) {
+    elements.enemyImage.src = enemyCfg.image;
+    elements.enemyImage.alt = enemyCfg.name;
+    elements.enemyImage.classList.remove("hidden");
+    elements.goblinFigure.classList.add("hidden");
+  } else {
+    elements.enemyImage.classList.add("hidden");
+    elements.enemyImage.removeAttribute("src");
+    elements.goblinFigure.classList.remove("hidden");
+  }
+}
+
 function beginFight(now = performance.now()) {
+  const enemyCfg = getCurrentEnemy();
   state.phase = "fighting";
-  state.enemy.hp = state.enemy.maxHp;
+  state.enemy.maxHp = enemyCfg.maxHp;
+  state.enemy.hp = enemyCfg.maxHp;
   state.lastPlayerAttackAt = now;
   state.lastEnemyAttackAt = now;
   elements.encounterMessage.textContent = "Souboj začal";
-  addLog("Objevil se Goblin. Souboj začíná.", "system");
+  addLog(`Objevil se nepřítel: ${enemyCfg.name}. Souboj začíná.`, "system");
   render();
 }
 
 function playerAttack() {
+  const enemyCfg = getCurrentEnemy();
   const stats = getPlayerStats();
   const critical = Math.random() < stats.critChance;
   let damage = randomInt(stats.minDamage, stats.maxDamage);
   if (critical) damage *= 2;
+  damage = Math.max(1, damage - (enemyCfg.defense ?? 0));
   state.enemy.hp = Math.max(0, state.enemy.hp - damage);
-  addLog(critical ? `Kritický zásah! Poutník zasáhl Goblina za ${damage}.` : `Poutník zasáhl Goblina za ${damage}.`, critical ? "critical" : "player");
+  addLog(critical ? `Kritický zásah! Poutník zasáhl nepřítele (${enemyCfg.name}) za ${damage}.` : `Poutník zasáhl nepřítele (${enemyCfg.name}) za ${damage}.`, critical ? "critical" : "player");
   animateHit("enemy");
   if (state.enemy.hp <= 0) defeatEnemy();
 }
 
 function enemyAttack() {
-  const damage = randomInt(CONFIG.enemy.minDamage, CONFIG.enemy.maxDamage);
+  const enemyCfg = getCurrentEnemy();
+  const damage = randomInt(enemyCfg.minDamage, enemyCfg.maxDamage);
   state.player.hp = Math.max(0, state.player.hp - damage);
-  addLog(`Goblin zasáhl Poutníka za ${damage}.`, "enemy");
+  addLog(`${enemyCfg.name} zasáhl Poutníka za ${damage}.`, "enemy");
   animateHit("player");
   if (state.player.hp <= 0) defeatPlayer();
 }
 
 function defeatEnemy() {
+  const enemyCfg = getCurrentEnemy();
   state.kills += 1;
-  state.xp += CONFIG.enemy.xp;
+  state.xp += enemyCfg.xp;
+  state.gold += enemyCfg.gold ?? 0;
   state.phase = "searching";
   state.phaseEndsAt = performance.now() + CONFIG.enemyRespawnMs;
-  elements.encounterMessage.textContent = "Hledám dalšího Goblina… 3 s";
-  addLog(`Goblin padl. Získáváš ${CONFIG.enemy.xp} XP.`, "victory");
+  elements.encounterMessage.textContent = `Hledám dalšího nepřítele (${enemyCfg.name})… 3 s`;
+  addLog(`${enemyCfg.name} padl. Získáváš ${enemyCfg.xp} XP a ${enemyCfg.gold ?? 0} gold.`, "victory");
   applyLevelUps();
   const stats = getPlayerStats();
   const healing = Math.max(1, Math.round(stats.maxHp * CONFIG.betweenFightHealPercent));
   const before = state.player.hp;
   state.player.hp = Math.min(stats.maxHp, state.player.hp + healing);
   if (state.player.hp > before) addLog(`Krátký oddech obnovil ${state.player.hp - before} životů.`, "system");
-  if (Math.random() < CONFIG.dropChance) generateDrop();
+  if (Math.random() < (enemyCfg.dropChance ?? CONFIG.dropChance)) generateDrop(enemyCfg);
   saveState();
 }
 
@@ -304,18 +362,29 @@ function chooseRarity() {
   return "common";
 }
 
-function createItem() {
-  const template = ITEM_TEMPLATES[randomInt(0, ITEM_TEMPLATES.length - 1)];
+// Resolves an enemy's dropPool (icon keys, see world-data.js) into actual
+// ITEM_TEMPLATES entries. Falls back to the full template list if a pool is
+// missing/empty so a misconfigured enemy still can't hard-crash a drop.
+function resolveDropPool(enemyCfg) {
+  const pool = (enemyCfg?.dropPool ?? [])
+    .map((icon) => ITEM_TEMPLATES.find((template) => template.icon === icon))
+    .filter(Boolean);
+  return pool.length ? pool : ITEM_TEMPLATES;
+}
+
+function createItem(enemyCfg) {
+  const pool = resolveDropPool(enemyCfg);
+  const template = pool[randomInt(0, pool.length - 1)];
   const rarityKey = chooseRarity();
   const rarity = RARITIES[rarityKey];
   const stats = {};
-  for (const [stat, range] of Object.entries(template.rolls)) {
+  for (const [stat, range] of Object.entries(template.rolls ?? {})) {
     const raw = stat === "critChance" ? randomDecimal(range[0], range[1]) : randomInt(range[0], range[1]);
     stats[stat] = stat === "critChance" ? Math.round(raw * rarity.multiplier * 10) / 10 : Math.max(stat === "damageMin" ? 0 : 1, Math.round(raw * rarity.multiplier));
   }
   return {
     id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
-    name: template.name, slot: template.slot, icon: template.icon, rarity: rarityKey, stats,
+    name: template.name, slot: template.slot ?? null, icon: template.icon, rarity: rarityKey, stats,
     // Carry over the template's own artwork/glow (if any) — without this,
     // signature items with unique art (item.image/item.glowColor) render as
     // a blank icon once dropped, even though they look correct wherever the
@@ -325,79 +394,88 @@ function createItem() {
     // whether it could ever be traded (signature "andělská" gear is unique
     // and marked untradeable via the template; everything else defaults to
     // tradeable since there's no market yet to actually restrict).
-    source: CONFIG.enemy.name,
+    source: enemyCfg?.name ?? "Neznámo",
     acquiredAt: Date.now(),
     tradeable: template.tradeable ?? true,
     flavorText: template.flavorText ?? null,
   };
 }
 
-function generateDrop() {
+// Oprava 1: drops no longer open a blocking confirmation modal. The item (or
+// stacked material) is saved into the existing inventory immediately, combat
+// keeps running uninterrupted, and the only feedback is the combat log plus
+// a small non-blocking toast (see showDropToast) -- nothing here requires a
+// click and nothing covers the fight controls.
+//
+// Materials: a template marked `stackable: true` merges into an existing
+// inventory entry with the same icon (incrementing `quantity`) instead of
+// creating a new slot -- this is the generic mechanism the brief asks for.
+// No delivered asset this round is actually a material (only six equip-slot
+// items came with the location), so no template currently sets `stackable`;
+// the moment one does, it stacks correctly with zero further changes here.
+function generateDrop(enemyCfg = getCurrentEnemy()) {
+  const item = createItem(enemyCfg);
+  const template = findItemTemplate(item);
+  if (template?.stackable) {
+    const existing = state.inventory.find((invItem) => invItem.icon === item.icon);
+    if (existing) {
+      existing.quantity = (existing.quantity ?? 1) + 1;
+      state.drops += 1;
+      addLog(`Materiál: ${item.name} (celkem ${existing.quantity}×).`, "system");
+      renderLoot();
+      showDropToast(existing);
+      return;
+    }
+    item.quantity = 1;
+  }
   if (state.inventory.length >= CONFIG.inventoryCapacity) {
-    addLog("Goblin zanechal předmět, ale inventář je plný.", "system");
+    addLog(`${enemyCfg.name} zanechal předmět, ale inventář je plný.`, "system");
     return;
   }
-  const item = createItem();
   state.inventory.unshift(item);
   state.drops += 1;
-  state.activeDropId = item.id;
   const rarity = RARITIES[item.rarity];
   addLog(`${rarity.label} předmět: ${item.name}.`, item.rarity === "common" ? "system" : "level-up");
   renderLoot();
-  showDrop(item);
+  showDropToast(item);
 }
 
 function statRows(item) {
   const rows = [];
-  if (item.stats.damageMin) rows.push(["Minimální poškození", `+${item.stats.damageMin}`]);
-  if (item.stats.damageMax) rows.push(["Maximální poškození", `+${item.stats.damageMax}`]);
-  if (item.stats.maxHp) rows.push(["Maximální životy", `+${item.stats.maxHp}`]);
-  if (item.stats.critChance) rows.push(["Kritický zásah", `+${item.stats.critChance} %`]);
+  if (item.stats?.damageMin) rows.push(["Minimální poškození", `+${item.stats.damageMin}`]);
+  if (item.stats?.damageMax) rows.push(["Maximální poškození", `+${item.stats.damageMax}`]);
+  if (item.stats?.maxHp) rows.push(["Maximální životy", `+${item.stats.maxHp}`]);
+  if (item.stats?.critChance) rows.push(["Kritický zásah", `+${item.stats.critChance} %`]);
   return rows;
 }
 
 function statSummary(item) { return statRows(item).map(([label, value]) => `${label}: ${value}`).join(" · "); }
-function itemPower(item) {
-  return getItemBonus(item, "damageMin") * 1.3 + getItemBonus(item, "damageMax") + getItemBonus(item, "maxHp") * 0.18 + getItemBonus(item, "critChance") * 1.8;
-}
 
-function comparisonText(item) {
-  const equipped = state.equipment[item.slot];
-  if (!equipped) return { text: `Volný slot: ${SLOT_META[item.slot].label}`, worse: false };
-  const difference = Math.round((itemPower(item) - itemPower(equipped)) * 10) / 10;
-  if (difference > 0) return { text: `Přibližně +${difference} síly proti vybavenému předmětu`, worse: false };
-  if (difference < 0) return { text: `Přibližně ${difference} síly proti vybavenému předmětu`, worse: true };
-  return { text: "Přibližně stejná síla jako vybavený předmět", worse: false };
-}
-
-function showDrop(item) {
+// Non-blocking drop notification (Oprava 1). Stacks visually in the corner,
+// requires no click, auto-dismisses, and never overlaps the fight controls
+// or log panel (see .drop-toast-stack / .drop-toast in styles.css).
+function showDropToast(item) {
   const rarity = RARITIES[item.rarity];
-  const comparison = comparisonText(item);
-  elements.dropCard.classList.remove("rarity-common", "rarity-rare", "rarity-epic");
-  elements.dropCard.classList.add(`rarity-${item.rarity}`);
-  elements.dropCard.style.setProperty("--drop-color", rarity.color);
-  elements.dropRarity.textContent = `${rarity.label} předmět`;
-  renderItemIcon(elements.dropIcon, item);
-  elements.dropTitle.textContent = item.name;
-  elements.dropType.textContent = SLOT_META[item.slot].label;
-  elements.dropStats.innerHTML = "";
-  statRows(item).forEach(([label, value]) => {
-    const row = document.createElement("div"); row.className = "drop-stat";
-    const name = document.createElement("span"); name.textContent = label;
-    const amount = document.createElement("strong"); amount.textContent = value;
-    row.append(name, amount); elements.dropStats.append(row);
-  });
-  elements.dropComparison.textContent = comparison.text;
-  elements.dropComparison.classList.toggle("worse", comparison.worse);
-  elements.dropReveal.classList.add("visible");
-  elements.dropReveal.setAttribute("aria-hidden", "false");
-}
-
-function closeDrop() {
-  state.activeDropId = null;
-  elements.dropReveal.classList.remove("visible");
-  elements.dropReveal.setAttribute("aria-hidden", "true");
-  saveState();
+  const isMaterial = !SLOT_META[item.slot];
+  const toast = document.createElement("div");
+  toast.className = `drop-toast rarity-${item.rarity}`;
+  toast.style.setProperty("--drop-color", rarity.color);
+  toast.innerHTML = `<span class="drop-toast-icon" aria-hidden="true"></span><div class="drop-toast-copy"><strong></strong><span></span></div>`;
+  renderItemIcon(toast.querySelector(".drop-toast-icon"), item);
+  const nameEl = toast.querySelector("strong");
+  nameEl.textContent = item.name;
+  nameEl.className = `rarity-text rarity-${item.rarity}`;
+  toast.querySelector(".drop-toast-copy span").textContent = isMaterial
+    ? `Materiál${item.quantity ? ` · celkem ${item.quantity}×` : ""}`
+    : `${rarity.label} · ${SLOT_META[item.slot]?.label ?? ""}`;
+  elements.dropToastStack.append(toast);
+  requestAnimationFrame(() => toast.classList.add("visible"));
+  window.setTimeout(() => {
+    toast.classList.remove("visible");
+    window.setTimeout(() => toast.remove(), 220);
+  }, 2600);
+  // Keep at most a handful of toasts on screen during a fast farming streak.
+  while (elements.dropToastStack.children.length > 4) elements.dropToastStack.firstElementChild.remove();
 }
 
 function equipItem(itemId) {
@@ -412,7 +490,7 @@ function equipItem(itemId) {
   const newMaxHp = getPlayerStats().maxHp;
   state.player.hp = Math.min(newMaxHp, state.player.hp + Math.max(0, newMaxHp - previousMaxHp));
   addLog(`${item.name} byl vybaven.`, item.rarity === "common" ? "system" : "level-up");
-  closeDrop(); render(); renderLoot(); saveState();
+  render(); renderLoot(); saveState();
 }
 
 function unequipItem(slot) {
@@ -434,17 +512,18 @@ function renderInventory() {
   state.inventory.forEach((item) => {
     const rarity = RARITIES[item.rarity];
     const selected = selectedForDeletion.has(item.id);
+    const isEquippable = Boolean(SLOT_META[item.slot]);
     const card = document.createElement("article");
     card.className = `inventory-item rarity-${item.rarity}`;
     card.classList.toggle("selected-for-deletion", selected);
     card.style.setProperty("--item-color", rarity.color);
-    card.innerHTML = `<div class="inventory-item-top"><input type="checkbox" class="inventory-item-checkbox" tabindex="-1" aria-hidden="true" /><span class="item-icon-small" aria-hidden="true"></span><span class="inventory-item-type"></span></div><strong class="inventory-item-name"></strong><p class="inventory-item-stats"></p><button type="button">Vybavit</button>`;
+    card.innerHTML = `<div class="inventory-item-top"><input type="checkbox" class="inventory-item-checkbox" tabindex="-1" aria-hidden="true" /><span class="item-icon-small" aria-hidden="true"></span><span class="inventory-item-type"></span>${item.quantity > 1 ? `<span class="inventory-item-quantity">×${item.quantity}</span>` : ""}</div><strong class="inventory-item-name"></strong><p class="inventory-item-stats"></p>${isEquippable ? `<button type="button">Vybavit</button>` : ""}`;
     renderItemIcon(card.querySelector(".item-icon-small"), item);
     card.querySelector(".inventory-item-checkbox").checked = selected;
-    card.querySelector(".inventory-item-type").textContent = `${rarity.label} · ${SLOT_META[item.slot].label}`;
+    card.querySelector(".inventory-item-type").textContent = isEquippable ? `${rarity.label} · ${SLOT_META[item.slot].label}` : `${rarity.label} · Materiál`;
     card.querySelector(".inventory-item-name").textContent = item.name;
     card.querySelector(".inventory-item-stats").textContent = statSummary(item);
-    card.querySelector("button").addEventListener("click", (event) => {
+    card.querySelector("button")?.addEventListener("click", (event) => {
       event.stopPropagation();
       equipItem(item.id);
     });
@@ -532,9 +611,10 @@ function openItemDetail(item, context) {
   elements.detailCard.style.setProperty("--drop-color", rarity.color);
   elements.detailRarity.textContent = `${rarity.label} předmět`;
   renderItemIcon(elements.detailIcon, item);
+  const isEquippable = Boolean(SLOT_META[item.slot]);
   elements.detailTitle.textContent = item.name;
   elements.detailTitle.className = `rarity-text rarity-${item.rarity}`;
-  elements.detailType.textContent = `${SLOT_META[item.slot].label}${context === "equipped" ? " · právě vybaveno" : ""}`;
+  elements.detailType.textContent = `${isEquippable ? SLOT_META[item.slot].label : "Materiál"}${context === "equipped" ? " · právě vybaveno" : ""}`;
   renderStatRows(elements.detailStats, item);
 
   const flavorText = item.flavorText ?? template?.flavorText ?? null;
@@ -546,6 +626,7 @@ function openItemDetail(item, context) {
   const acquiredAt = formatAcquiredAt(item.acquiredAt);
   elements.detailMeta.innerHTML = "";
   const metaRows = [["Zdroj", source], ["Obchodovatelné", tradeable ? "Ano" : "Ne · jedinečný nález"]];
+  if (item.quantity > 1) metaRows.push(["Počet kusů", `${item.quantity}×`]);
   if (acquiredAt) metaRows.push(["Získáno", acquiredAt]);
   metaRows.forEach(([label, value]) => {
     const row = document.createElement("div"); row.className = "detail-meta-row";
@@ -554,7 +635,7 @@ function openItemDetail(item, context) {
     row.append(name, amount); elements.detailMeta.append(row);
   });
 
-  if (context === "inventory") { elements.detailActionButton.textContent = "Vybavit"; elements.detailActionButton.classList.remove("hidden"); }
+  if (context === "inventory" && isEquippable) { elements.detailActionButton.textContent = "Vybavit"; elements.detailActionButton.classList.remove("hidden"); }
   else if (context === "equipped") { elements.detailActionButton.textContent = "Sundat"; elements.detailActionButton.classList.remove("hidden"); }
   else elements.detailActionButton.classList.add("hidden");
 
@@ -586,7 +667,7 @@ function renderLoot() {
 function updateCountdown(now) {
   const secondsLeft = Math.max(0, Math.ceil((state.phaseEndsAt - now) / 1000));
   if (state.phase === "searching") {
-    elements.encounterMessage.textContent = `Hledám dalšího Goblina… ${secondsLeft} s`;
+    elements.encounterMessage.textContent = `Hledám dalšího nepřítele (${getCurrentEnemy().name})… ${secondsLeft} s`;
     if (now >= state.phaseEndsAt) beginFight(now);
   } else if (state.phase === "dead") {
     elements.encounterMessage.textContent = `Návrat k výpravě za ${secondsLeft} s`;
@@ -638,25 +719,144 @@ function resetGame() {
   localStorage.removeItem(CONFIG.saveKey);
   state = initialState();
   elements.combatLog.innerHTML = "";
-  closeDrop();
   closeItemDetail();
+  closeMap();
   deleteMode = false;
   selectedForDeletion.clear();
   elements.bulkDeleteBar.classList.add("hidden");
   elements.deleteModeButton.classList.remove("active");
   addLog("Prototyp byl resetován včetně inventáře.", "system");
   elements.encounterMessage.textContent = "Připraven k boji";
+  updateArenaHeader();
   render();
   renderLoot();
+}
+
+// --- Mapa → lokace → výběr nepřítele -----------------------------------
+//
+// Jeden modal, dva pohledy: seznam lokací a seznam nepřátel dané lokace.
+// Všichni nepřátelé lokace jsou vidět a vybratelní hned od začátku -- žádné
+// postupné odemykání. Výběr nepřítele jen nastaví nová data cíle a bezpečně
+// (znovu)spustí boj -- existující smyčka (startLoops/tick) běží od startu
+// stránky pořád stejná, žádný další interval/timer se nikdy nezakládá, takže
+// tu není nic, co by šlo zdvojit.
+
+function renderMapLocations() {
+  elements.mapLocationsGrid.innerHTML = "";
+  Object.values(LOCATIONS).forEach((location) => {
+    const isCurrentLocation = ENEMIES[state.currentEnemyId]?.locationId === location.id;
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "map-location-card";
+    card.classList.toggle("active", isCurrentLocation);
+    card.innerHTML = `<span class="map-location-name"></span><span class="map-location-meta"></span>`;
+    card.querySelector(".map-location-name").textContent = location.name;
+    card.querySelector(".map-location-meta").textContent =
+      `${location.enemies.length} ${pluralizeNepritel(location.enemies.length)}${isCurrentLocation ? " · aktivní cíl zde" : ""}`;
+    card.addEventListener("click", () => openMapLocation(location.id));
+    elements.mapLocationsGrid.append(card);
+  });
+}
+
+function openMapLocation(locationId) {
+  const location = LOCATIONS[locationId];
+  if (!location) return;
+  elements.mapLocationTitle.textContent = location.name;
+  elements.mapEnemyGrid.innerHTML = "";
+  location.enemies.forEach((enemyId) => {
+    const enemyCfg = ENEMIES[enemyId];
+    const isActive = state.currentEnemyId === enemyId;
+    const card = document.createElement("article");
+    card.className = "map-enemy-card";
+    card.classList.toggle("active", isActive);
+    card.innerHTML = `
+      <div class="map-enemy-portrait" aria-hidden="true"></div>
+      <div class="map-enemy-info">
+        <strong class="map-enemy-name"></strong>
+        <span class="map-enemy-level"></span>
+        <dl class="map-enemy-stats">
+          <div><dt>Život</dt><dd class="map-stat-hp"></dd></div>
+          <div><dt>Útok</dt><dd class="map-stat-dmg"></dd></div>
+          <div><dt>Obrana</dt><dd class="map-stat-def"></dd></div>
+          <div><dt>XP</dt><dd class="map-stat-xp"></dd></div>
+          <div><dt>Gold</dt><dd class="map-stat-gold"></dd></div>
+        </dl>
+      </div>
+      <button type="button" class="map-select-button secondary-button"></button>`;
+    const portrait = card.querySelector(".map-enemy-portrait");
+    portrait.innerHTML = enemyCfg.image ? `<img src="${enemyCfg.image}" alt="" />` : `<div class="figure goblin-figure" aria-hidden="true"></div>`;
+    card.querySelector(".map-enemy-name").textContent = enemyCfg.name;
+    card.querySelector(".map-enemy-level").textContent = `Úroveň ${enemyCfg.level}`;
+    card.querySelector(".map-stat-hp").textContent = enemyCfg.maxHp;
+    card.querySelector(".map-stat-dmg").textContent = `${enemyCfg.minDamage}–${enemyCfg.maxDamage}`;
+    card.querySelector(".map-stat-def").textContent = enemyCfg.defense ?? 0;
+    card.querySelector(".map-stat-xp").textContent = enemyCfg.xp;
+    card.querySelector(".map-stat-gold").textContent = enemyCfg.gold ?? 0;
+    const button = card.querySelector(".map-select-button");
+    if (isActive) {
+      button.textContent = "Aktivní cíl";
+      button.disabled = true;
+      button.classList.add("active");
+    } else {
+      button.textContent = "Vybrat cíl";
+      button.addEventListener("click", () => selectEnemyTarget(enemyId));
+    }
+    elements.mapEnemyGrid.append(card);
+  });
+  elements.mapLocationsView.classList.add("hidden");
+  elements.mapEnemiesView.classList.remove("hidden");
+}
+
+function backToMapLocations() {
+  elements.mapEnemiesView.classList.add("hidden");
+  elements.mapLocationsView.classList.remove("hidden");
+  renderMapLocations();
+}
+
+function openMap() {
+  renderMapLocations();
+  elements.mapEnemiesView.classList.add("hidden");
+  elements.mapLocationsView.classList.remove("hidden");
+  elements.mapModal.classList.add("visible");
+  elements.mapModal.setAttribute("aria-hidden", "false");
+}
+
+function closeMap() {
+  elements.mapModal.classList.remove("visible");
+  elements.mapModal.setAttribute("aria-hidden", "true");
+}
+
+// Sets a new farming target. Safe against duplicate combat timers: there is
+// only ever one global tick loop (started once in startLoops()), so
+// switching targets never spawns a second one -- it only resets what that
+// one loop is currently fighting against.
+function switchEnemy(enemyId) {
+  const enemyCfg = ENEMIES[enemyId];
+  if (!enemyCfg) return;
+  state.currentEnemyId = enemyId;
+  state.enemy = { hp: enemyCfg.maxHp, maxHp: enemyCfg.maxHp };
+  updateArenaHeader();
+  if (state.running) {
+    // End the current cycle and start exactly one new fight against the
+    // freshly selected enemy right away ("pokračovat v automatickém boji").
+    beginFight(performance.now());
+  } else {
+    state.phase = "ready";
+    elements.encounterMessage.textContent = "Připraven k boji";
+  }
+  addLog(`Cíl farmení nastaven na: ${enemyCfg.name}.`, "system");
+  render();
+  saveState();
+}
+
+function selectEnemyTarget(enemyId) {
+  switchEnemy(enemyId);
+  closeMap();
 }
 
 elements.fightButton.addEventListener("click", toggleFight);
 elements.resetButton.addEventListener("click", resetGame);
 elements.clearLogButton.addEventListener("click", () => { elements.combatLog.innerHTML = ""; addLog("Záznam byl vyčištěn.", "system"); });
-elements.keepDropButton.addEventListener("click", closeDrop);
-elements.equipDropButton.addEventListener("click", () => { if (state.activeDropId) equipItem(state.activeDropId); });
-elements.dropReveal.querySelector(".drop-backdrop").addEventListener("click", closeDrop);
-document.addEventListener("keydown", (event) => { if (event.key === "Escape" && state.activeDropId) closeDrop(); });
 elements.detailCloseButton.addEventListener("click", closeItemDetail);
 elements.detailActionButton.addEventListener("click", runDetailAction);
 elements.itemDetailModal.querySelector(".drop-backdrop").addEventListener("click", closeItemDetail);
@@ -665,8 +865,15 @@ elements.deleteModeButton.addEventListener("click", () => setDeleteMode(!deleteM
 elements.cancelDeleteButton.addEventListener("click", () => setDeleteMode(false));
 elements.confirmDeleteButton.addEventListener("click", deleteSelectedItems);
 document.addEventListener("keydown", (event) => { if (event.key === "Escape" && deleteMode) setDeleteMode(false); });
+elements.mapButton.addEventListener("click", openMap);
+elements.mapCloseButton.addEventListener("click", closeMap);
+elements.mapCloseButton2.addEventListener("click", closeMap);
+elements.mapBackButton.addEventListener("click", backToMapLocations);
+elements.mapModal.querySelector(".drop-backdrop").addEventListener("click", closeMap);
+document.addEventListener("keydown", (event) => { if (event.key === "Escape" && elements.mapModal.classList.contains("visible")) closeMap(); });
 window.addEventListener("beforeunload", saveState);
 
 startLoops();
+updateArenaHeader();
 render();
 renderLoot();

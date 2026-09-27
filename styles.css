@@ -251,6 +251,12 @@ h2 { font-size: 14px; letter-spacing: -.02em; text-transform: uppercase; }
   background-size: contain;
   background-image: url("assets/icons/goblin.svg");
 }
+.enemy-image {
+  width: 122px;
+  height: 122px;
+  object-fit: contain;
+  image-rendering: auto;
+}
 .enemy-health-block { z-index: 1; width: min(76%, 300px); }
 .encounter-message { z-index: 1; min-height: 15px; margin-top: 10px; color: var(--muted); font-size: 9px; }
 .slash-effect { position: absolute; z-index: 3; top: 43%; left: 50%; width: 110px; height: 1px; opacity: 0; background: #fff; transform: translate(-50%,-50%) rotate(-35deg); pointer-events: none; }
@@ -310,6 +316,7 @@ h2 { font-size: 14px; letter-spacing: -.02em; text-transform: uppercase; }
 .slot-symbol svg, .item-icon-small svg { width: 18px; height: 18px; }
 .slot-symbol img, .item-icon-small img { width: 26px; height: 26px; object-fit: contain; }
 .slot-empty span, .equipped-copy span, .inventory-item-type { color:var(--muted); font-size:8px; letter-spacing:.06em; text-transform:uppercase; }
+.inventory-item-quantity { margin-left:auto; padding:1px 5px; border:1px solid var(--line-strong); color:var(--text-soft); font-size:8px; font-weight:600; font-variant-numeric:tabular-nums; }
 .slot-empty strong, .equipped-copy strong { display:block; margin-top:2px; font-size:9px; font-weight:500; }
 .equipped-stats { max-width:190px; color:var(--muted); font-size:8px; line-height:1.45; text-align:right; }
 .panel-footnote { margin:9px 0 0; color:var(--muted); font-size:8px; }
@@ -383,35 +390,42 @@ h2 { font-size: 14px; letter-spacing: -.02em; text-transform: uppercase; }
    property. Apply the "item-glow" class to an icon container
    (.item-icon-small, .slot-symbol or .drop-icon) and set
    style="--glow-color:#hex" in JS; both are toggled together and removed
-   when the item has no glow color of its own. */
-.item-glow { position: relative; isolation: isolate; }
+   when the item has no glow color of its own.
+   Oprava 3: reworked to be static (no pulse/animation), weaker, and clipped
+   to the icon's own box instead of a big soft neon cloud bleeding past the
+   frame -- a few small hard-edged layers instead of one large blurred one,
+   so the asset underneath stays readable. */
+.item-glow { position: relative; overflow: hidden; isolation: isolate; }
 .item-glow::before {
   content: "";
   position: absolute;
-  inset: -40%;
+  inset: 0;
   z-index: -1;
   background:
-    radial-gradient(closest-side,
-      color-mix(in srgb, var(--glow-color, #6fa8dc) 65%, white 20%),
-      color-mix(in srgb, var(--glow-color, #6fa8dc) 35%, transparent) 55%,
-      transparent 75%);
-  filter: blur(5px);
-  opacity: .8;
-  animation: item-glow-pulse 2.6s ease-in-out infinite;
+    linear-gradient(135deg, color-mix(in srgb, var(--glow-color, #6fa8dc) 55%, transparent) 0%, transparent 45%),
+    linear-gradient(-45deg, color-mix(in srgb, var(--glow-color, #6fa8dc) 40%, transparent) 0%, transparent 40%);
+  opacity: .55;
+  pointer-events: none;
+}
+.item-glow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--glow-color, #6fa8dc) 70%, transparent);
   pointer-events: none;
 }
 .item-glow img, .item-glow svg {
   position: relative;
+  filter: drop-shadow(0 0 2px color-mix(in srgb, var(--glow-color, #6fa8dc) 80%, transparent));
+}
+/* Slightly more present inside the (already larger) detail popup, but still
+   static and still not spilling over the icon box or hiding the asset. */
+.detail-icon.item-glow::before { opacity: .7; }
+.detail-icon.item-glow img, .detail-icon.item-glow svg {
   filter:
-    drop-shadow(0 0 3px var(--glow-color, #6fa8dc))
-    drop-shadow(0 0 9px var(--glow-color, #6fa8dc));
-}
-@keyframes item-glow-pulse {
-  0%, 100% { opacity: .55; transform: scale(.92); }
-  50% { opacity: 1; transform: scale(1.06); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .item-glow::before { animation: none; opacity: .75; }
+    drop-shadow(0 0 3px color-mix(in srgb, var(--glow-color, #6fa8dc) 85%, transparent))
+    drop-shadow(0 0 7px color-mix(in srgb, var(--glow-color, #6fa8dc) 45%, transparent));
 }
 
 .prototype-note { margin-top:-1px; padding:7px 12px; color:var(--muted); font-size:8px; text-align:center; }
@@ -489,13 +503,62 @@ h2 { font-size: 14px; letter-spacing: -.02em; text-transform: uppercase; }
 .secondary-button { border:1px solid var(--line-strong); color:var(--text-soft); background:#0d0f0f; }
 
 /* Item detail modal — reuses .drop-reveal/.drop-card for the overlay and
-   frame, with a larger "zoomed" icon and an extra metadata block (source,
-   tradeable, acquired-at) plus optional flavor text. */
-.detail-icon { width:96px; height:96px; margin:14px 0 12px; }
-.detail-icon svg { width:52px; height:52px; }
-.detail-icon img { width:82px; height:82px; }
-.item-detail-card .drop-actions { grid-template-columns:1fr 1fr; }
-.item-detail-card .drop-actions:has(#detailActionButton.hidden) { grid-template-columns:1fr; }
+   frame. Oprava 2: split into a large visual zone (asset as the dominant
+   element, full aspect ratio preserved, object-fit:contain, transparent
+   background kept transparent) and a compact scrollable data zone with the
+   stats/meta/actions, so the card itself never exceeds the viewport height
+   and stays closable/usable on small screens. */
+.item-detail-card {
+  display: flex;
+  flex-direction: column;
+  width: min(460px, 100%);
+  max-height: 90vh;
+  padding: 0;
+  overflow: hidden;
+}
+.detail-visual {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px 20px 16px;
+  border-bottom: 1px solid var(--line);
+  background: #070808;
+  text-align: center;
+}
+.detail-data {
+  padding: 16px 20px 20px;
+  overflow-y: auto;
+  scrollbar-color: var(--line-strong) transparent;
+  scrollbar-width: thin;
+}
+.detail-icon {
+  display: grid;
+  width: min(58vw, 100%, 240px);
+  height: min(58vw, 100%, 240px);
+  max-width: 240px;
+  max-height: 240px;
+  margin: 10px 0 2px;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  background: #0d0f0f;
+}
+.detail-icon svg { width: 44%; height: 44%; }
+.detail-icon img { width: 94%; height: 94%; object-fit: contain; }
+.item-detail-card .drop-actions {
+  position: sticky;
+  bottom: -20px;
+  grid-template-columns: 1fr 1fr;
+  margin: 14px -20px -20px;
+  padding: 12px 20px 20px;
+  background: #090b0b;
+  border-top: 1px solid var(--line);
+}
+.item-detail-card .drop-actions:has(#detailActionButton.hidden) { grid-template-columns: 1fr; }
+
+@media (max-width: 480px) {
+  .detail-icon { width: min(52vw, 100%, 180px); height: min(52vw, 100%, 180px); }
+}
 .detail-meta { display:grid; margin-top:2px; border-top:1px solid var(--line); }
 .detail-meta-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line); color:var(--muted); font-size:9px; }
 .detail-meta-row strong { color:var(--text-soft); font-weight:500; text-align:right; }
@@ -535,6 +598,119 @@ h2 { font-size: 14px; letter-spacing: -.02em; text-transform: uppercase; }
   .session-status { font-size:0; }
   .inventory-grid { grid-template-columns:1fr; }
   .inventory-item { min-height:112px; }
+}
+
+/* Oprava 1: non-blocking drop notification. Fixed corner stack, no click
+   required, auto-dismisses, never overlaps the fight controls or log. */
+.drop-toast-stack {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 15;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 6px;
+  width: min(280px, calc(100vw - 28px));
+  pointer-events: none;
+}
+.drop-toast {
+  --drop-color: #d5d9d8;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-left: 2px solid var(--drop-color);
+  background: rgba(9, 11, 11, .97);
+  opacity: 0;
+  transform: translateX(8px);
+  transition: 160ms ease;
+}
+.drop-toast.visible { opacity: 1; transform: translateX(0); }
+.drop-toast-icon { display: grid; width: 26px; height: 26px; flex-shrink: 0; place-items: center; border: 1px solid var(--line); color: var(--muted); background: #0b0d0d; }
+.drop-toast-icon svg { width: 15px; height: 15px; }
+.drop-toast-icon img { width: 22px; height: 22px; object-fit: contain; }
+.drop-toast-copy { display: grid; gap: 1px; min-width: 0; }
+.drop-toast-copy strong { font-size: 9px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.drop-toast-copy span { color: var(--muted); font-size: 8px; text-transform: uppercase; letter-spacing: .04em; }
+
+@media (max-width: 760px) {
+  .drop-toast-stack { right: 8px; bottom: 8px; left: 8px; width: auto; }
+}
+
+/* Mapa → lokace → výběr nepřítele. Reuses the .drop-reveal/.drop-backdrop
+   overlay mechanics but with its own wider, taller card since it holds a
+   scrollable list rather than a single item. Same monochrome/dense system
+   look as the rest of the game -- thin lines, no round cards, no soft
+   shadows, sparing color only for the active-target indicator. */
+.map-card {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: min(720px, 100%);
+  max-height: 86vh;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  background: #090b0b;
+  text-align: left;
+}
+.map-view { display: flex; flex-direction: column; min-height: 0; }
+.map-view.hidden { display: none; }
+.map-heading { flex-shrink: 0; align-items: center; padding: 16px 18px 12px; border-bottom: 1px solid var(--line); }
+.map-heading h2 { margin-top: 3px; }
+.map-heading .text-button { padding: 4px 0; border: 0; color: var(--muted); }
+.map-heading .text-button:hover { color: var(--text); background: transparent; }
+.map-hint { padding: 10px 18px 0; }
+.map-locations-grid, .map-enemy-grid { padding: 12px 18px 18px; overflow-y: auto; scrollbar-color: var(--line-strong) transparent; scrollbar-width: thin; }
+.map-locations-grid { display: grid; gap: 0; }
+.map-location-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: -1px;
+  padding: 12px 13px;
+  border: 1px solid var(--line);
+  background: #0b0d0d;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+.map-location-card:hover { border-color: var(--line-strong); background: #111414; }
+.map-location-card.active { border-color: #7d8583; }
+.map-location-name { font-size: 11px; font-weight: 600; }
+.map-location-meta { color: var(--muted); font-size: 8px; letter-spacing: .05em; text-transform: uppercase; }
+.map-enemy-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 0; }
+.map-enemy-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-right: -1px;
+  margin-bottom: -1px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  background: #0b0d0d;
+}
+.map-enemy-card.active { border-color: #7d8583; background: #0e1111; }
+.map-enemy-portrait { display: grid; height: 96px; place-items: center; border: 1px solid var(--line); background: #0a0c0c; }
+.map-enemy-portrait img { width: 84px; height: 84px; object-fit: contain; }
+.map-enemy-portrait .goblin-figure { width: 70px; height: 70px; }
+.map-enemy-info { display: grid; gap: 2px; }
+.map-enemy-name { font-size: 11px; font-weight: 600; }
+.map-enemy-level { color: var(--muted); font-size: 8px; letter-spacing: .06em; text-transform: uppercase; }
+.map-enemy-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--line); }
+.map-enemy-stats div { display: grid; gap: 1px; }
+.map-enemy-stats dt { color: var(--muted); font-size: 7px; letter-spacing: .05em; text-transform: uppercase; }
+.map-enemy-stats dd { margin: 0; font-size: 9px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.map-select-button { width: 100%; min-height: 28px; font-size: 8px; }
+.map-select-button.active { border-color: #7d8583; color: var(--text); }
+.map-select-button:disabled { cursor: default; }
+
+@media (max-width: 760px) {
+  .map-card { max-height: 92vh; }
+  .map-enemy-grid { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion:reduce) {
