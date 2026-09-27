@@ -69,7 +69,53 @@ const elements = {
   detailStats: document.querySelector("#detailStats"), detailMeta: document.querySelector("#detailMeta"),
   detailFlavor: document.querySelector("#detailFlavor"), detailActionButton: document.querySelector("#detailActionButton"),
   detailCloseButton: document.querySelector("#detailCloseButton"),
+  deleteModeButton: document.querySelector("#deleteModeButton"), bulkDeleteBar: document.querySelector("#bulkDeleteBar"),
+  selectedCount: document.querySelector("#selectedCount"), confirmDeleteButton: document.querySelector("#confirmDeleteButton"),
+  cancelDeleteButton: document.querySelector("#cancelDeleteButton"),
 };
+
+// Bulk-delete UI state. Transient/UI-only -- deliberately NOT part of
+// `state` (so it never gets persisted or saved), reset whenever delete mode
+// is turned off.
+let deleteMode = false;
+let selectedForDeletion = new Set();
+
+function pluralizePredmet(count) {
+  if (count === 1) return "předmět";
+  if (count >= 2 && count <= 4) return "předměty";
+  return "předmětů";
+}
+
+function updateSelectedCount() {
+  elements.selectedCount.textContent = selectedForDeletion.size;
+  elements.confirmDeleteButton.disabled = selectedForDeletion.size === 0;
+}
+
+function setDeleteMode(nextValue) {
+  deleteMode = nextValue;
+  selectedForDeletion.clear();
+  elements.bulkDeleteBar.classList.toggle("hidden", !deleteMode);
+  elements.deleteModeButton.classList.toggle("active", deleteMode);
+  elements.deleteModeButton.setAttribute("aria-pressed", String(deleteMode));
+  updateSelectedCount();
+  renderInventory();
+}
+
+function toggleSelection(itemId) {
+  if (selectedForDeletion.has(itemId)) selectedForDeletion.delete(itemId);
+  else selectedForDeletion.add(itemId);
+  updateSelectedCount();
+  renderInventory();
+}
+
+function deleteSelectedItems() {
+  if (selectedForDeletion.size === 0) return;
+  const removedCount = selectedForDeletion.size;
+  state.inventory = state.inventory.filter((item) => !selectedForDeletion.has(item.id));
+  addLog(`Smazáno ${removedCount} ${pluralizePredmet(removedCount)} z inventáře.`, "system");
+  setDeleteMode(false);
+  render(); renderLoot(); saveState();
+}
 
 function loadState() {
   const fresh = initialState();
@@ -383,14 +429,18 @@ function renderInventory() {
   elements.inventoryCapacity.textContent = CONFIG.inventoryCapacity;
   elements.inventoryCount.textContent = state.inventory.length;
   elements.inventoryEmpty.classList.toggle("hidden", state.inventory.length > 0);
+  elements.inventoryGrid.classList.toggle("delete-mode", deleteMode);
   elements.inventoryGrid.innerHTML = "";
   state.inventory.forEach((item) => {
     const rarity = RARITIES[item.rarity];
+    const selected = selectedForDeletion.has(item.id);
     const card = document.createElement("article");
     card.className = `inventory-item rarity-${item.rarity}`;
+    card.classList.toggle("selected-for-deletion", selected);
     card.style.setProperty("--item-color", rarity.color);
-    card.innerHTML = `<div class="inventory-item-top"><span class="item-icon-small" aria-hidden="true"></span><span class="inventory-item-type"></span></div><strong class="inventory-item-name"></strong><p class="inventory-item-stats"></p><button type="button">Vybavit</button>`;
+    card.innerHTML = `<div class="inventory-item-top"><input type="checkbox" class="inventory-item-checkbox" tabindex="-1" aria-hidden="true" /><span class="item-icon-small" aria-hidden="true"></span><span class="inventory-item-type"></span></div><strong class="inventory-item-name"></strong><p class="inventory-item-stats"></p><button type="button">Vybavit</button>`;
     renderItemIcon(card.querySelector(".item-icon-small"), item);
+    card.querySelector(".inventory-item-checkbox").checked = selected;
     card.querySelector(".inventory-item-type").textContent = `${rarity.label} · ${SLOT_META[item.slot].label}`;
     card.querySelector(".inventory-item-name").textContent = item.name;
     card.querySelector(".inventory-item-stats").textContent = statSummary(item);
@@ -399,12 +449,21 @@ function renderInventory() {
       equipItem(item.id);
     });
     // Clicking the card itself (but not the Vybavit button) opens the full
-    // item detail view; the button keeps its own direct equip shortcut.
+    // item detail view; the button keeps its own direct equip shortcut. In
+    // delete mode the same click instead toggles this item's checkbox --
+    // preventDefault stops the checkbox's own native toggle so the visible
+    // "selectedForDeletion" Set stays the single source of truth.
     card.tabIndex = 0;
-    card.setAttribute("aria-label", `Zobrazit detail předmětu: ${item.name}`);
-    card.addEventListener("click", () => openItemDetail(item, "inventory"));
+    card.setAttribute("aria-label", deleteMode ? `Vybrat ke smazání: ${item.name}` : `Zobrazit detail předmětu: ${item.name}`);
+    card.addEventListener("click", (event) => {
+      if (deleteMode) { event.preventDefault(); toggleSelection(item.id); return; }
+      openItemDetail(item, "inventory");
+    });
     card.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openItemDetail(item, "inventory"); }
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      if (deleteMode) toggleSelection(item.id);
+      else openItemDetail(item, "inventory");
     });
     elements.inventoryGrid.append(card);
   });
@@ -580,6 +639,11 @@ function resetGame() {
   state = initialState();
   elements.combatLog.innerHTML = "";
   closeDrop();
+  closeItemDetail();
+  deleteMode = false;
+  selectedForDeletion.clear();
+  elements.bulkDeleteBar.classList.add("hidden");
+  elements.deleteModeButton.classList.remove("active");
   addLog("Prototyp byl resetován včetně inventáře.", "system");
   elements.encounterMessage.textContent = "Připraven k boji";
   render();
@@ -597,6 +661,10 @@ elements.detailCloseButton.addEventListener("click", closeItemDetail);
 elements.detailActionButton.addEventListener("click", runDetailAction);
 elements.itemDetailModal.querySelector(".drop-backdrop").addEventListener("click", closeItemDetail);
 document.addEventListener("keydown", (event) => { if (event.key === "Escape" && detailView) closeItemDetail(); });
+elements.deleteModeButton.addEventListener("click", () => setDeleteMode(!deleteMode));
+elements.cancelDeleteButton.addEventListener("click", () => setDeleteMode(false));
+elements.confirmDeleteButton.addEventListener("click", deleteSelectedItems);
+document.addEventListener("keydown", (event) => { if (event.key === "Escape" && deleteMode) setDeleteMode(false); });
 window.addEventListener("beforeunload", saveState);
 
 startLoops();

@@ -175,10 +175,20 @@
               <p class="eyebrow">KOŘIST</p>
               <h2>Inventář</h2>
             </div>
-            <div class="inventory-capacity"><strong id="inventoryCount">0</strong> / <span id="inventoryCapacity">18</span></div>
+            <div class="inventory-heading-actions">
+              <div class="inventory-capacity"><strong id="inventoryCount">0</strong> / <span id="inventoryCapacity">18</span></div>
+              <button id="deleteModeButton" class="icon-button" type="button" aria-label="Vybrat předměty ke smazání" title="Smazat předměty">🗑</button>
+            </div>
+          </div>
+          <div id="bulkDeleteBar" class="bulk-delete-bar hidden">
+            <span><strong id="selectedCount">0</strong> vybráno ke smazání</span>
+            <div class="bulk-delete-actions">
+              <button id="confirmDeleteButton" class="secondary-button danger-button" type="button" disabled>Smazat vybrané</button>
+              <button id="cancelDeleteButton" class="text-button" type="button">Zrušit</button>
+            </div>
           </div>
           <div id="inventoryGrid" class="inventory-grid"></div>
-          <p class="panel-footnote">Klikni na předmět pro detail a staty, tlačítkem ho rovnou vybavíš.</p>
+          <p class="panel-footnote">Klikni na předmět pro detail a staty, tlačítkem ho rovnou vybavíš. Košem vybereš předměty ke smazání.</p>
           <div id="inventoryEmpty" class="inventory-empty">
             <span class="empty-rune">◇</span>
             <strong>Zatím žádná kořist</strong>

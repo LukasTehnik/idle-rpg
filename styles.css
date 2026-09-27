@@ -315,6 +315,23 @@ h2 { font-size: 14px; letter-spacing: -.02em; text-transform: uppercase; }
 .panel-footnote { margin:9px 0 0; color:var(--muted); font-size:8px; }
 .inventory-capacity { color:var(--muted); font-size:9px; font-variant-numeric:tabular-nums; }
 .inventory-capacity strong { color:var(--text); font-weight:500; }
+
+/* Bulk-delete controls: a trash toggle in the inventory heading reveals a
+   checkbox on every card plus this action bar; selection state itself
+   lives in JS (deleteMode/selectedForDeletion), not in saved game state. */
+.inventory-heading-actions { display:flex; align-items:center; gap:8px; }
+#deleteModeButton.active { border-color:var(--danger); color:var(--danger); background:#1a0f0e; }
+.bulk-delete-bar { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:9px 0 0; padding:8px 9px; border:1px solid var(--danger); background:#150d0c; color:var(--text-soft); font-size:9px; }
+.bulk-delete-bar.hidden { display:none; }
+.bulk-delete-actions { display:flex; gap:6px; }
+.danger-button { border-color:var(--danger); color:var(--danger); }
+.danger-button:hover { color:var(--text); background:#2a1512; }
+.danger-button:disabled { color:var(--muted); border-color:var(--line-strong); background:#0d0f0f; cursor:not-allowed; }
+.inventory-item-checkbox { display:none; width:12px; height:12px; margin:0; accent-color:var(--danger); }
+.inventory-grid.delete-mode .inventory-item-checkbox { display:inline-block; }
+.inventory-grid.delete-mode .inventory-item > button { display:none; }
+.inventory-item.selected-for-deletion { border-color:var(--danger); background:#150d0c; }
+.inventory-item.selected-for-deletion::before { background:var(--danger); }
 .inventory-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); margin-top:9px; }
 
 .inventory-item {
