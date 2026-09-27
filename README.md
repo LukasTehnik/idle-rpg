@@ -23,11 +23,12 @@ Potom otevři `http://localhost:8080`.
 - třísekundové hledání dalšího Goblina,
 - živý combat log, počet vítězství a čas výpravy,
 - responzivní zobrazení pro desktop, tablet a telefon.
-- náhodné dropy ze šesti základních typů předmětů,
+- náhodné dropy z dvanácti typů předmětů (včetně tematické „andělské" sady se září),
 - běžnou, vzácnou a epickou raritu,
 - náhodné hodnoty poškození, HP a kritického zásahu,
 - inventář pro 18 předmětů,
-- sloty pro zbraň, zbroj a talisman,
+- 7 slotů vybavení (zbraň, zbroj, helma, rukavice, boty, kalhoty, talisman),
+- katalog předmětů (`item-catalog.html`) pro statický přehled všech ikon a efektů,
 - výměnu vybavení a okamžitý přepočet statů,
 - lokální uložení postupu v prohlížeči.
 - kompaktní černobílé systémové UI s barevným zvýrazněním vzácné kořisti.

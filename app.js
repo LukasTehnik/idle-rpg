@@ -26,7 +26,7 @@ const initialState = () => ({
   drops: 0,
   elapsedSeconds: 0,
   inventory: [],
-  equipment: { weapon: null, armor: null, charm: null },
+  equipment: { weapon: null, armor: null, charm: null, helmet: null, gloves: null, boots: null, pants: null },
   activeDropId: null,
   player: { hp: 100, baseMaxHp: 100, baseMinDamage: 9, baseMaxDamage: 13, baseCritChance: 0.1 },
   enemy: { hp: CONFIG.enemy.maxHp, maxHp: CONFIG.enemy.maxHp },
@@ -56,6 +56,8 @@ const elements = {
   inventoryEmpty: document.querySelector("#inventoryEmpty"), inventoryCount: document.querySelector("#inventoryCount"),
   inventoryCapacity: document.querySelector("#inventoryCapacity"), weaponSlot: document.querySelector("#weaponSlot"),
   armorSlot: document.querySelector("#armorSlot"), charmSlot: document.querySelector("#charmSlot"),
+  helmetSlot: document.querySelector("#helmetSlot"), glovesSlot: document.querySelector("#glovesSlot"),
+  bootsSlot: document.querySelector("#bootsSlot"), pantsSlot: document.querySelector("#pantsSlot"),
   dropReveal: document.querySelector("#dropReveal"), dropCard: document.querySelector(".drop-card"),
   dropRarity: document.querySelector("#dropRarity"), dropIcon: document.querySelector("#dropIcon"),
   dropTitle: document.querySelector("#dropTitle"), dropType: document.querySelector("#dropType"),
@@ -262,6 +264,11 @@ function createItem() {
   return {
     id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
     name: template.name, slot: template.slot, icon: template.icon, rarity: rarityKey, stats,
+    // Carry over the template's own artwork/glow (if any) — without this,
+    // signature items with unique art (item.image/item.glowColor) render as
+    // a blank icon once dropped, even though they look correct wherever the
+    // template itself is read directly (e.g. the item catalog page).
+    image: template.image, glowColor: template.glowColor,
   };
 }
 

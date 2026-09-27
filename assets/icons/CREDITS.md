@@ -29,3 +29,21 @@ rarity předmětu.
 | `items/slot-weapon.svg` | prázdný slot zbraně | Crossed Swords | [Lorc](https://game-icons.net/1x1/lorc/crossed-swords.html) | CC BY 3.0 |
 | `items/slot-armor.svg` | prázdný slot zbroje | Breastplate | [Lorc](https://game-icons.net/1x1/lorc/breastplate.html) | CC BY 3.0 |
 | `items/slot-charm.svg` | prázdný slot talismanu | Gem Pendant | [Lorc](https://game-icons.net/1x1/lorc/gem-pendant.html) | CC BY 3.0 |
+| `items/slot-helmet.svg` | prázdný slot helmy | Closed Barbute | [Delapouite](https://game-icons.net/1x1/delapouite/closed-barbute.html) | CC BY 3.0 |
+| `items/slot-gloves.svg` | prázdný slot rukavic | Gloves | [Delapouite](https://game-icons.net/1x1/delapouite/gloves.html) | CC BY 3.0 |
+| `items/slot-boots.svg` | prázdný slot bot | Boots | [Lorc](https://game-icons.net/1x1/lorc/boots.html) | CC BY 3.0 |
+| `items/slot-pants.svg` | prázdný slot kalhot | Trousers | [Lorc](https://game-icons.net/1x1/lorc/trousers.html) | CC BY 3.0 |
+
+## Vlastní ilustrace — sada „andělské vybavení" (uživatelem dodané)
+
+Tyto soubory jsou vlastní/generovaná grafika dodaná uživatelem přímo do chatu, ne z game-icons.net.
+Zdroj a licence zatím nejsou známé — doplnit, jakmile je uživatel upřesní.
+
+| Soubor | Použití | Zdroj | Licence |
+|---|---|---|---|
+| `items/greatsword-angels.png` | Meč andělských čepelí (zbraň) | uživatel (neznámý) | TBD |
+| `items/angel-armor.png` | Krunýř andělských perutí (zbroj) | uživatel (neznámý) | TBD |
+| `items/angel-helmet.png` | Přilba andělského zjevení (helma) | uživatel (neznámý) | TBD |
+| `items/angel-gloves.png` | Rukavice andělských spárů (rukavice) | uživatel (neznámý) | TBD |
+| `items/angel-boots.png` | Boty andělského vzletu (boty) | uživatel (neznámý) | TBD |
+| `items/angel-charm.png` | Přívěsek andělské záře (talisman) | uživatel (neznámý) | TBD |
