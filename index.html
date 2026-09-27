@@ -8,7 +8,7 @@
       name="description"
       content="První hratelný prototyp prohlížečového idle RPG."
     />
-    <title>Idle RPG — Prototype 0.1</title>
+    <title>Idle RPG — Prototype 0.2</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -18,7 +18,7 @@
     <main class="app-shell">
       <header class="topbar">
         <div>
-          <p class="eyebrow">IDLE RPG / PROTOTYPE 0.1</p>
+          <p class="eyebrow">IDLE RPG / PROTOTYPE 0.2</p>
           <h1>První výprava</h1>
         </div>
         <div class="session-status" aria-live="polite">
@@ -43,6 +43,7 @@
         </div>
         <div class="run-stats">
           <div><span>Vítězství</span><strong id="killsValue">0</strong></div>
+          <div><span>Nalezené předměty</span><strong id="dropsValue">0</strong></div>
           <div><span>Čas výpravy</span><strong id="runTimeValue">00:00</strong></div>
         </div>
       </section>
@@ -79,7 +80,7 @@
           <dl class="stats-list">
             <div><dt>Poškození</dt><dd id="damageValue">9–13</dd></div>
             <div><dt>Rychlost útoku</dt><dd>1,6 s</dd></div>
-            <div><dt>Kritický zásah</dt><dd>10 %</dd></div>
+            <div><dt>Kritický zásah</dt><dd id="critValue">10 %</dd></div>
           </dl>
         </article>
 
@@ -160,11 +161,67 @@
         </aside>
       </section>
 
+      <section class="loot-section" aria-labelledby="lootSectionTitle">
+        <article class="panel equipment-panel">
+          <div class="panel-heading loot-heading">
+            <div>
+              <p class="eyebrow">VYBAVENÍ</p>
+              <h2 id="lootSectionTitle">Síla postavy</h2>
+            </div>
+            <span class="tag">3 sloty</span>
+          </div>
+          <div class="equipment-slots">
+            <div id="weaponSlot" class="equipment-slot" data-slot="weapon"></div>
+            <div id="armorSlot" class="equipment-slot" data-slot="armor"></div>
+            <div id="charmSlot" class="equipment-slot" data-slot="charm"></div>
+          </div>
+          <p class="panel-footnote">Kliknutím na vybavený předmět ho vrátíš do inventáře.</p>
+        </article>
+
+        <article class="panel inventory-panel">
+          <div class="panel-heading loot-heading">
+            <div>
+              <p class="eyebrow">KOŘIST</p>
+              <h2>Inventář</h2>
+            </div>
+            <div class="inventory-capacity"><strong id="inventoryCount">0</strong> / <span id="inventoryCapacity">18</span></div>
+          </div>
+          <div id="inventoryGrid" class="inventory-grid"></div>
+          <div id="inventoryEmpty" class="inventory-empty">
+            <span class="empty-rune">◇</span>
+            <strong>Zatím žádná kořist</strong>
+            <p>Porážej Gobliny. Každý může zanechat vybavení s náhodnými vlastnostmi.</p>
+          </div>
+          <div class="rarity-legend" aria-label="Vzácnosti předmětů">
+            <span><i class="rarity-dot common"></i>Běžný</span>
+            <span><i class="rarity-dot rare"></i>Vzácný</span>
+            <span><i class="rarity-dot epic"></i>Epický</span>
+          </div>
+        </article>
+      </section>
+
       <footer class="prototype-note">
         <span>TESTOVACÍ SMYČKA</span>
-        Goblin → automatický souboj → 3 s hledání → další Goblin
+        Goblin → šance na kořist → porovnání → vybavení → silnější postava
       </footer>
     </main>
+
+    <div id="dropReveal" class="drop-reveal" aria-hidden="true">
+      <div class="drop-backdrop"></div>
+      <section class="drop-card" role="dialog" aria-modal="true" aria-labelledby="dropTitle">
+        <p class="eyebrow">NALEZENA KOŘIST</p>
+        <div id="dropRarity" class="drop-rarity">Běžný předmět</div>
+        <div id="dropIcon" class="drop-icon" aria-hidden="true">⚔</div>
+        <h2 id="dropTitle">Železný meč</h2>
+        <p id="dropType" class="drop-type">Zbraň</p>
+        <div id="dropStats" class="drop-stats"></div>
+        <p id="dropComparison" class="drop-comparison"></p>
+        <div class="drop-actions">
+          <button id="equipDropButton" class="primary-button" type="button">Vybavit</button>
+          <button id="keepDropButton" class="secondary-button" type="button">Ponechat v inventáři</button>
+        </div>
+      </section>
+    </div>
 
     <script src="app.js"></script>
   </body>

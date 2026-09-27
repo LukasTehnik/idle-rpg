@@ -108,6 +108,8 @@ U permanentních receptů sledujeme **rozšiřování znalosti na serveru**; u n
 
 Čísla obsahu v Alpha 0.4 jsou původní orientační příklad, nikoli produkční závazek. **Crafting je hlavní pilíř vize**: jeho datový model patří do raného návrhu a hratelný prototyp má přijít dříve, než bude obsah ve velkém rozšířen. Plná hráčská ekonomika a kontrakty vyžadují serverové účty a transakční ukládání.
 
+**Stav k 27. 9. 2026:** Prototype 0.2 je implementovaný jako lokální testovací verze. Obsahuje tři sloty vybavení, šest základních itemů, náhodné staty, tři rarity, inventář a lokální uložení. Drop rate a rozdělení rarit jsou záměrně zrychlené pro krátký test a nepředstavují finální balance.
+
 ## 8. Otevřená rozhodnutí v pořadí dopadu
 
 1. Přesná pravidla výběru nepřítele, respawnu a automatického pokračování po smrti.

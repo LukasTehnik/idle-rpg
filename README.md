@@ -1,6 +1,6 @@
-# Idle RPG — Prototype 0.1
+# Idle RPG — Prototype 0.2
 
-První hratelný prototyp prohlížečového idle RPG. Ověřuje základní otázku: **je příjemné sledovat automatický boj, vítězství a postup postavy?**
+Druhý hratelný prototyp prohlížečového idle RPG. Ověřuje otázku: **je získávání a porovnávání náhodné kořisti dostatečně zajímavé, aby podporovalo další farmení?**
 
 ## Spuštění
 
@@ -23,6 +23,13 @@ Potom otevři `http://localhost:8080`.
 - třísekundové hledání dalšího Goblina,
 - živý combat log, počet vítězství a čas výpravy,
 - responzivní zobrazení pro desktop, tablet a telefon.
+- náhodné dropy ze šesti základních typů předmětů,
+- běžnou, vzácnou a epickou raritu,
+- náhodné hodnoty poškození, HP a kritického zásahu,
+- inventář pro 18 předmětů,
+- sloty pro zbraň, zbroj a talisman,
+- výměnu vybavení a okamžitý přepočet statů,
+- lokální uložení postupu v prohlížeči.
 
 ## Pracovní balance
 
@@ -42,14 +49,18 @@ Hodnoty jsou nastavení pro první pocitový test. Nejsou schválenými pravidly
 | Návrat po smrti | 5 s |
 | Léčení po vítězství | 10 % maximálních HP |
 | Růst při levelu | +15 HP, +2 min/max damage |
+| Šance na předmět | 42 % za vítězství |
+| Rarity | 74 % běžná, 22 % vzácná, 4 % epická |
+| Kapacita inventáře | 18 předmětů |
 
 ## Hranice této verze
 
-Prototype 0.1 zatím neobsahuje inventář, loot, gold, banku, crafting, offline postup, účty ani market. Tyto systémy patří do dalších testovacích verzí. Kompletní dosavadní návrh je v souboru [`docs/navrh-hry.md`](docs/navrh-hry.md).
+Prototype 0.2 zatím neobsahuje gold, banku, crafting, offline postup, účty ani market. Tyto systémy patří do dalších testovacích verzí. Drop rate je záměrně vysoký, aby šel loot během krátkého testu vyhodnotit. Kompletní dosavadní návrh je v souboru [`docs/navrh-hry.md`](docs/navrh-hry.md).
 
 ## Struktura
 
 - `index.html` — struktura rozhraní,
 - `styles.css` — responzivní vizuální vrstva,
 - `app.js` — stav hry, souboj a postup,
-- `docs/navrh-hry.md` — dosavadní návrhový dokument.
+- `docs/navrh-hry.md` — dosavadní návrhový dokument,
+- `docs/prototype-0.2.md` — cíle, pracovní balance a scénář testování této verze.
