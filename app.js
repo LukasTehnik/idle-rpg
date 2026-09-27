@@ -63,6 +63,12 @@ const elements = {
   dropTitle: document.querySelector("#dropTitle"), dropType: document.querySelector("#dropType"),
   dropStats: document.querySelector("#dropStats"), dropComparison: document.querySelector("#dropComparison"),
   equipDropButton: document.querySelector("#equipDropButton"), keepDropButton: document.querySelector("#keepDropButton"),
+  itemDetailModal: document.querySelector("#itemDetailModal"), detailCard: document.querySelector(".item-detail-card"),
+  detailRarity: document.querySelector("#detailRarity"), detailIcon: document.querySelector("#detailIcon"),
+  detailTitle: document.querySelector("#detailTitle"), detailType: document.querySelector("#detailType"),
+  detailStats: document.querySelector("#detailStats"), detailMeta: document.querySelector("#detailMeta"),
+  detailFlavor: document.querySelector("#detailFlavor"), detailActionButton: document.querySelector("#detailActionButton"),
+  detailCloseButton: document.querySelector("#detailCloseButton"),
 };
 
 function loadState() {
@@ -269,6 +275,14 @@ function createItem() {
     // a blank icon once dropped, even though they look correct wherever the
     // template itself is read directly (e.g. the item catalog page).
     image: template.image, glowColor: template.glowColor,
+    // Metadata for the item detail view: where it came from and when, and
+    // whether it could ever be traded (signature "andělská" gear is unique
+    // and marked untradeable via the template; everything else defaults to
+    // tradeable since there's no market yet to actually restrict).
+    source: CONFIG.enemy.name,
+    acquiredAt: Date.now(),
+    tradeable: template.tradeable ?? true,
+    flavorText: template.flavorText ?? null,
   };
 }
 
@@ -380,7 +394,18 @@ function renderInventory() {
     card.querySelector(".inventory-item-type").textContent = `${rarity.label} · ${SLOT_META[item.slot].label}`;
     card.querySelector(".inventory-item-name").textContent = item.name;
     card.querySelector(".inventory-item-stats").textContent = statSummary(item);
-    card.querySelector("button").addEventListener("click", () => equipItem(item.id));
+    card.querySelector("button").addEventListener("click", (event) => {
+      event.stopPropagation();
+      equipItem(item.id);
+    });
+    // Clicking the card itself (but not the Vybavit button) opens the full
+    // item detail view; the button keeps its own direct equip shortcut.
+    card.tabIndex = 0;
+    card.setAttribute("aria-label", `Zobrazit detail předmětu: ${item.name}`);
+    card.addEventListener("click", () => openItemDetail(item, "inventory"));
+    card.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openItemDetail(item, "inventory"); }
+    });
     elements.inventoryGrid.append(card);
   });
 }
@@ -409,8 +434,89 @@ function renderEquipment() {
     wrapper.querySelector("strong").classList.add("rarity-text", `rarity-${item.rarity}`);
     wrapper.querySelector(".equipped-stats").textContent = statSummary(item);
     container.append(wrapper);
-    container.onclick = () => unequipItem(slot);
+    // Clicking an equipped item now opens its detail view (with an "Sundat"
+    // button inside) rather than unequipping immediately on click.
+    container.tabIndex = 0;
+    container.setAttribute("aria-label", `Zobrazit detail vybaveného předmětu: ${item.name}`);
+    container.onclick = () => openItemDetail(item, "equipped");
+    container.onkeydown = (event) => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openItemDetail(item, "equipped"); }
+    };
   }
+}
+
+// Renders the shared stat-row list into a target container (used by both
+// the drop-reveal card and the item detail view).
+function renderStatRows(container, item) {
+  container.innerHTML = "";
+  statRows(item).forEach(([label, value]) => {
+    const row = document.createElement("div"); row.className = "drop-stat";
+    const name = document.createElement("span"); name.textContent = label;
+    const amount = document.createElement("strong"); amount.textContent = value;
+    row.append(name, amount); container.append(row);
+  });
+}
+
+function formatAcquiredAt(ms) {
+  if (!ms) return null;
+  return new Date(ms).toLocaleString("cs-CZ", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+let detailView = null; // { itemId, context: "inventory" | "equipped" }
+
+function openItemDetail(item, context) {
+  detailView = { itemId: item.id, context };
+  const rarity = RARITIES[item.rarity];
+  const template = findItemTemplate(item);
+  elements.detailCard.classList.remove("rarity-common", "rarity-rare", "rarity-epic");
+  elements.detailCard.classList.add(`rarity-${item.rarity}`);
+  elements.detailCard.style.setProperty("--drop-color", rarity.color);
+  elements.detailRarity.textContent = `${rarity.label} předmět`;
+  renderItemIcon(elements.detailIcon, item);
+  elements.detailTitle.textContent = item.name;
+  elements.detailTitle.className = `rarity-text rarity-${item.rarity}`;
+  elements.detailType.textContent = `${SLOT_META[item.slot].label}${context === "equipped" ? " · právě vybaveno" : ""}`;
+  renderStatRows(elements.detailStats, item);
+
+  const flavorText = item.flavorText ?? template?.flavorText ?? null;
+  elements.detailFlavor.textContent = flavorText ?? "";
+  elements.detailFlavor.classList.toggle("hidden", !flavorText);
+
+  const tradeable = item.tradeable ?? template?.tradeable ?? true;
+  const source = item.source ?? "Neznámo (starší nález)";
+  const acquiredAt = formatAcquiredAt(item.acquiredAt);
+  elements.detailMeta.innerHTML = "";
+  const metaRows = [["Zdroj", source], ["Obchodovatelné", tradeable ? "Ano" : "Ne · jedinečný nález"]];
+  if (acquiredAt) metaRows.push(["Získáno", acquiredAt]);
+  metaRows.forEach(([label, value]) => {
+    const row = document.createElement("div"); row.className = "detail-meta-row";
+    const name = document.createElement("span"); name.textContent = label;
+    const amount = document.createElement("strong"); amount.textContent = value;
+    row.append(name, amount); elements.detailMeta.append(row);
+  });
+
+  if (context === "inventory") { elements.detailActionButton.textContent = "Vybavit"; elements.detailActionButton.classList.remove("hidden"); }
+  else if (context === "equipped") { elements.detailActionButton.textContent = "Sundat"; elements.detailActionButton.classList.remove("hidden"); }
+  else elements.detailActionButton.classList.add("hidden");
+
+  elements.itemDetailModal.classList.add("visible");
+  elements.itemDetailModal.setAttribute("aria-hidden", "false");
+}
+
+function closeItemDetail() {
+  detailView = null;
+  elements.itemDetailModal.classList.remove("visible");
+  elements.itemDetailModal.setAttribute("aria-hidden", "true");
+}
+
+function runDetailAction() {
+  if (!detailView) return;
+  if (detailView.context === "inventory") equipItem(detailView.itemId);
+  else if (detailView.context === "equipped") {
+    const slot = Object.entries(state.equipment).find(([, equipped]) => equipped?.id === detailView.itemId)?.[0];
+    if (slot) unequipItem(slot);
+  }
+  closeItemDetail();
 }
 
 function renderLoot() {
@@ -487,6 +593,10 @@ elements.keepDropButton.addEventListener("click", closeDrop);
 elements.equipDropButton.addEventListener("click", () => { if (state.activeDropId) equipItem(state.activeDropId); });
 elements.dropReveal.querySelector(".drop-backdrop").addEventListener("click", closeDrop);
 document.addEventListener("keydown", (event) => { if (event.key === "Escape" && state.activeDropId) closeDrop(); });
+elements.detailCloseButton.addEventListener("click", closeItemDetail);
+elements.detailActionButton.addEventListener("click", runDetailAction);
+elements.itemDetailModal.querySelector(".drop-backdrop").addEventListener("click", closeItemDetail);
+document.addEventListener("keydown", (event) => { if (event.key === "Escape" && detailView) closeItemDetail(); });
 window.addEventListener("beforeunload", saveState);
 
 startLoops();

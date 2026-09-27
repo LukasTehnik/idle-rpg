@@ -166,7 +166,7 @@
             <div id="pantsSlot" class="equipment-slot" data-slot="pants"></div>
             <div id="charmSlot" class="equipment-slot" data-slot="charm"></div>
           </div>
-          <p class="panel-footnote">Kliknutím na vybavený předmět ho vrátíš do inventáře.</p>
+          <p class="panel-footnote">Kliknutím na vybavený předmět zobrazíš jeho detail — sundat ho jde přímo odtud.</p>
         </article>
 
         <article class="panel inventory-panel">
@@ -178,6 +178,7 @@
             <div class="inventory-capacity"><strong id="inventoryCount">0</strong> / <span id="inventoryCapacity">18</span></div>
           </div>
           <div id="inventoryGrid" class="inventory-grid"></div>
+          <p class="panel-footnote">Klikni na předmět pro detail a staty, tlačítkem ho rovnou vybavíš.</p>
           <div id="inventoryEmpty" class="inventory-empty">
             <span class="empty-rune">◇</span>
             <strong>Zatím žádná kořist</strong>
@@ -211,6 +212,24 @@
         <div class="drop-actions">
           <button id="equipDropButton" class="primary-button" type="button">Vybavit</button>
           <button id="keepDropButton" class="secondary-button" type="button">Ponechat v inventáři</button>
+        </div>
+      </section>
+    </div>
+
+    <div id="itemDetailModal" class="drop-reveal" aria-hidden="true">
+      <div class="drop-backdrop"></div>
+      <section class="drop-card item-detail-card" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+        <p class="eyebrow">DETAIL PŘEDMĚTU</p>
+        <div id="detailRarity" class="drop-rarity">Běžný předmět</div>
+        <div id="detailIcon" class="drop-icon detail-icon" aria-hidden="true"></div>
+        <h2 id="detailTitle">Železný meč</h2>
+        <p id="detailType" class="drop-type">Zbraň</p>
+        <div id="detailStats" class="drop-stats"></div>
+        <div id="detailMeta" class="detail-meta"></div>
+        <p id="detailFlavor" class="detail-flavor hidden"></p>
+        <div class="drop-actions">
+          <button id="detailActionButton" class="primary-button hidden" type="button">Vybavit</button>
+          <button id="detailCloseButton" class="secondary-button" type="button">Zavřít</button>
         </div>
       </section>
     </div>

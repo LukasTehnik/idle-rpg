@@ -49,33 +49,53 @@ const ITEM_TEMPLATES = Object.freeze([
     name: "Meč andělských čepelí", slot: "weapon", icon: "greatsword-angels",
     image: "assets/icons/items/greatsword-angels.png", glowColor: "#3ad6ff",
     rolls: { damageMin: [2, 4], damageMax: [4, 7], critChance: [0.4, 1.2] },
+    tradeable: false,
+    flavorText: "Čepel prý ukovali z pera padlého serafa. Vzduch kolem ní tiše praská modrým výbojem.",
   },
   {
     name: "Krunýř andělských perutí", slot: "armor", icon: "angel-armor",
     image: "assets/icons/items/angel-armor.png", glowColor: "#3ad6ff",
     rolls: { maxHp: [14, 22], damageMin: [0, 2] },
+    tradeable: false,
+    flavorText: "Kovové pláty připomínající složená křídla. Kdo je nosí, cítí slabé chvění, jako by po zádech přeběhl blesk.",
   },
   {
     name: "Přilba andělského zjevení", slot: "helmet", icon: "angel-helmet",
     image: "assets/icons/items/angel-helmet.png", glowColor: "#3ad6ff",
     rolls: { maxHp: [8, 14], critChance: [0.3, 1] },
+    tradeable: false,
+    flavorText: "Hledí odráží světlo, které v místnosti vůbec není.",
   },
   {
     name: "Rukavice andělských spárů", slot: "gloves", icon: "angel-gloves",
     image: "assets/icons/items/angel-gloves.png", glowColor: "#3ad6ff",
     rolls: { damageMin: [1, 2], damageMax: [2, 4], critChance: [0.3, 1] },
+    tradeable: false,
+    flavorText: "Prsty zakončené jemnými hroty jiskří při každém sevření pěsti.",
   },
   {
     name: "Boty andělského vzletu", slot: "boots", icon: "angel-boots",
     image: "assets/icons/items/angel-boots.png", glowColor: "#3ad6ff",
     rolls: { maxHp: [6, 12], critChance: [0.2, 0.8] },
+    tradeable: false,
+    flavorText: "Podrážky se nikdy zcela nedotknou země, jako by čekaly na povel vzlétnout.",
   },
   {
     name: "Přívěsek andělské záře", slot: "charm", icon: "angel-charm",
     image: "assets/icons/items/angel-charm.png", glowColor: "#3ad6ff",
     rolls: { critChance: [0.8, 2], maxHp: [4, 10] },
+    tradeable: false,
+    flavorText: "Malý přívěsek hřeje na dotek a jeho záře nikdy úplně nezhasne, ani ve tmě.",
   },
 ]);
+
+// Finds the template a dropped/equipped item instance was created from
+// (matched by icon, which is unique per template). Used by the item detail
+// view to recover template-level metadata (flavorText/tradeable) for items
+// saved before those fields existed.
+function findItemTemplate(item) {
+  return ITEM_TEMPLATES.find((template) => template.icon === item.icon) ?? null;
+}
 
 // Renders an item's icon into a container, choosing an <img> for items with
 // their own artwork (item.image) or an inline SVG from ICONS otherwise.

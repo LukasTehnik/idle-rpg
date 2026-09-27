@@ -29,6 +29,7 @@ Potom otevři `http://localhost:8080`.
 - inventář pro 18 předmětů,
 - 7 slotů vybavení (zbraň, zbroj, helma, rukavice, boty, kalhoty, talisman),
 - katalog předmětů (`item-catalog.html`) pro statický přehled všech ikon a efektů,
+- detail předmětu na klik — zvětšená ikona, plné staty, zdroj úlovku, čas získání a obchodovatelnost, dostupné z inventáře i z vybavených slotů,
 - výměnu vybavení a okamžitý přepočet statů,
 - lokální uložení postupu v prohlížeči.
 - kompaktní černobílé systémové UI s barevným zvýrazněním vzácné kořisti.

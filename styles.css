@@ -329,7 +329,9 @@ h2 { font-size: 14px; letter-spacing: -.02em; text-transform: uppercase; }
   overflow:hidden;
   border:1px solid var(--line);
   background:#0a0c0c;
+  cursor:pointer;
 }
+.inventory-item:focus-visible, .equipment-slot.filled:focus-visible { outline:1px solid var(--text-soft); outline-offset:-1px; }
 
 .inventory-item::before { position:absolute; top:-1px; right:-1px; left:-1px; height:2px; background:#777e7c; content:""; }
 .inventory-item.rarity-rare::before { background:var(--rare-gradient); }
@@ -469,6 +471,21 @@ h2 { font-size: 14px; letter-spacing: -.02em; text-transform: uppercase; }
 .drop-actions .primary-button, .secondary-button { min-height:34px; font-size:8px; font-weight:700; text-transform:uppercase; }
 .secondary-button { border:1px solid var(--line-strong); color:var(--text-soft); background:#0d0f0f; }
 
+/* Item detail modal — reuses .drop-reveal/.drop-card for the overlay and
+   frame, with a larger "zoomed" icon and an extra metadata block (source,
+   tradeable, acquired-at) plus optional flavor text. */
+.detail-icon { width:96px; height:96px; margin:14px 0 12px; }
+.detail-icon svg { width:52px; height:52px; }
+.detail-icon img { width:82px; height:82px; }
+.item-detail-card .drop-actions { grid-template-columns:1fr 1fr; }
+.item-detail-card .drop-actions:has(#detailActionButton.hidden) { grid-template-columns:1fr; }
+.detail-meta { display:grid; margin-top:2px; border-top:1px solid var(--line); }
+.detail-meta-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line); color:var(--muted); font-size:9px; }
+.detail-meta-row strong { color:var(--text-soft); font-weight:500; text-align:right; }
+.detail-flavor { margin:10px 0 0; padding-top:9px; border-top:1px solid var(--line); color:var(--text-soft); font-size:9px; font-style:italic; line-height:1.5; }
+.detail-flavor.hidden { display:none; }
+.hidden { display:none; }
+
 @media (max-width:1180px) {
   .game-grid { grid-template-columns:minmax(220px,.8fr) minmax(350px,1.2fr); }
   .log-panel { grid-column:1 / -1; min-height:300px; margin-top:-1px; margin-left:0; }
@@ -493,7 +510,7 @@ h2 { font-size: 14px; letter-spacing: -.02em; text-transform: uppercase; }
   .equipment-slots { grid-template-columns:1fr; }
   .equipment-slot { margin-right:0; }
   .inventory-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .drop-actions { grid-template-columns:1fr; }
+  .drop-actions, .item-detail-card .drop-actions { grid-template-columns:1fr; }
 }
 
 @media (max-width:430px) {
