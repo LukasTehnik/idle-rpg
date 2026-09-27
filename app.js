@@ -44,6 +44,11 @@ const ITEM_TEMPLATES = Object.freeze([
   { name: "Prošívaný kabátec", slot: "armor", icon: "quilted-coat", rolls: { maxHp: [10, 18], damageMin: [0, 1] } },
   { name: "Kostěný talisman", slot: "charm", icon: "bone-talisman", rolls: { critChance: [0.6, 1.8], maxHp: [2, 6] } },
   { name: "Měděný prsten", slot: "charm", icon: "copper-ring", rolls: { damageMax: [1, 3], critChance: [0.3, 1.2] } },
+  {
+    name: "Meč andělských čepelí", slot: "weapon", icon: "greatsword-angels",
+    image: "assets/icons/items/greatsword-angels.png", glowColor: "#3ad6ff",
+    rolls: { damageMin: [2, 4], damageMax: [4, 7], critChance: [0.4, 1.2] },
+  },
 ]);
 
 const initialState = () => ({
@@ -132,6 +137,18 @@ function formatTime(seconds) {
   return `${minutes}:${remaining}`;
 }
 function getItemBonus(item, stat) { return item?.stats?.[stat] ?? 0; }
+
+// Renders an item's icon into a container, choosing an <img> for items with
+// their own artwork (item.image) or an inline SVG from ICONS otherwise.
+// Items that define item.glowColor get the reusable "item-glow" artefact
+// effect (see styles.css) regardless of their rolled rarity — this is the
+// item's own signature look, independent of common/rare/epic.
+function renderItemIcon(container, item) {
+  container.innerHTML = item.image ? `<img src="${item.image}" alt="" />` : (ICONS[item.icon] ?? "");
+  container.classList.toggle("item-glow", Boolean(item.glowColor));
+  if (item.glowColor) container.style.setProperty("--glow-color", item.glowColor);
+  else container.style.removeProperty("--glow-color");
+}
 
 function getPlayerStats() {
   return Object.values(state.equipment).filter(Boolean).reduce(
@@ -339,7 +356,7 @@ function showDrop(item) {
   elements.dropCard.classList.add(`rarity-${item.rarity}`);
   elements.dropCard.style.setProperty("--drop-color", rarity.color);
   elements.dropRarity.textContent = `${rarity.label} předmět`;
-  elements.dropIcon.innerHTML = ICONS[item.icon] ?? "";
+  renderItemIcon(elements.dropIcon, item);
   elements.dropTitle.textContent = item.name;
   elements.dropType.textContent = SLOT_META[item.slot].label;
   elements.dropStats.innerHTML = "";
@@ -398,7 +415,7 @@ function renderInventory() {
     card.className = `inventory-item rarity-${item.rarity}`;
     card.style.setProperty("--item-color", rarity.color);
     card.innerHTML = `<div class="inventory-item-top"><span class="item-icon-small" aria-hidden="true"></span><span class="inventory-item-type"></span></div><strong class="inventory-item-name"></strong><p class="inventory-item-stats"></p><button type="button">Vybavit</button>`;
-    card.querySelector(".item-icon-small").innerHTML = ICONS[item.icon] ?? "";
+    renderItemIcon(card.querySelector(".item-icon-small"), item);
     card.querySelector(".inventory-item-type").textContent = `${rarity.label} · ${SLOT_META[item.slot].label}`;
     card.querySelector(".inventory-item-name").textContent = item.name;
     card.querySelector(".inventory-item-stats").textContent = statSummary(item);
@@ -424,7 +441,7 @@ function renderEquipment() {
     const wrapper = document.createElement("div");
     wrapper.className = "equipped-item";
     wrapper.innerHTML = `<span class="item-icon-small" aria-hidden="true"></span><div class="equipped-copy"><span></span><strong></strong></div><div class="equipped-stats"></div>`;
-    wrapper.querySelector(".item-icon-small").innerHTML = ICONS[item.icon] ?? "";
+    renderItemIcon(wrapper.querySelector(".item-icon-small"), item);
     wrapper.querySelector(".item-icon-small").style.color = rarity.color;
     wrapper.querySelector(".equipped-copy span").textContent = `${rarity.label} · ${meta.label}`;
     wrapper.querySelector("strong").textContent = item.name;
