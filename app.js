@@ -335,6 +335,8 @@ function comparisonText(item) {
 function showDrop(item) {
   const rarity = RARITIES[item.rarity];
   const comparison = comparisonText(item);
+  elements.dropCard.classList.remove("rarity-common", "rarity-rare", "rarity-epic");
+  elements.dropCard.classList.add(`rarity-${item.rarity}`);
   elements.dropCard.style.setProperty("--drop-color", rarity.color);
   elements.dropRarity.textContent = `${rarity.label} předmět`;
   elements.dropIcon.innerHTML = ICONS[item.icon] ?? "";
@@ -393,7 +395,7 @@ function renderInventory() {
   state.inventory.forEach((item) => {
     const rarity = RARITIES[item.rarity];
     const card = document.createElement("article");
-    card.className = "inventory-item";
+    card.className = `inventory-item rarity-${item.rarity}`;
     card.style.setProperty("--item-color", rarity.color);
     card.innerHTML = `<div class="inventory-item-top"><span class="item-icon-small" aria-hidden="true"></span><span class="inventory-item-type"></span></div><strong class="inventory-item-name"></strong><p class="inventory-item-stats"></p><button type="button">Vybavit</button>`;
     card.querySelector(".item-icon-small").innerHTML = ICONS[item.icon] ?? "";
@@ -409,6 +411,7 @@ function renderEquipment() {
   for (const [slot, meta] of Object.entries(SLOT_META)) {
     const container = elements[`${slot}Slot`];
     const item = state.equipment[slot];
+    container.classList.remove("rarity-common", "rarity-rare", "rarity-epic");
     container.classList.toggle("filled", Boolean(item));
     container.innerHTML = "";
     container.onclick = null;
@@ -417,6 +420,7 @@ function renderEquipment() {
       continue;
     }
     const rarity = RARITIES[item.rarity];
+    container.classList.add(`rarity-${item.rarity}`);
     const wrapper = document.createElement("div");
     wrapper.className = "equipped-item";
     wrapper.innerHTML = `<span class="item-icon-small" aria-hidden="true"></span><div class="equipped-copy"><span></span><strong></strong></div><div class="equipped-stats"></div>`;
@@ -424,6 +428,7 @@ function renderEquipment() {
     wrapper.querySelector(".item-icon-small").style.color = rarity.color;
     wrapper.querySelector(".equipped-copy span").textContent = `${rarity.label} · ${meta.label}`;
     wrapper.querySelector("strong").textContent = item.name;
+    wrapper.querySelector("strong").classList.add("rarity-text", `rarity-${item.rarity}`);
     wrapper.querySelector(".equipped-stats").textContent = statSummary(item);
     container.append(wrapper);
     container.onclick = () => unequipItem(slot);

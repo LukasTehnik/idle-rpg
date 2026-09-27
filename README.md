@@ -30,6 +30,7 @@ Potom otevři `http://localhost:8080`.
 - sloty pro zbraň, zbroj a talisman,
 - výměnu vybavení a okamžitý přepočet statů,
 - lokální uložení postupu v prohlížeči.
+- kompaktní černobílé systémové UI s barevným zvýrazněním vzácné kořisti.
 
 ## Pracovní balance
 
@@ -70,3 +71,4 @@ v [`assets/icons/CREDITS.md`](assets/icons/CREDITS.md).
 - `app.js` — stav hry, souboj a postup,
 - `docs/navrh-hry.md` — dosavadní návrhový dokument,
 - `docs/prototype-0.2.md` — cíle, pracovní balance a scénář testování této verze.
+- `docs/ui-direction.md` — pravidla vizuálního směru pro další verze.
