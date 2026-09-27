@@ -72,3 +72,4 @@ v [`assets/icons/CREDITS.md`](assets/icons/CREDITS.md).
 - `docs/navrh-hry.md` — dosavadní návrhový dokument,
 - `docs/prototype-0.2.md` — cíle, pracovní balance a scénář testování této verze.
 - `docs/ui-direction.md` — pravidla vizuálního směru pro další verze.
+- `docs/visual-language-reference.md` — rozbor referencí a plán převodu jejich vizuálního jazyka do hry.
