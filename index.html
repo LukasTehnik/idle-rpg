@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b0d0c" />
+    <meta
+      name="description"
+      content="První hratelný prototyp prohlížečového idle RPG."
+    />
+    <title>Idle RPG — Prototype 0.1</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-one" aria-hidden="true"></div>
+    <div class="ambient ambient-two" aria-hidden="true"></div>
+
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">IDLE RPG / PROTOTYPE 0.1</p>
+          <h1>První výprava</h1>
+        </div>
+        <div class="session-status" aria-live="polite">
+          <span id="statusDot" class="status-dot"></span>
+          <span id="sessionStatus">Připraveno</span>
+        </div>
+      </header>
+
+      <section class="progress-strip" aria-label="Postup postavy">
+        <div class="level-badge">
+          <span>ÚROVEŇ</span>
+          <strong id="levelValue">1</strong>
+        </div>
+        <div class="xp-area">
+          <div class="bar-label">
+            <span>Zkušenosti</span>
+            <span><strong id="xpValue">0</strong> / <span id="xpGoal">50</span> XP</span>
+          </div>
+          <div class="progress-track xp-track">
+            <div id="xpBar" class="progress-fill xp-fill"></div>
+          </div>
+        </div>
+        <div class="run-stats">
+          <div><span>Vítězství</span><strong id="killsValue">0</strong></div>
+          <div><span>Čas výpravy</span><strong id="runTimeValue">00:00</strong></div>
+        </div>
+      </section>
+
+      <section class="game-grid">
+        <article class="panel character-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">TVÁ POSTAVA</p>
+              <h2>Poutník</h2>
+            </div>
+            <span class="tag">Člověk</span>
+          </div>
+
+          <div class="portrait player-portrait" aria-hidden="true">
+            <div class="rune">I</div>
+            <div class="figure player-figure">
+              <span class="figure-head"></span>
+              <span class="figure-body"></span>
+              <span class="figure-weapon"></span>
+            </div>
+          </div>
+
+          <div class="health-block">
+            <div class="bar-label">
+              <span>Životy</span>
+              <span><strong id="playerHpValue">100</strong> / <span id="playerMaxHp">100</span></span>
+            </div>
+            <div class="progress-track health-track">
+              <div id="playerHpBar" class="progress-fill health-fill"></div>
+            </div>
+          </div>
+
+          <dl class="stats-list">
+            <div><dt>Poškození</dt><dd id="damageValue">9–13</dd></div>
+            <div><dt>Rychlost útoku</dt><dd>1,6 s</dd></div>
+            <div><dt>Kritický zásah</dt><dd>10 %</dd></div>
+          </dl>
+        </article>
+
+        <article class="panel encounter-panel">
+          <div class="location-line">
+            <span class="location-mark" aria-hidden="true">⌖</span>
+            <div>
+              <p class="eyebrow">OKRAJ STARÉHO LESA</p>
+              <p class="muted">Vybraný nepřítel se po porážce vrací</p>
+            </div>
+          </div>
+
+          <div id="arena" class="arena">
+            <div id="slashEffect" class="slash-effect" aria-hidden="true"></div>
+            <div class="enemy-meta">
+              <span class="tag danger">NEPŘÍTEL</span>
+              <h2>Goblin</h2>
+              <p>Úroveň 1</p>
+            </div>
+
+            <div id="enemyPortrait" class="portrait enemy-portrait" aria-hidden="true">
+              <div class="rune">G</div>
+              <div class="figure goblin-figure">
+                <span class="figure-ear left"></span>
+                <span class="figure-ear right"></span>
+                <span class="figure-head"></span>
+                <span class="figure-body"></span>
+                <span class="figure-weapon"></span>
+              </div>
+            </div>
+
+            <div class="health-block enemy-health-block">
+              <div class="bar-label">
+                <span>Životy nepřítele</span>
+                <span><strong id="enemyHpValue">48</strong> / 48</span>
+              </div>
+              <div class="progress-track health-track enemy-health-track">
+                <div id="enemyHpBar" class="progress-fill enemy-health-fill"></div>
+              </div>
+            </div>
+
+            <div id="encounterMessage" class="encounter-message" aria-live="polite">
+              Připraven k boji
+            </div>
+          </div>
+
+          <div class="controls">
+            <button id="fightButton" class="primary-button" type="button">
+              <span id="fightButtonIcon">▶</span>
+              <span id="fightButtonText">Zahájit boj</span>
+            </button>
+            <button id="resetButton" class="icon-button" type="button" aria-label="Resetovat prototyp" title="Resetovat prototyp">
+              ↻
+            </button>
+          </div>
+          <p class="control-hint">Boj pokračuje automaticky, dokud ho nezastavíš.</p>
+        </article>
+
+        <aside class="panel log-panel">
+          <div class="panel-heading log-heading">
+            <div>
+              <p class="eyebrow">ŽIVÝ ZÁZNAM</p>
+              <h2>Průběh boje</h2>
+            </div>
+            <button id="clearLogButton" class="text-button" type="button">Vyčistit</button>
+          </div>
+          <ol id="combatLog" class="combat-log" aria-live="polite" aria-relevant="additions">
+            <li class="log-entry system">
+              <time>—</time>
+              <span>Vyber si okamžik a zahaj první boj.</span>
+            </li>
+          </ol>
+          <div class="log-legend">
+            <span><i class="legend-dot player"></i> Poutník</span>
+            <span><i class="legend-dot enemy"></i> Goblin</span>
+            <span><i class="legend-dot event"></i> Událost</span>
+          </div>
+        </aside>
+      </section>
+
+      <footer class="prototype-note">
+        <span>TESTOVACÍ SMYČKA</span>
+        Goblin → automatický souboj → 3 s hledání → další Goblin
+      </footer>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
