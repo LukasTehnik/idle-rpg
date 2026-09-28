@@ -108,7 +108,7 @@ U permanentních receptů sledujeme **rozšiřování znalosti na serveru**; u n
 
 Čísla obsahu v Alpha 0.4 jsou původní orientační příklad, nikoli produkční závazek. **Crafting je hlavní pilíř vize**: jeho datový model patří do raného návrhu a hratelný prototyp má přijít dříve, než bude obsah ve velkém rozšířen. Plná hráčská ekonomika a kontrakty vyžadují serverové účty a transakční ukládání.
 
-**Stav k 27. 9. 2026:** Prototype 0.2 je implementovaný jako lokální testovací verze. Obsahuje tři sloty vybavení, šest základních itemů, náhodné staty, tři rarity, inventář a lokální uložení. Drop rate a rozdělení rarit jsou záměrně zrychlené pro krátký test a nepředstavují finální balance.
+**Stav k 27. 9. 2026:** Prototype 0.3 je implementovaný jako lokální testovací verze. Obsahuje mapu se dvěma lokacemi, výběr konkrétního nepřítele k farmení, sedm slotů vybavení, gold, dvě sady itemů (chitin, andělská) s vlastními asset ikonami, náhodné staty, tři rarity, inventář, stackování materiálů a lokální uložení. Drop rate a rozdělení rarit jsou záměrně zrychlené pro krátký test a nepředstavují finální balance. Banka a 5% ztráta zlata při smrti z roadmapy Prototype 0.3 zatím nejsou implementované.
 
 ## 8. Otevřená rozhodnutí v pořadí dopadu
 

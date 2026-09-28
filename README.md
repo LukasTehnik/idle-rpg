@@ -1,6 +1,6 @@
-# Idle RPG — Prototype 0.2
+# Idle RPG — Prototype 0.3
 
-Druhý hratelný prototyp prohlížečového idle RPG. Ověřuje otázku: **je získávání a porovnávání náhodné kořisti dostatečně zajímavé, aby podporovalo další farmení?**
+Třetí hratelný prototyp prohlížečového idle RPG. Ověřuje otázku: **je získávání a porovnávání náhodné kořisti dostatečně zajímavé, aby podporovalo další farmení?**
 
 ## Spuštění
 
@@ -41,7 +41,7 @@ Potom otevři `http://localhost:8080`.
 
 Hodnoty jsou nastavení pro první pocitový test. Nejsou schválenými pravidly finální hry.
 
-| Pravidlo | Prototyp 0.1 |
+| Pravidlo | Prototyp 0.3 |
 | --- | ---: |
 | Životy hráče | 100 |
 | Poškození hráče | 9–13 |
@@ -61,7 +61,7 @@ Hodnoty jsou nastavení pro první pocitový test. Nejsou schválenými pravidly
 
 ## Hranice této verze
 
-Prototype 0.2 zatím neobsahuje banku, crafting, offline postup, účty ani market. Tyto systémy patří do dalších testovacích verzí. Drop rate je záměrně vysoký, aby šel loot během krátkého testu vyhodnotit. Enemy jména v Pustině ticha ("Nepřítel 1"–"Nepřítel 6") jsou dočasná zástupná jména, stejně jako jejich staty a drop tabulky — vše je centrálně v `world-data.js` pro snadné pozdější doladění. Kompletní dosavadní návrh je v souboru [`docs/navrh-hry.md`](docs/navrh-hry.md).
+Prototype 0.3 zatím neobsahuje banku, crafting, offline postup, účty ani market. Tyto systémy patří do dalších testovacích verzí. Drop rate je záměrně vysoký, aby šel loot během krátkého testu vyhodnotit. Enemy jména v Pustině ticha ("Nepřítel 1"–"Nepřítel 6") jsou dočasná zástupná jména, stejně jako jejich staty a drop tabulky — vše je centrálně v `world-data.js` pro snadné pozdější doladění. Kompletní dosavadní návrh je v souboru [`docs/navrh-hry.md`](docs/navrh-hry.md).
 
 ## Grafika
 
@@ -83,6 +83,7 @@ odpovídající zbytku sady ikon.
 - `world-data.js` — lokace a nepřátelé (staty, drop tabulky) pro tok mapa → lokace → nepřítel → farmení,
 - `item-catalog.html` — statický přehled všech předmětů,
 - `docs/navrh-hry.md` — dosavadní návrhový dokument,
-- `docs/prototype-0.2.md` — cíle, pracovní balance a scénář testování této verze.
+- `docs/prototype-0.2.md` — cíle, pracovní balance a scénář testování Prototype 0.2.
+- `docs/prototype-0.3.md` — cíle, pracovní balance a scénář testování aktuální verze.
 - `docs/ui-direction.md` — pravidla vizuálního směru pro další verze.
 - `docs/visual-language-reference.md` — rozbor referencí a plán převodu jejich vizuálního jazyka do hry.

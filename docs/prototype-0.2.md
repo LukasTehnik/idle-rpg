@@ -34,4 +34,4 @@ Tato čísla slouží rychlému uživatelskému testu. Nejsou návrhem finální
 
 ## Přechod k Prototype 0.3
 
-Další verze má podle roadmapy přidat více nepřátel, výběr cíle, odlišné drop tables, gold, banku a 5% ztrátu neseného zlata při smrti. Nejdřív je potřeba vyhodnotit pocit z Prototype 0.2 a upravit rytmus dropů, staty a prezentaci kořisti.
+Hotovo — viz [`docs/prototype-0.3.md`](prototype-0.3.md). Prototype 0.3 přidal mapu lokací, výběr konkrétního nepřítele k farmení a druhou lokaci (Pustina ticha) s vlastní drop tabulkou. Banka a 5% ztráta zlata při smrti zůstávají otevřené pro další verzi.
