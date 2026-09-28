@@ -8,14 +8,14 @@
       name="description"
       content="První hratelný prototyp prohlížečového idle RPG."
     />
-    <title>Idle RPG — Prototype 0.3</title>
+    <title>Idle RPG — Prototype 0.4</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main class="app-shell">
       <header class="topbar">
         <div>
-          <p class="eyebrow">IDLE RPG / PROTOTYPE 0.3</p>
+          <p class="eyebrow">IDLE RPG / PROTOTYPE 0.4</p>
           <h1>První výprava</h1>
         </div>
         <div class="session-status" aria-live="polite">
@@ -129,6 +129,10 @@
             </button>
           </div>
           <p class="control-hint">Boj pokračuje automaticky, dokud ho nezastavíš.</p>
+          <div class="recent-drops" aria-label="Poslední kořist">
+            <p class="eyebrow">POSLEDNÍ KOŘIST</p>
+            <ol id="recentDropsList" class="recent-drops-list"></ol>
+          </div>
         </article>
 
         <aside class="panel log-panel">
@@ -180,11 +184,16 @@
               <p class="eyebrow">KOŘIST</p>
               <h2>Inventář</h2>
             </div>
-            <div class="inventory-heading-actions">
+            <div id="inventoryHeadingActions" class="inventory-heading-actions">
               <div class="inventory-capacity"><strong id="inventoryCount">0</strong> / <span id="inventoryCapacity">18</span></div>
               <button id="deleteModeButton" class="icon-button" type="button" aria-label="Vybrat předměty ke smazání" title="Smazat předměty">🗑</button>
             </div>
           </div>
+          <div class="inventory-tabs" role="tablist" aria-label="Sekce inventáře">
+            <button id="tabEquipment" class="inventory-tab active" type="button" role="tab" aria-selected="true">VYBAVENÍ <span id="tabEquipmentCount">0/18</span></button>
+            <button id="tabMaterials" class="inventory-tab" type="button" role="tab" aria-selected="false">MATERIÁLY <span id="tabMaterialsCount">0</span></button>
+          </div>
+          <div id="equipmentTabPanel" class="inventory-tab-panel" role="tabpanel">
           <div id="bulkDeleteBar" class="bulk-delete-bar hidden">
             <span><strong id="selectedCount">0</strong> vybráno ke smazání</span>
             <div class="bulk-delete-actions">
@@ -196,11 +205,22 @@
           <p class="panel-footnote">Klikni na předmět pro detail a staty, tlačítkem ho rovnou vybavíš. Košem vybereš předměty ke smazání.</p>
           <div id="inventoryEmpty" class="inventory-empty">
             <span class="empty-rune">◇</span>
-            <strong>Zatím žádná kořist</strong>
-            <p>Porážej Gobliny. Každý může zanechat vybavení s náhodnými vlastnostmi.</p>
+            <strong>Žádné vybavení</strong>
+            <p>Porážej nepřátele. Každý může zanechat vybavení s náhodnými vlastnostmi.</p>
           </div>
-          <div class="rarity-legend" aria-label="Vzácnosti předmětů">
+          </div>
+          <div id="materialsTabPanel" class="inventory-tab-panel hidden" role="tabpanel">
+            <div id="materialGrid" class="inventory-grid material-grid"></div>
+            <p class="panel-footnote">Materiály se stackují a nezabírají místo pro vybavení. Klikni pro detail a zdroj získání.</p>
+            <div id="materialEmpty" class="inventory-empty">
+              <span class="empty-rune">◇</span>
+              <strong>Žádné materiály</strong>
+              <p>Materiály padají z nepřátel v Pustině ticha. Na mapě si u každého nepřítele otevři „Možná kořist“ a vyber, koho farmit.</p>
+            </div>
+          </div>
+          <div class="rarity-legend" aria-label="Vzácnosti">
             <span><i class="rarity-dot common"></i>Běžný</span>
+            <span><i class="rarity-dot uncommon"></i>Neobvyklý</span>
             <span><i class="rarity-dot rare"></i>Vzácný</span>
             <span><i class="rarity-dot epic"></i>Epický</span>
           </div>
@@ -278,6 +298,7 @@
     </div>
 
     <script src="item-data.js"></script>
+    <script src="material-data.js"></script>
     <script src="world-data.js"></script>
     <script src="app.js"></script>
   </body>

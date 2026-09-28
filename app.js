@@ -9,12 +9,14 @@ const CONFIG = Object.freeze({
   dropChance: 0.42, // fallback only -- each enemy in ENEMIES sets its own dropChance
   inventoryCapacity: 18,
   maxLogEntries: 80,
+  maxRecentDrops: 5,
+  maxToasts: 3,
   saveKey: "idle-rpg-prototype-v02",
 });
 
-// RARITIES, SLOT_META, ICONS, ITEM_TEMPLATES and renderItemIcon() now live in
-// item-data.js; LOCATIONS, ENEMIES and DEFAULT_ENEMY_ID live in world-data.js
-// (both loaded before this file in index.html).
+// RARITIES, SLOT_META, ICONS, ITEM_TEMPLATES and renderItemIcon() live in
+// item-data.js; MATERIALS in material-data.js; LOCATIONS, ENEMIES and
+// DEFAULT_ENEMY_ID in world-data.js (all loaded before this file in index.html).
 
 // Returns the data-config of whichever enemy is currently selected as the
 // farming target (see world-data.js). Falls back to the default enemy if
@@ -32,7 +34,13 @@ const initialState = () => ({
   drops: 0,
   gold: 0,
   elapsedSeconds: 0,
-  inventory: [],
+  inventory: [], // equipment only (capacity CONFIG.inventoryCapacity)
+  // Prototype 0.4: stackable materials/scrolls, stored by stable material id
+  // -> quantity (e.g. { "wing-dust": 14 }). They do NOT count against the
+  // equipment capacity.
+  materials: {},
+  // Last few drops (materials + equipment) for the compact combat-screen list.
+  recentDrops: [],
   equipment: { weapon: null, armor: null, charm: null, helmet: null, gloves: null, boots: null, pants: null },
   // Which location/enemy the player has selected on the map as their
   // current farming target. Defaults to the original Goblin encounter so
@@ -73,6 +81,12 @@ const elements = {
   helmetSlot: document.querySelector("#helmetSlot"), glovesSlot: document.querySelector("#glovesSlot"),
   bootsSlot: document.querySelector("#bootsSlot"), pantsSlot: document.querySelector("#pantsSlot"),
   dropToastStack: document.querySelector("#dropToastStack"),
+  tabEquipment: document.querySelector("#tabEquipment"), tabMaterials: document.querySelector("#tabMaterials"),
+  tabEquipmentCount: document.querySelector("#tabEquipmentCount"), tabMaterialsCount: document.querySelector("#tabMaterialsCount"),
+  equipmentTabPanel: document.querySelector("#equipmentTabPanel"), materialsTabPanel: document.querySelector("#materialsTabPanel"),
+  inventoryHeadingActions: document.querySelector("#inventoryHeadingActions"),
+  materialGrid: document.querySelector("#materialGrid"), materialEmpty: document.querySelector("#materialEmpty"),
+  recentDropsList: document.querySelector("#recentDropsList"),
   itemDetailModal: document.querySelector("#itemDetailModal"), detailCard: document.querySelector(".item-detail-card"),
   detailRarity: document.querySelector("#detailRarity"), detailIcon: document.querySelector("#detailIcon"),
   detailTitle: document.querySelector("#detailTitle"), detailType: document.querySelector("#detailType"),
@@ -132,6 +146,46 @@ function deleteSelectedItems() {
   render(); renderLoot(); saveState();
 }
 
+// Keeps only sane { id: positiveInteger } pairs. Unknown ids are preserved
+// (a future/removed material must never wipe a player's stash).
+function sanitizeMaterials(raw) {
+  const result = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return result;
+  for (const [id, qty] of Object.entries(raw)) {
+    const n = Math.floor(Number(qty));
+    if (Number.isFinite(n) && n > 0) result[id] = n;
+  }
+  return result;
+}
+
+function sanitizeRecentDrops(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((entry) => entry && typeof entry.key === "string" && (entry.type === "material" || entry.type === "item"))
+    .map((entry) => ({
+      type: entry.type, key: entry.key, name: String(entry.name ?? entry.key),
+      rarity: RARITIES[entry.rarity] ? entry.rarity : "common",
+      qty: Math.max(1, Math.floor(Number(entry.qty) || 1)), at: Number(entry.at) || Date.now(),
+    }))
+    .slice(0, CONFIG.maxRecentDrops);
+}
+
+// Prototype 0.3 had a generic stacking mechanism (`quantity` on non-equippable
+// inventory entries) but no real material. If such an entry matches a known
+// material id (by `materialId` or `icon`) it is merged into `materials`;
+// anything unrecognised is left untouched in the inventory.
+function migrateLegacyInventory(inventory, materials) {
+  const kept = [];
+  const merged = { ...materials };
+  for (const item of inventory) {
+    const key = item && !SLOT_META[item.slot] ? (item.materialId ?? item.icon) : null;
+    const id = key && (MATERIALS[key] ? key : LEGACY_MATERIAL_ALIASES[key]);
+    if (id && MATERIALS[id]) merged[id] = (merged[id] ?? 0) + Math.max(1, Math.floor(Number(item.quantity) || 1));
+    else kept.push(item);
+  }
+  return { inventory: kept, materials: merged };
+}
+
 function loadState() {
   const fresh = initialState();
   try {
@@ -142,13 +196,21 @@ function loadState() {
     // crashing the app on load).
     const currentEnemyId = typeof saved.currentEnemyId === "string" && ENEMIES[saved.currentEnemyId]
       ? saved.currentEnemyId : fresh.currentEnemyId;
+    // Prototype 0.3 saves have no `materials` / `recentDrops` -- both default
+    // to empty. Any legacy generic material stacks that sit in the inventory
+    // are moved into `materials` when their id is known (see migrate...).
+    const { inventory, materials } = migrateLegacyInventory(
+      Array.isArray(saved.inventory) ? saved.inventory : [],
+      sanitizeMaterials(saved.materials),
+    );
     return {
       ...fresh,
       level: saved.level ?? fresh.level, xp: saved.xp ?? fresh.xp,
       kills: saved.kills ?? fresh.kills, drops: saved.drops ?? fresh.drops,
       gold: saved.gold ?? fresh.gold,
       elapsedSeconds: saved.elapsedSeconds ?? fresh.elapsedSeconds,
-      inventory: Array.isArray(saved.inventory) ? saved.inventory : [],
+      inventory, materials,
+      recentDrops: sanitizeRecentDrops(saved.recentDrops),
       equipment: { ...fresh.equipment, ...(saved.equipment ?? {}) },
       player: { ...fresh.player, ...(saved.player ?? {}) },
       currentEnemyId,
@@ -162,6 +224,7 @@ function saveState() {
     version: 2, level: state.level, xp: state.xp, kills: state.kills, drops: state.drops,
     gold: state.gold, currentEnemyId: state.currentEnemyId,
     elapsedSeconds: state.elapsedSeconds, inventory: state.inventory, equipment: state.equipment,
+    materials: state.materials, recentDrops: state.recentDrops,
     player: {
       hp: state.player.hp, baseMaxHp: state.player.baseMaxHp,
       baseMinDamage: state.player.baseMinDamage, baseMaxDamage: state.player.baseMaxDamage,
@@ -263,7 +326,7 @@ function updateArenaHeader() {
   const enemyCfg = getCurrentEnemy();
   const location = LOCATIONS[enemyCfg.locationId];
   elements.enemyName.textContent = enemyCfg.name;
-  elements.enemyLevel.textContent = `Úroveň ${enemyCfg.level}`;
+  elements.enemyLevel.textContent = `Úroveň ${enemyCfg.level}${enemyCfg.type ? ` · ${ENEMY_TYPE_LABELS[enemyCfg.type] ?? ""}` : ""}`;
   elements.currentLocationName.textContent = (location?.name ?? "").toUpperCase();
   elements.legendEnemyLabel.textContent = enemyCfg.name;
   elements.enemyPortrait.setAttribute("aria-label", enemyCfg.name);
@@ -314,6 +377,9 @@ function enemyAttack() {
 }
 
 function defeatEnemy() {
+  // Guard against double-awarding: rewards are granted only for the fight
+  // that is actually in progress.
+  if (state.phase !== "fighting") return;
   const enemyCfg = getCurrentEnemy();
   state.kills += 1;
   state.xp += enemyCfg.xp;
@@ -329,6 +395,7 @@ function defeatEnemy() {
   state.player.hp = Math.min(stats.maxHp, state.player.hp + healing);
   if (state.player.hp > before) addLog(`Krátký oddech obnovil ${state.player.hp - before} životů.`, "system");
   if (Math.random() < (enemyCfg.dropChance ?? CONFIG.dropChance)) generateDrop(enemyCfg);
+  rollMaterialDrops(enemyCfg);
   saveState();
 }
 
@@ -402,32 +469,13 @@ function createItem(enemyCfg) {
 }
 
 // Oprava 1: drops no longer open a blocking confirmation modal. The item (or
-// stacked material) is saved into the existing inventory immediately, combat
-// keeps running uninterrupted, and the only feedback is the combat log plus
-// a small non-blocking toast (see showDropToast) -- nothing here requires a
-// click and nothing covers the fight controls.
+// material) is saved immediately, combat keeps running uninterrupted, and the
+// only feedback is the combat log, the recent-drops list and a small
+// non-blocking toast (see showDropToast) -- nothing here requires a click.
 //
-// Materials: a template marked `stackable: true` merges into an existing
-// inventory entry with the same icon (incrementing `quantity`) instead of
-// creating a new slot -- this is the generic mechanism the brief asks for.
-// No delivered asset this round is actually a material (only six equip-slot
-// items came with the location), so no template currently sets `stackable`;
-// the moment one does, it stacks correctly with zero further changes here.
+// Equipment: every drop is its own inventory entry (capacity-limited).
 function generateDrop(enemyCfg = getCurrentEnemy()) {
   const item = createItem(enemyCfg);
-  const template = findItemTemplate(item);
-  if (template?.stackable) {
-    const existing = state.inventory.find((invItem) => invItem.icon === item.icon);
-    if (existing) {
-      existing.quantity = (existing.quantity ?? 1) + 1;
-      state.drops += 1;
-      addLog(`Materiál: ${item.name} (celkem ${existing.quantity}×).`, "system");
-      renderLoot();
-      showDropToast(existing);
-      return;
-    }
-    item.quantity = 1;
-  }
   if (state.inventory.length >= CONFIG.inventoryCapacity) {
     addLog(`${enemyCfg.name} zanechal předmět, ale inventář je plný.`, "system");
     return;
@@ -436,8 +484,72 @@ function generateDrop(enemyCfg = getCurrentEnemy()) {
   state.drops += 1;
   const rarity = RARITIES[item.rarity];
   addLog(`${rarity.label} předmět: ${item.name}.`, item.rarity === "common" ? "system" : "level-up");
+  pushRecentDrop({ type: "item", key: item.icon, name: item.name, rarity: item.rarity, qty: 1 });
   renderLoot();
   showDropToast(item);
+}
+
+// Materials: each `materialDrops` entry of the enemy is an independent roll
+// (data lives in world-data.js). Stacks live in state.materials by stable id
+// and never touch the equipment capacity.
+function rollMaterialDrops(enemyCfg) {
+  for (const drop of enemyCfg?.materialDrops ?? []) {
+    const material = MATERIALS[drop.id];
+    if (!material) continue;
+    // Safety net: a material may only drop from an enemy that is listed as a
+    // source of it (guards e.g. "Oko Matky" = Matka děr only).
+    if (!material.sourceEnemyIds.includes(enemyCfg.id)) continue;
+    if (Math.random() >= drop.chance) continue;
+    addMaterial(drop.id, randomInt(drop.min ?? 1, drop.max ?? drop.min ?? 1));
+  }
+}
+
+function addMaterial(materialId, quantity) {
+  const material = MATERIALS[materialId];
+  if (!material || !(quantity > 0)) return;
+  state.materials[materialId] = (state.materials[materialId] ?? 0) + quantity;
+  state.drops += 1;
+  const total = state.materials[materialId];
+  addLog(`Získáno: ${material.name} ×${quantity} (celkem ${total}).`, material.rarity === "common" ? "system" : "level-up");
+  pushRecentDrop({ type: "material", key: materialId, name: material.name, rarity: material.rarity, qty: quantity });
+  renderLoot();
+  showMaterialToast(material, quantity, total);
+}
+
+function pushRecentDrop(entry) {
+  state.recentDrops.unshift({ ...entry, at: Date.now() });
+  state.recentDrops.length = Math.min(state.recentDrops.length, CONFIG.maxRecentDrops);
+}
+
+// Compact "last drops" list next to the fight controls. Purely informative:
+// no modal, no interaction, never blocks combat.
+function renderRecentDrops() {
+  const list = elements.recentDropsList;
+  list.innerHTML = "";
+  if (!state.recentDrops.length) {
+    const empty = document.createElement("li");
+    empty.className = "recent-drop-empty";
+    empty.textContent = "Zatím nic — porážej nepřátele.";
+    list.append(empty);
+    return;
+  }
+  state.recentDrops.forEach((drop) => {
+    const rarity = RARITIES[drop.rarity] ?? RARITIES.common;
+    const row = document.createElement("li");
+    row.className = `recent-drop rarity-${drop.rarity}`;
+    row.style.setProperty("--item-color", rarity.color);
+    row.innerHTML = `<span class="recent-drop-icon" aria-hidden="true"></span><span class="recent-drop-name"></span><span class="recent-drop-qty"></span><time class="recent-drop-time"></time>`;
+    const iconSource = drop.type === "material"
+      ? { image: MATERIALS[drop.key]?.asset }
+      : (ITEM_TEMPLATES.find((template) => template.icon === drop.key) ?? { icon: drop.key });
+    renderItemIcon(row.querySelector(".recent-drop-icon"), iconSource);
+    row.querySelector(".recent-drop-name").textContent = drop.name;
+    row.querySelector(".recent-drop-qty").textContent = `×${drop.qty}`;
+    const time = row.querySelector("time");
+    time.dateTime = new Date(drop.at).toISOString();
+    time.textContent = new Date(drop.at).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    list.append(row);
+  });
 }
 
 function statRows(item) {
@@ -456,7 +568,6 @@ function statSummary(item) { return statRows(item).map(([label, value]) => `${la
 // or log panel (see .drop-toast-stack / .drop-toast in styles.css).
 function showDropToast(item) {
   const rarity = RARITIES[item.rarity];
-  const isMaterial = !SLOT_META[item.slot];
   const toast = document.createElement("div");
   toast.className = `drop-toast rarity-${item.rarity}`;
   toast.style.setProperty("--drop-color", rarity.color);
@@ -465,17 +576,36 @@ function showDropToast(item) {
   const nameEl = toast.querySelector("strong");
   nameEl.textContent = item.name;
   nameEl.className = `rarity-text rarity-${item.rarity}`;
-  toast.querySelector(".drop-toast-copy span").textContent = isMaterial
-    ? `Materiál${item.quantity ? ` · celkem ${item.quantity}×` : ""}`
-    : `${rarity.label} · ${SLOT_META[item.slot]?.label ?? ""}`;
+  toast.querySelector(".drop-toast-copy span").textContent = `${rarity.label} · ${SLOT_META[item.slot]?.label ?? ""}`;
+  presentToast(toast);
+}
+
+// Toast for a material/scroll drop: "Získáno: Prach z křídel ×2".
+function showMaterialToast(material, quantity, total) {
+  const rarity = RARITIES[material.rarity];
+  const toast = document.createElement("div");
+  toast.className = `drop-toast rarity-${material.rarity}`;
+  toast.style.setProperty("--drop-color", rarity.color);
+  toast.innerHTML = `<span class="drop-toast-icon" aria-hidden="true"></span><div class="drop-toast-copy"><strong></strong><span></span></div>`;
+  renderItemIcon(toast.querySelector(".drop-toast-icon"), { image: material.asset });
+  const nameEl = toast.querySelector("strong");
+  nameEl.textContent = `Získáno: ${material.name} ×${quantity}`;
+  nameEl.className = `rarity-text rarity-${material.rarity}`;
+  toast.querySelector(".drop-toast-copy span").textContent = `${MATERIAL_CATEGORY_LABELS[material.category] ?? "Materiál"} · celkem ${total}×`;
+  presentToast(toast);
+}
+
+// Shows a toast that dismisses itself. The stack is capped (oldest removed
+// first), so a fast farming streak can never fill the screen; nothing here
+// waits for input or pauses combat.
+function presentToast(toast) {
   elements.dropToastStack.append(toast);
   requestAnimationFrame(() => toast.classList.add("visible"));
   window.setTimeout(() => {
     toast.classList.remove("visible");
     window.setTimeout(() => toast.remove(), 220);
   }, 2600);
-  // Keep at most a handful of toasts on screen during a fast farming streak.
-  while (elements.dropToastStack.children.length > 4) elements.dropToastStack.firstElementChild.remove();
+  while (elements.dropToastStack.children.length > CONFIG.maxToasts) elements.dropToastStack.firstElementChild.remove();
 }
 
 function equipItem(itemId) {
@@ -506,6 +636,7 @@ function unequipItem(slot) {
 function renderInventory() {
   elements.inventoryCapacity.textContent = CONFIG.inventoryCapacity;
   elements.inventoryCount.textContent = state.inventory.length;
+  elements.tabEquipmentCount.textContent = `${state.inventory.length}/${CONFIG.inventoryCapacity}`;
   elements.inventoryEmpty.classList.toggle("hidden", state.inventory.length > 0);
   elements.inventoryGrid.classList.toggle("delete-mode", deleteMode);
   elements.inventoryGrid.innerHTML = "";
@@ -520,7 +651,7 @@ function renderInventory() {
     card.innerHTML = `<div class="inventory-item-top"><input type="checkbox" class="inventory-item-checkbox" tabindex="-1" aria-hidden="true" /><span class="item-icon-small" aria-hidden="true"></span><span class="inventory-item-type"></span>${item.quantity > 1 ? `<span class="inventory-item-quantity">×${item.quantity}</span>` : ""}</div><strong class="inventory-item-name"></strong><p class="inventory-item-stats"></p>${isEquippable ? `<button type="button">Vybavit</button>` : ""}`;
     renderItemIcon(card.querySelector(".item-icon-small"), item);
     card.querySelector(".inventory-item-checkbox").checked = selected;
-    card.querySelector(".inventory-item-type").textContent = isEquippable ? `${rarity.label} · ${SLOT_META[item.slot].label}` : `${rarity.label} · Materiál`;
+    card.querySelector(".inventory-item-type").textContent = isEquippable ? `${rarity.label} · ${SLOT_META[item.slot].label}` : `${rarity.label} · Ostatní`;
     card.querySelector(".inventory-item-name").textContent = item.name;
     card.querySelector(".inventory-item-stats").textContent = statSummary(item);
     card.querySelector("button")?.addEventListener("click", (event) => {
@@ -552,7 +683,7 @@ function renderEquipment() {
   for (const [slot, meta] of Object.entries(SLOT_META)) {
     const container = elements[`${slot}Slot`];
     const item = state.equipment[slot];
-    container.classList.remove("rarity-common", "rarity-rare", "rarity-epic");
+    container.classList.remove("rarity-common", "rarity-uncommon", "rarity-rare", "rarity-epic");
     container.classList.toggle("filled", Boolean(item));
     container.innerHTML = "";
     container.onclick = null;
@@ -604,9 +735,10 @@ let detailView = null; // { itemId, context: "inventory" | "equipped" }
 
 function openItemDetail(item, context) {
   detailView = { itemId: item.id, context };
+  elements.detailIcon.classList.remove("material-art");
   const rarity = RARITIES[item.rarity];
   const template = findItemTemplate(item);
-  elements.detailCard.classList.remove("rarity-common", "rarity-rare", "rarity-epic");
+  elements.detailCard.classList.remove("rarity-common", "rarity-uncommon", "rarity-rare", "rarity-epic");
   elements.detailCard.classList.add(`rarity-${item.rarity}`);
   elements.detailCard.style.setProperty("--drop-color", rarity.color);
   elements.detailRarity.textContent = `${rarity.label} předmět`;
@@ -643,14 +775,57 @@ function openItemDetail(item, context) {
   elements.itemDetailModal.setAttribute("aria-hidden", "false");
 }
 
+function metaRow(label, value) {
+  const row = document.createElement("div"); row.className = "detail-meta-row";
+  const name = document.createElement("span"); name.textContent = label;
+  const amount = document.createElement("strong"); amount.textContent = value;
+  row.append(name, amount);
+  return row;
+}
+
+// Material detail: same modal/visual system as the equipment detail, but no
+// stats and no equip action -- it shows where the material comes from.
+function openMaterialDetail(materialId) {
+  const material = MATERIALS[materialId];
+  if (!material) return;
+  detailView = { materialId, context: "material" };
+  const rarity = RARITIES[material.rarity];
+  const categoryLabel = MATERIAL_CATEGORY_LABELS[material.category] ?? "Materiál";
+  elements.detailCard.classList.remove("rarity-common", "rarity-uncommon", "rarity-rare", "rarity-epic");
+  elements.detailCard.classList.add(`rarity-${material.rarity}`);
+  elements.detailCard.style.setProperty("--drop-color", rarity.color);
+  elements.detailRarity.textContent = `${rarity.label} ${categoryLabel.toLowerCase()}`;
+  renderItemIcon(elements.detailIcon, { image: material.asset });
+  elements.detailIcon.classList.add("material-art");
+  elements.detailTitle.textContent = material.name;
+  elements.detailTitle.className = `rarity-text rarity-${material.rarity}`;
+  elements.detailType.textContent = categoryLabel;
+  renderStatRows(elements.detailStats, {});
+  elements.detailFlavor.textContent = material.description;
+  elements.detailFlavor.classList.toggle("hidden", !material.description);
+  const enemyNames = material.sourceEnemyIds.map((id) => ENEMIES[id]?.name ?? id).join(", ");
+  elements.detailMeta.innerHTML = "";
+  [
+    ["Vlastněno", `${state.materials[materialId] ?? 0}×`],
+    ["Kategorie", categoryLabel],
+    ["Lokace původu", LOCATIONS[material.sourceLocationId]?.name ?? "Neznámo"],
+    ["Získatelné z", enemyNames],
+    ["Obchodovatelné", material.tradeable ? "Ano" : "Ne"],
+  ].forEach(([label, value]) => elements.detailMeta.append(metaRow(label, value)));
+  elements.detailActionButton.classList.add("hidden");
+  elements.itemDetailModal.classList.add("visible");
+  elements.itemDetailModal.setAttribute("aria-hidden", "false");
+}
+
 function closeItemDetail() {
   detailView = null;
+  elements.detailIcon.classList.remove("material-art");
   elements.itemDetailModal.classList.remove("visible");
   elements.itemDetailModal.setAttribute("aria-hidden", "true");
 }
 
 function runDetailAction() {
-  if (!detailView) return;
+  if (!detailView || detailView.context === "material") return;
   if (detailView.context === "inventory") equipItem(detailView.itemId);
   else if (detailView.context === "equipped") {
     const slot = Object.entries(state.equipment).find(([, equipped]) => equipped?.id === detailView.itemId)?.[0];
@@ -659,9 +834,62 @@ function runDetailAction() {
   closeItemDetail();
 }
 
+// Materials are shown in a separate tab of the inventory and are NOT part of
+// state.inventory, so they never use up the equipment capacity.
+function getOwnedMaterialIds() {
+  const known = MATERIAL_ORDER.filter((id) => state.materials[id] > 0);
+  const unknown = Object.keys(state.materials).filter((id) => !MATERIALS[id] && state.materials[id] > 0);
+  return [...known, ...unknown];
+}
+
+function renderMaterials() {
+  const ids = getOwnedMaterialIds().filter((id) => MATERIALS[id]);
+  elements.tabMaterialsCount.textContent = ids.length;
+  elements.materialEmpty.classList.toggle("hidden", ids.length > 0);
+  elements.materialGrid.innerHTML = "";
+  ids.forEach((id) => {
+    const material = MATERIALS[id];
+    const rarity = RARITIES[material.rarity];
+    const card = document.createElement("article");
+    card.className = `inventory-item material-item rarity-${material.rarity}`;
+    card.style.setProperty("--item-color", rarity.color);
+    card.innerHTML = `<div class="inventory-item-top"><span class="item-icon-small material-art" aria-hidden="true"></span><span class="inventory-item-type"></span><span class="inventory-item-quantity"></span></div><strong class="inventory-item-name"></strong>`;
+    renderItemIcon(card.querySelector(".item-icon-small"), { image: material.asset });
+    card.querySelector(".inventory-item-type").textContent = material.category === "scroll" ? `${rarity.label} · SVITEK` : rarity.label;
+    card.querySelector(".inventory-item-quantity").textContent = `×${state.materials[id]}`;
+    card.querySelector(".inventory-item-name").textContent = material.name;
+    card.tabIndex = 0;
+    card.setAttribute("aria-label", `Zobrazit detail materiálu: ${material.name}, ${state.materials[id]} ks`);
+    card.addEventListener("click", () => openMaterialDetail(id));
+    card.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      openMaterialDetail(id);
+    });
+    elements.materialGrid.append(card);
+  });
+}
+
+let inventoryTab = "equipment"; // UI-only, not saved
+
+function setInventoryTab(tab) {
+  inventoryTab = tab === "materials" ? "materials" : "equipment";
+  if (inventoryTab === "materials" && deleteMode) setDeleteMode(false);
+  const isEquipment = inventoryTab === "equipment";
+  elements.tabEquipment.classList.toggle("active", isEquipment);
+  elements.tabMaterials.classList.toggle("active", !isEquipment);
+  elements.tabEquipment.setAttribute("aria-selected", String(isEquipment));
+  elements.tabMaterials.setAttribute("aria-selected", String(!isEquipment));
+  elements.equipmentTabPanel.classList.toggle("hidden", !isEquipment);
+  elements.materialsTabPanel.classList.toggle("hidden", isEquipment);
+  elements.inventoryHeadingActions.classList.toggle("hidden", !isEquipment);
+}
+
 function renderLoot() {
   renderInventory();
   renderEquipment();
+  renderMaterials();
+  renderRecentDrops();
 }
 
 function updateCountdown(now) {
@@ -725,7 +953,8 @@ function resetGame() {
   selectedForDeletion.clear();
   elements.bulkDeleteBar.classList.add("hidden");
   elements.deleteModeButton.classList.remove("active");
-  addLog("Prototyp byl resetován včetně inventáře.", "system");
+  setInventoryTab("equipment");
+  addLog("Prototyp byl resetován včetně inventáře a materiálů.", "system");
   elements.encounterMessage.textContent = "Připraven k boji";
   updateArenaHeader();
   render();
@@ -781,12 +1010,17 @@ function openMapLocation(locationId) {
           <div><dt>XP</dt><dd class="map-stat-xp"></dd></div>
           <div><dt>Gold</dt><dd class="map-stat-gold"></dd></div>
         </dl>
+        <details class="map-loot" open>
+          <summary>MOŽNÁ KOŘIST</summary>
+          <ul class="map-loot-list"></ul>
+        </details>
       </div>
       <button type="button" class="map-select-button secondary-button"></button>`;
     const portrait = card.querySelector(".map-enemy-portrait");
     portrait.innerHTML = enemyCfg.image ? `<img src="${enemyCfg.image}" alt="" />` : `<div class="figure goblin-figure" aria-hidden="true"></div>`;
     card.querySelector(".map-enemy-name").textContent = enemyCfg.name;
-    card.querySelector(".map-enemy-level").textContent = `Úroveň ${enemyCfg.level}`;
+    card.querySelector(".map-enemy-level").textContent = `Úroveň ${enemyCfg.level}${enemyCfg.type ? ` · ${ENEMY_TYPE_LABELS[enemyCfg.type] ?? ""}` : ""}`;
+    renderEnemyLoot(card.querySelector(".map-loot-list"), enemyCfg);
     card.querySelector(".map-stat-hp").textContent = enemyCfg.maxHp;
     card.querySelector(".map-stat-dmg").textContent = `${enemyCfg.minDamage}–${enemyCfg.maxDamage}`;
     card.querySelector(".map-stat-def").textContent = enemyCfg.defense ?? 0;
@@ -805,6 +1039,56 @@ function openMapLocation(locationId) {
   });
   elements.mapLocationsView.classList.add("hidden");
   elements.mapEnemiesView.classList.remove("hidden");
+}
+
+// Builds the "MOŽNÁ KOŘIST" list of an enemy from its data-driven drop table.
+// Shows a qualitative tier ("Běžný drop" ... "Velmi vzácný drop") rather than
+// an exact percentage.
+function getEnemyLootRows(enemyCfg) {
+  const rows = (enemyCfg.materialDrops ?? []).map((drop) => {
+    const material = MATERIALS[drop.id];
+    return material && {
+      icon: { image: material.asset }, name: material.name, rarity: material.rarity,
+      type: material.category === "scroll" ? "Svitek" : "Materiál", tier: drop.tier,
+    };
+  }).filter(Boolean);
+  if (enemyCfg.equipmentLoot && (enemyCfg.dropChance ?? 0) > 0) {
+    const loot = enemyCfg.equipmentLoot;
+    rows.push({
+      icon: ITEM_TEMPLATES.find((template) => template.icon === loot.icon) ?? { icon: loot.icon },
+      name: loot.name, rarity: null, type: "Vybavení", tier: loot.tier,
+    });
+  }
+  // Most common first, so the "main" drop of an enemy is always on top.
+  return rows.sort((a, b) => DROP_TIER_ORDER.indexOf(a.tier) - DROP_TIER_ORDER.indexOf(b.tier));
+}
+
+function renderEnemyLoot(list, enemyCfg) {
+  list.innerHTML = "";
+  const rows = getEnemyLootRows(enemyCfg);
+  if (!rows.length) {
+    const empty = document.createElement("li");
+    empty.className = "map-loot-empty";
+    empty.textContent = "Bez cílené kořisti";
+    list.append(empty);
+    return;
+  }
+  rows.forEach((row) => {
+    const rarity = row.rarity ? RARITIES[row.rarity] : null;
+    const li = document.createElement("li");
+    li.className = `map-loot-row${row.rarity ? ` rarity-${row.rarity}` : ""}`;
+    if (rarity) li.style.setProperty("--item-color", rarity.color);
+    li.innerHTML = `<span class="map-loot-icon" aria-hidden="true"></span><span class="map-loot-copy"><strong></strong><span></span></span><span class="map-loot-tier"></span>`;
+    renderItemIcon(li.querySelector(".map-loot-icon"), row.icon);
+    const name = li.querySelector("strong");
+    name.textContent = row.name;
+    if (row.rarity) name.className = `rarity-text rarity-${row.rarity}`;
+    li.querySelector(".map-loot-copy > span").textContent = rarity ? `${rarity.label} · ${row.type}` : row.type;
+    const tier = li.querySelector(".map-loot-tier");
+    tier.textContent = DROP_TIER_LABELS[row.tier] ?? "";
+    tier.dataset.tier = row.tier;
+    list.append(li);
+  });
 }
 
 function backToMapLocations() {
@@ -862,6 +1146,8 @@ elements.detailActionButton.addEventListener("click", runDetailAction);
 elements.itemDetailModal.querySelector(".drop-backdrop").addEventListener("click", closeItemDetail);
 document.addEventListener("keydown", (event) => { if (event.key === "Escape" && detailView) closeItemDetail(); });
 elements.deleteModeButton.addEventListener("click", () => setDeleteMode(!deleteMode));
+elements.tabEquipment.addEventListener("click", () => setInventoryTab("equipment"));
+elements.tabMaterials.addEventListener("click", () => setInventoryTab("materials"));
 elements.cancelDeleteButton.addEventListener("click", () => setDeleteMode(false));
 elements.confirmDeleteButton.addEventListener("click", deleteSelectedItems);
 document.addEventListener("keydown", (event) => { if (event.key === "Escape" && deleteMode) setDeleteMode(false); });
@@ -872,6 +1158,21 @@ elements.mapBackButton.addEventListener("click", backToMapLocations);
 elements.mapModal.querySelector(".drop-backdrop").addEventListener("click", closeMap);
 document.addEventListener("keydown", (event) => { if (event.key === "Escape" && elements.mapModal.classList.contains("visible")) closeMap(); });
 window.addEventListener("beforeunload", saveState);
+
+// Dev sanity check: material `sourceEnemyIds` (material-data.js) must match
+// the drop tables in world-data.js. Only warns -- never blocks the game.
+function validateMaterialSources() {
+  const fromTables = {};
+  for (const enemy of Object.values(ENEMIES)) {
+    for (const drop of enemy.materialDrops ?? []) (fromTables[drop.id] ??= new Set()).add(enemy.id);
+  }
+  for (const material of Object.values(MATERIALS)) {
+    const declared = [...material.sourceEnemyIds].sort().join(",");
+    const actual = [...(fromTables[material.id] ?? [])].sort().join(",");
+    if (declared !== actual) console.warn(`[material-data] ${material.id}: sourceEnemyIds (${declared}) != drop tables (${actual})`);
+  }
+}
+validateMaterialSources();
 
 startLoops();
 updateArenaHeader();

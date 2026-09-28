@@ -8,6 +8,9 @@
 
 const RARITIES = Object.freeze({
   common: { label: "Běžný", color: "#9fa59f", weight: 74, multiplier: 1 },
+  // Prototype 0.4: "uncommon" is used by materials only. weight 0 keeps it
+  // out of the equipment rarity roll (chooseRarity), so gear odds are unchanged.
+  uncommon: { label: "Neobvyklý", color: "#8fbf8a", weight: 0, multiplier: 1.2 },
   rare: { label: "Vzácný", color: "#6fa8dc", weight: 22, multiplier: 1.55 },
   epic: { label: "Epický", color: "#b985e6", weight: 4, multiplier: 2.3 },
 });

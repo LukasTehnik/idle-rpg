@@ -1,6 +1,6 @@
-# Idle RPG — Prototype 0.3
+# Idle RPG — Prototype 0.4
 
-Třetí hratelný prototyp prohlížečového idle RPG. Ověřuje otázku: **je získávání a porovnávání náhodné kořisti dostatečně zajímavé, aby podporovalo další farmení?**
+Čtvrtý hratelný prototyp prohlížečového idle RPG. Ověřuje otázku: **je výběr konkrétního nepřítele podle jeho materiálů a dropů dostatečně zajímavý, aby motivoval hráče střídat farmené cíle?** Podrobnosti: [`docs/prototype-0.4.md`](docs/prototype-0.4.md).
 
 ## Spuštění
 
@@ -25,7 +25,9 @@ Potom otevři `http://localhost:8080`.
 - živý combat log, počet vítězství a čas výpravy,
 - responzivní zobrazení pro desktop, tablet a telefon,
 - náhodné dropy z osmnácti typů předmětů (běžná sada, tematická „andělská" sada se září a „chitinová" sada z Pustiny ticha),
-- generický mechanismus stackování materiálů v inventáři (zatím bez konkrétního materiálového assetu),
+- **(0.4)** šest nepřátel Pustiny ticha s finálními jmény (Prašná můra, Plastová můra, Slepá můra, Pamětnice, Můra z hlubiny, Matka děr) a typem COMMON / UNCOMMON / RARE / ELITE / BOSS,
+- **(0.4)** sedm materiálů (`material-data.js`) se stabilními ID, cílené drop tabulky každého nepřítele (`world-data.js`) a sekce „Možná kořist“ v mapě,
+- **(0.4)** inventář rozdělený na záložky VYBAVENÍ (18 míst) a MATERIÁLY (stackuje se, nezabírá místa), detail materiálu se zdroji, přehled posledních dropů u boje,
 - běžnou, vzácnou a epickou raritu,
 - náhodné hodnoty poškození, HP a kritického zásahu,
 - inventář pro 18 předmětů,
@@ -55,19 +57,21 @@ Hodnoty jsou nastavení pro první pocitový test. Nejsou schválenými pravidly
 | Návrat po smrti | 5 s |
 | Léčení po vítězství | 10 % maximálních HP |
 | Růst při levelu | +15 HP, +2 min/max damage |
-| Šance na předmět | 42 % za vítězství |
+| Šance na předmět (Goblin) | 42 % za vítězství |
 | Rarity | 74 % běžná, 22 % vzácná, 4 % epická |
 | Kapacita inventáře | 18 předmětů |
 
 ## Hranice této verze
 
-Prototype 0.3 zatím neobsahuje banku, crafting, offline postup, účty ani market. Tyto systémy patří do dalších testovacích verzí. Drop rate je záměrně vysoký, aby šel loot během krátkého testu vyhodnotit. Enemy jména v Pustině ticha ("Nepřítel 1"–"Nepřítel 6") jsou dočasná zástupná jména, stejně jako jejich staty a drop tabulky — vše je centrálně v `world-data.js` pro snadné pozdější doladění. Kompletní dosavadní návrh je v souboru [`docs/navrh-hry.md`](docs/navrh-hry.md).
+Prototype 0.4 zatím neobsahuje crafting, recepty, rozebírání předmětů, banku, market, offline postup, účty ani další lokace. Tyto systémy patří do dalších testovacích verzí. Drop rate je záměrně vysoký, aby šel materiálový systém během krátkého testu vyhodnotit. Staty nepřátel a drop tabulky jsou pracovní balance — vše je centrálně v `world-data.js` a `material-data.js` pro snadné pozdější doladění. Kompletní dosavadní návrh je v souboru [`docs/navrh-hry.md`](docs/navrh-hry.md).
 
 ## Grafika
 
 Portréty Poutníka a Goblina používají upravené SVG ikony z open-source balíčku
 [game-icons.net](https://game-icons.net) (licence CC BY 3.0). Zdroje a autoři jsou uvedeni
 v [`assets/icons/CREDITS.md`](assets/icons/CREDITS.md).
+
+Materiály Pustiny ticha (`assets/materials/*.png`) jsou dodané ilustrace v původní velikosti a barevnosti; prohlížeč je zmenšuje přes CSS (`object-fit: contain`).
 
 Nepřátelé a itemy lokace Pustina ticha (`assets/icons/enemies/pustina-ticha-*.png`,
 `assets/icons/items/chitin-*.png`) jsou dodané hotové assety, beze změny obsahu — pouze
@@ -80,10 +84,12 @@ odpovídající zbytku sady ikon.
 - `styles.css` — responzivní vizuální vrstva,
 - `app.js` — stav hry, souboj, mapa/výběr cíle a postup,
 - `item-data.js` — sdílená data předmětů (rarity, sloty, ikony, šablony předmětů),
-- `world-data.js` — lokace a nepřátelé (staty, drop tabulky) pro tok mapa → lokace → nepřítel → farmení,
+- `material-data.js` — centrální data materiálů a svitků (stabilní ID, rarita, zdroje, popis),
+- `world-data.js` — lokace a nepřátelé (staty, cílené drop tabulky materiálů i vybavení) pro tok mapa → lokace → nepřítel → farmení,
 - `item-catalog.html` — statický přehled všech předmětů,
 - `docs/navrh-hry.md` — dosavadní návrhový dokument,
 - `docs/prototype-0.2.md` — cíle, pracovní balance a scénář testování Prototype 0.2.
-- `docs/prototype-0.3.md` — cíle, pracovní balance a scénář testování aktuální verze.
+- `docs/prototype-0.3.md` — cíle, pracovní balance a scénář testování Prototype 0.3 (historický dokument).
+- `docs/prototype-0.4.md` — cíle, materiály, drop tabulky, migrace a scénář testování aktuální verze.
 - `docs/ui-direction.md` — pravidla vizuálního směru pro další verze.
 - `docs/visual-language-reference.md` — rozbor referencí a plán převodu jejich vizuálního jazyka do hry.

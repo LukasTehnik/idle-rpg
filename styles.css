@@ -716,3 +716,77 @@ h2 { font-size: 14px; letter-spacing: -.02em; text-transform: uppercase; }
 @media (prefers-reduced-motion:reduce) {
   *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
 }
+
+/* ==== Prototype 0.4: materiály, záložky inventáře, možná kořist ==== */
+.inventory-item.rarity-uncommon::before { background:#8fbf8a; }
+.rarity-dot.uncommon { background:#8fbf8a; }
+.rarity-text.rarity-uncommon { color:#8fbf8a; }
+.drop-card.rarity-uncommon { border-color:#5f7f5b; }
+.drop-card.rarity-uncommon::before { background:#8fbf8a; }
+.drop-card.rarity-uncommon .drop-rarity { color:#8fbf8a; }
+.drop-card.rarity-uncommon .drop-icon { border-color:#5f7f5b; }
+
+.inventory-tabs { display:flex; margin-top:9px; border-bottom:1px solid var(--line); }
+.inventory-tab {
+  flex:1; min-height:30px; padding:0 8px; border:1px solid var(--line); border-bottom:0; border-radius:0;
+  margin-right:-1px; color:var(--muted); background:#0a0c0c; font:inherit; font-size:9px; letter-spacing:.08em; cursor:pointer;
+}
+.inventory-tab span { margin-left:5px; color:var(--muted); font-variant-numeric:tabular-nums; letter-spacing:0; }
+.inventory-tab:hover { color:var(--text-soft); }
+.inventory-tab.active { color:var(--text); background:#111414; border-color:var(--line-strong); }
+.inventory-tab.active span { color:var(--text-soft); }
+.inventory-tab:focus-visible { outline:1px solid var(--text-soft); outline-offset:-1px; }
+.inventory-tab-panel.hidden { display:none; }
+
+/* Materiály: bez glow efektu, jen tenký rarity proužek jako u vybavení.
+   Assety jsou původní velké ilustrace -- zobrazují se přes contain a
+   image-rendering:auto (správné vyhlazení při zmenšení). */
+.material-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.material-item { min-height:104px; }
+.material-item .item-icon-small { width:46px; height:46px; }
+.material-item .item-icon-small img { width:40px; height:40px; object-fit:contain; image-rendering:auto; }
+.material-item .inventory-item-name { margin-top:9px; }
+.material-item .inventory-item-top { flex-wrap:wrap; row-gap:4px; }
+.material-item .inventory-item-type { min-width:0; overflow-wrap:anywhere; }
+.material-art img { object-fit:contain; image-rendering:auto; }
+.detail-icon.material-art img { width:94%; height:94%; }
+
+/* Poslední kořist */
+.recent-drops { margin-top:10px; padding-top:8px; border-top:1px solid var(--line); }
+.recent-drops-list { display:grid; gap:0; margin:6px 0 0; padding:0; list-style:none; }
+.recent-drop, .recent-drop-empty { display:grid; grid-template-columns:20px minmax(0,1fr) auto auto; align-items:center; gap:7px; padding:3px 0; border-bottom:1px solid #171a1a; font-size:9px; }
+.recent-drop-empty { display:block; color:var(--muted); font-size:8px; }
+.recent-drop-icon { display:grid; width:20px; height:20px; place-items:center; color:var(--item-color,var(--muted)); }
+.recent-drop-icon img { width:18px; height:18px; object-fit:contain; image-rendering:auto; }
+.recent-drop-icon svg { width:14px; height:14px; }
+.recent-drop-name { min-width:0; overflow:hidden; color:var(--text-soft); text-overflow:ellipsis; white-space:nowrap; }
+.recent-drop.rarity-uncommon .recent-drop-name { color:#8fbf8a; }
+.recent-drop.rarity-rare .recent-drop-name { color:#6fa8dc; }
+.recent-drop.rarity-epic .recent-drop-name { color:#b985e6; }
+.recent-drop-qty { color:var(--text-soft); font-variant-numeric:tabular-nums; }
+.recent-drop-time { color:#454b4a; font-size:8px; font-variant-numeric:tabular-nums; }
+
+/* Možná kořist v kartě nepřítele */
+.map-loot { margin-top:4px; padding-top:8px; border-top:1px solid var(--line); }
+.map-loot summary { color:var(--muted); font-size:8px; letter-spacing:.08em; cursor:pointer; }
+.map-loot summary:hover { color:var(--text-soft); }
+.map-loot-list { display:grid; gap:0; margin:7px 0 0; padding:0; list-style:none; }
+.map-loot-row { display:grid; grid-template-columns:24px minmax(0,1fr) auto; align-items:center; gap:7px; padding:4px 0; border-bottom:1px solid #171a1a; }
+.map-loot-icon { display:grid; width:24px; height:24px; place-items:center; color:var(--item-color,var(--muted)); }
+.map-loot-icon img { width:22px; height:22px; object-fit:contain; image-rendering:auto; }
+.map-loot-icon svg { width:16px; height:16px; }
+.map-loot-copy { display:grid; min-width:0; gap:1px; }
+.map-loot-copy strong { overflow:hidden; font-size:9px; font-weight:600; text-overflow:ellipsis; white-space:nowrap; }
+.map-loot-copy span { color:var(--muted); font-size:7px; letter-spacing:.05em; text-transform:uppercase; }
+.map-loot-tier { color:var(--muted); font-size:7px; letter-spacing:.04em; text-align:right; text-transform:uppercase; }
+.map-loot-tier[data-tier="rare"] { color:#6fa8dc; }
+.map-loot-tier[data-tier="veryRare"] { color:#b985e6; }
+.map-loot-empty { color:var(--muted); font-size:8px; }
+
+@media (max-width:760px) {
+  .material-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:430px) {
+  .material-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .inventory-tab { font-size:8px; padding:0 4px; }
+}

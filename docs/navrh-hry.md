@@ -101,6 +101,7 @@ U permanentních receptů sledujeme **rozšiřování znalosti na serveru**; u n
 | Prototyp 0.1 | Postava, jeden nepřítel, auto combat, HP, damage, smrt, XP, level, log. | Baví sledovat souboj a postup? |
 | Prototyp 0.2 | Drop, inventář, equipment, několik itemů, rarity a stat rolls. | Vzbuzuje vzácný loot radost? |
 | Prototyp 0.3 | Více nepřátel, výběr cíle, drop tables, gold, banka, 5% ztráta při smrti. | Je opakované farmení zajímavé? |
+| Prototyp 0.4 | Materiály, cílené drop tabulky jednotlivých nepřátel, oddělený inventář materiálů (bez craftingu). | Motivuje výběr nepřítele podle jeho materiálů střídat farmené cíle? |
 | Alpha 0.4 | První malý svět, návrat do starších oblastí; orientačně 3 lokace, 10–15 nepřátel, 1–3 bossové, 30–50 itemů. | Funguje základní svět jako celek? |
 | Alpha 0.5 | Offline postup a report, malá výhoda aktivní hry. | Funguje idle vrstva férově a srozumitelně? |
 | Alpha 0.6 | Datový návrh surovin, receptů, kvality, unikátních item instancí a obchodovatelnosti; první omezený crafting prototype. | Podporují data hlavní crafting smyčku? |
@@ -109,6 +110,8 @@ U permanentních receptů sledujeme **rozšiřování znalosti na serveru**; u n
 Čísla obsahu v Alpha 0.4 jsou původní orientační příklad, nikoli produkční závazek. **Crafting je hlavní pilíř vize**: jeho datový model patří do raného návrhu a hratelný prototyp má přijít dříve, než bude obsah ve velkém rozšířen. Plná hráčská ekonomika a kontrakty vyžadují serverové účty a transakční ukládání.
 
 **Stav k 27. 9. 2026:** Prototype 0.3 je implementovaný jako lokální testovací verze. Obsahuje mapu se dvěma lokacemi, výběr konkrétního nepřítele k farmení, sedm slotů vybavení, gold, dvě sady itemů (chitin, andělská) s vlastními asset ikonami, náhodné staty, tři rarity, inventář, stackování materiálů a lokální uložení. Drop rate a rozdělení rarit jsou záměrně zrychlené pro krátký test a nepředstavují finální balance. Banka a 5% ztráta zlata při smrti z roadmapy Prototype 0.3 zatím nejsou implementované.
+
+**Stav k 28. 9. 2026:** Prototype 0.4 staví na 0.3 a přidává finální jména šesti nepřátel Pustiny ticha, sedm materiálů/svitků se stabilními ID (`material-data.js`), cílené drop tabulky (každý nepřítel má hlavní, vedlejší a vzácný drop; Oko Matky padá jen z Matky děr), inventář rozdělený na vybavení (limit 18) a stackovatelné materiály, detail materiálu se zdroji, sekci „Možná kořist“ u nepřátel a přehled posledních dropů. Materiály mají stabilní ID a jsou připravené jako vstup budoucích receptů, crafting ale zatím není implementovaný. Pracovní balance viz [`prototype-0.4.md`](prototype-0.4.md); nejde o schválené parametry finální hry.
 
 ## 8. Otevřená rozhodnutí v pořadí dopadu
 
