@@ -12,7 +12,7 @@
    ========================================================================== */
 
 /* -------------------------------------------------------------- fonty (lokální, OFL) */
-/* Jersey 10 — display font (SIL OFL 1.1), IBM Plex Mono — textový font (SIL OFL 1.1).
+/* Jersey 10 — jediný font UI (SIL OFL 1.1).
    Licence: assets/fonts/OFL-*.txt, zdroj: balíčky @fontsource (viz assets/fonts/README.md). */
 @font-face {
   font-family: "Jersey 10"; font-style: normal; font-weight: 400; font-display: swap; size-adjust: 125%;
@@ -22,26 +22,6 @@
 @font-face {
   font-family: "Jersey 10"; font-style: normal; font-weight: 400; font-display: swap; size-adjust: 125%;
   src: url("assets/fonts/jersey-10-latin-400-normal.woff2") format("woff2");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap;
-  src: url("assets/fonts/ibm-plex-mono-latin-ext-400-normal.woff2") format("woff2");
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-@font-face {
-  font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap;
-  src: url("assets/fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: "IBM Plex Mono"; font-style: normal; font-weight: 700; font-display: swap;
-  src: url("assets/fonts/ibm-plex-mono-latin-ext-700-normal.woff2") format("woff2");
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-@font-face {
-  font-family: "IBM Plex Mono"; font-style: normal; font-weight: 700; font-display: swap;
-  src: url("assets/fonts/ibm-plex-mono-latin-700-normal.woff2") format("woff2");
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
@@ -56,16 +36,16 @@
 
   /* ---------------------------------------------------------- typografie */
   --font-display: "Jersey 10", "Courier New", monospace;
-  --font-text: "IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-  --fs-page-title: 32px;   /* název stránky */
-  --fs-h1: 22px;           /* hlavní nadpis */
-  --fs-section: 18px;      /* nadpis panelu */
-  --fs-nav: 16px;
-  --fs-base: 14px;
-  --fs-item: 15px;
-  --fs-small: 13px;        /* metadata */
-  --fs-label: 12px;        /* nejmenší popisek (min. 11 px) */
-  --fs-btn: 14px;
+  --font-text: var(--font-display);
+  --fs-page-title: 34px;   /* název stránky */
+  --fs-h1: 24px;           /* hlavní nadpis */
+  --fs-section: 20px;      /* nadpis panelu */
+  --fs-nav: 18px;
+  --fs-base: 16px;
+  --fs-item: 17px;
+  --fs-small: 14px;        /* metadata */
+  --fs-label: 13px;        /* nejmenší popisek (min. 11 px) */
+  --fs-btn: 15px;
   --lh-text: 1.55;
 
   /* ---------------------------------------------------------- barvy: pozadí */
@@ -153,6 +133,7 @@ body {
   font-family: var(--font-text);
   font-size: var(--fs-base);
   line-height: var(--lh-text);
+  letter-spacing: .03em;
   font-synthesis: none;
 }
 
@@ -544,8 +525,8 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 .cell-icon img { width: 100%; height: 100%; object-fit: contain; }
 .cell-icon svg { width: 58%; height: 58%; }
 .cell-name {
-  display: -webkit-box; height: 28px; overflow: hidden; color: var(--rar-color); overflow-wrap: anywhere;
-  font-size: var(--fs-label); line-height: 14px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  display: -webkit-box; height: 32px; overflow: hidden; color: var(--rar-color); overflow-wrap: anywhere;
+  font-size: var(--fs-label); line-height: 16px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
 }
 .cell-qty {
   position: absolute; top: 3px; right: 3px; z-index: 2; min-width: 20px; padding: 0 5px;
@@ -604,7 +585,7 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 .pd-slot.compatible.selected { box-shadow: none; }
 .pd-type {
   align-self: flex-start; padding: 0 2px; color: var(--color-text-secondary);
-  font-family: var(--font-display); font-size: var(--fs-small); letter-spacing: .04em; line-height: 15px; text-transform: uppercase;
+  font-family: var(--font-display); font-size: var(--fs-small); letter-spacing: .04em; line-height: 16px; text-transform: uppercase;
 }
 .pd-slot.filled .pd-type { color: var(--color-text-primary); }
 .pd-icon { display: grid; flex: 1; width: 100%; min-height: 0; place-items: center; overflow: hidden; color: var(--color-border-highlight); }
@@ -894,7 +875,7 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 
 /* Mobil */
 @media (max-width: 760px) {
-  :root { --page-pad: 16px; --fs-page-title: 26px; --slot-size: clamp(72px, calc((100vw - 84px) / 3), 96px); --cell-min: 88px; }
+  :root { --page-pad: 16px; --fs-page-title: 28px; --slot-size: clamp(72px, calc((100vw - 84px) / 3), 96px); --cell-min: 88px; }
   .page-area { padding-top: 20px; }
   .statusbar { flex-wrap: wrap; gap: 8px 12px; padding-block: 8px; }
   .page-title { flex: 1; min-width: 0; }

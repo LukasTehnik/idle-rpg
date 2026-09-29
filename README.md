@@ -88,7 +88,7 @@ Od verze 0.5 používá rozhraní teplé retro RPG téma (hnědé povrchy, zlat�
 
 - `index.html` — aplikační shell a čtyři stránky (Postava, Inventář, Mapa, Boj),
 - `styles.css` — responzivní vizuální vrstva (retro RPG téma, centrální design tokeny v `:root`),
-- `assets/fonts/` — lokální fonty (Jersey 10, IBM Plex Mono) a jejich licence OFL,
+- `assets/fonts/` — lokální fonty (Jersey 10) a jejich licence OFL,
 - `app.js` — stav hry, souboj, mapa/výběr cíle a postup,
 - `item-data.js` — sdílená data předmětů (rarity, sloty, ikony, šablony předmětů),
 - `material-data.js` — centrální data materiálů a svitků (stabilní ID, rarita, zdroje, popis),

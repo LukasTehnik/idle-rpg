@@ -116,10 +116,9 @@ Tmavé teplé pozadí (`--color-bg-*`), hnědé herní povrchy ve třech úrovn�
 Primární text `#f2e8d5` na povrchech ≥ 11:1, sekundární ≥ 6:1, muted (jen vedlejší informace) ≥ 4.5:1 na základních plochách. Rarity texty (`--rarity-rare`, `--rarity-epic` byly oproti výchozí paletě mírně zesvětlené) dosahují ≥ 4.5:1 na buňkách i panelech. Text na pergamenu používá pouze `--color-ink*`. Rarita se nikdy nesděluje jen barvou: buňky a sloty mají značku z 1–4 čtverečků (běžný → epický), detail a nasazený slot slovní štítek.
 
 ### Typografie
-- **Display:** Jersey 10 (nadpisy, navigace, tlačítka, štítky, číselné hodnoty). V `@font-face` je `size-adjust: 125 %`, protože font má malý x-height.
-- **Text:** IBM Plex Mono 400/700 (popisy, statistiky, combat log, detail).
-- Oba fonty jsou lokálně v `assets/fonts/` (`woff2`, `latin` + `latin-ext`), licence SIL OFL 1.1 a zdroje viz `assets/fonts/README.md`. Pixelify Sans byl zamítnut kvůli nečitelným číslicím (`7` ≈ `1`, `5` ≈ `S`) a písmenu `Z`.
-- Stupnice: název stránky 32 px, hlavní nadpis 22, nadpis panelu 18, navigace 16, text 14, metadata 13, nejmenší popisek 12 (min. 11), tlačítka 14.
+- **Jediný font: Jersey 10** (SIL OFL 1.1) pro celé UI. Má jednoznačné číslice a písmena i českou diakritiku. V `@font-face` je `size-adjust: 125 %`, protože font má malý x-height; velikosti v tokenech jsou proto zvětšené. Existuje jen řez 400, bold se nesyntetizuje (`font-synthesis: none`), důraz dělá barva.
+- Font je lokálně v `assets/fonts/` (`woff2`, `latin` + `latin-ext`), licence a zdroj viz `assets/fonts/README.md`. Pixelify Sans byl zamítnut kvůli nečitelným číslicím (`7` ≈ `1`, `5` ≈ `S`) a písmenu `Z`; IBM Plex Mono byl původně použit pro text, ale sjednotil se na Jersey 10.
+- Stupnice (tokeny): název stránky 34 px, hlavní nadpis 24, nadpis panelu 20, navigace 18, text 16, metadata 14, nejmenší popisek 13, tlačítka 15.
 
 ### Povrchy a rámečky
 - Běžný rámeček 1 px, aktivní/vybraný 2 px zlatý, výrazné panely (inventář, paper-doll, detail, bojová scéna) mají dvojitou linku a zlaté rohové značky.

@@ -1,12 +1,16 @@
 # Fonty
 
-Fonty jsou uložené lokálně (žádný Google Fonts CDN) ve formátu `woff2`, rozdělené na `latin` a `latin-ext` (česká diakritika je v `latin-ext`, prohlížeč si stáhne jen potřebné části přes `unicode-range`).
+Celé UI používá jediný font **Jersey 10** (SIL OFL 1.1). Je uložený lokálně (žádný Google Fonts CDN) jako `woff2`, rozdělený na `latin` a `latin-ext` (česká diakritika je v `latin-ext`, prohlížeč stáhne jen potřebné části přes `unicode-range`).
 
-| Použití | Font | Řezy | Licence | Zdroj |
-| --- | --- | --- | --- | --- |
-| Display (nadpisy, navigace, tlačítka, štítky, číselné hodnoty) | **Jersey 10** | 400 | SIL OFL 1.1 — `OFL-Jersey10.txt` | balíček `@fontsource/jersey-10` 5.3.0 (původně https://github.com/scfried/soft-type-jersey) |
-| Text (popisy, statistiky, combat log, detail) | **IBM Plex Mono** | 400, 700 | SIL OFL 1.1 — `OFL-IBMPlexMono.txt` | balíček `@fontsource/ibm-plex-mono` 5.3.0 (původně https://github.com/IBM/plex) |
+| Soubor | Obsah |
+| --- | --- |
+| `jersey-10-latin-400-normal.woff2` | základní latinka, číslice |
+| `jersey-10-latin-ext-400-normal.woff2` | rozšířená latinka (ěščřžýáíéúůďťň …) |
+| `OFL-Jersey10.txt` | licence SIL Open Font License 1.1 |
 
-## Proč Jersey 10
-Původně zvolený Pixelify Sans měl pro tuto hru nečitelné znaky (`7` vypadala jako `1`, `5` jako `S`, `Z` jako `2`), což je u statistik a čísel nepřijatelné. Jersey 10 má jednoznačné číslice a písmena a obsahuje celou českou diakritiku (ověřeno přes `latin` + `latin-ext`: ěščřžýáíéúůďťňó a velká písmena).
-Jersey 10 je bez tučného řezu, proto se v CSS nepoužívá synthetic bold (`font-synthesis: none`). V `@font-face` je `size-adjust: 125%`, aby při stejné `font-size` odpovídala velikost písma ostatním fontům.
+Zdroj: balíček `@fontsource/jersey-10` 5.3.0 (původně https://github.com/scfried/soft-type-jersey, © The Soft Type Project Authors).
+
+## Poznámky
+- Existuje jen řez 400. Bold se nesyntetizuje (`font-synthesis: none`), důraz dělá barva.
+- V `@font-face` je `size-adjust: 125%`, protože Jersey 10 má malý x-height; velikosti písma v `styles.css` jsou na to navržené.
+- Původně zvolený Pixelify Sans byl zamítnut: číslice `7` vypadala jako `1`, `5` jako `S` a `Z` jako `2`.
