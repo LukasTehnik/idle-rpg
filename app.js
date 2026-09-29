@@ -93,17 +93,16 @@ const ELEMENT_IDS = [
 const elements = Object.fromEntries(ELEMENT_IDS.map((id) => [id, document.getElementById(id)]));
 for (const [id, node] of Object.entries(elements)) if (!node) console.warn(`[ui] chybí element #${id}`);
 
-// Náhled postavy — JEDINÉ místo, kde se vyměňuje character asset. Paper-doll,
-// profil, sidebar i bojová scéna berou obrázek z CSS proměnné --character-art,
-// kterou tady nastavujeme. Až bude hotový plnohodnotný model postavy, stačí
-// změnit `src` (PNG/SVG/WebP) — nic dalšího se nemusí upravovat.
-const CHARACTER_PREVIEW = Object.freeze({ src: "assets/icons/wanderer.svg", label: "Poutník" });
+// Náhled postavy — vlastní siluetu dodáš nastavením `src` (PNG/SVG/WebP);
+// s `src: null` se kreslí vestavěná figurka z character.js včetně nasazených
+// předmětů připnutých na tělo.
+const CHARACTER_PREVIEW = Object.freeze({ src: null, label: "Poutník" });
 
 function applyCharacterPreview() {
-  document.documentElement.style.setProperty("--character-art", `url("${CHARACTER_PREVIEW.src}")`);
   $$("[data-character-preview]").forEach((node) => {
     node.setAttribute("aria-label", node.classList.contains("doll-figure") ? `Náhled postavy: ${CHARACTER_PREVIEW.label}` : CHARACTER_PREVIEW.label);
   });
+  renderCharacters(state.equipment, CHARACTER_PREVIEW.src);
 }
 
 // Stav rozhraní. Záměrně NENÍ součástí `state`, takže se nikdy neukládá do savu
@@ -282,6 +281,7 @@ function getPlayerStats() {
 }
 
 function render() {
+  renderCharacters(state.equipment, CHARACTER_PREVIEW.src);
   const stats = getPlayerStats();
   const goal = xpNeeded();
   state.player.hp = Math.min(state.player.hp, stats.maxHp);
