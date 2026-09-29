@@ -6,296 +6,354 @@
     <meta name="theme-color" content="#0b0d0c" />
     <meta
       name="description"
-      content="První hratelný prototyp prohlížečového idle RPG."
+      content="Prohlížečový idle RPG prototyp s aplikačním shellem, samostatnými stránkami a paper-doll inventářem."
     />
     <title>Idle RPG — Prototype 0.4</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <main class="app-shell">
-      <header class="topbar">
-        <div>
-          <p class="eyebrow">IDLE RPG / PROTOTYPE 0.4</p>
-          <h1>První výprava</h1>
+    <a class="skip-link" href="#main">Přeskočit na obsah</a>
+
+    <div class="game-shell">
+      <!-- ============ LEVÝ SIDEBAR (na mobilu vysouvací) ============ -->
+      <aside id="sidebar" class="sidebar" aria-label="Hlavní navigace">
+        <div class="sidebar-inner">
+          <div class="identity">
+            <div class="identity-portrait" data-character-preview role="img" aria-label="Poutník"></div>
+            <div class="identity-copy">
+              <strong>Poutník</strong>
+              <span>Úroveň <b data-bind="level">1</b></span>
+              <span class="identity-state"><i class="status-dot" data-bind-dot></i><span data-bind="status">Připraveno</span></span>
+            </div>
+          </div>
+
+          <nav class="nav" aria-label="Stránky hry">
+            <a class="nav-link" href="#/postava" data-page-link="postava">Postava</a>
+            <a class="nav-link" href="#/inventar" data-page-link="inventar">Inventář</a>
+            <a class="nav-link" href="#/mapa" data-page-link="mapa">Mapa</a>
+            <a class="nav-link" href="#/boj" data-page-link="boj">Boj</a>
+            <a class="nav-link nav-link-external" href="item-catalog.html">Katalog předmětů <span aria-hidden="true">↗</span></a>
+          </nav>
+
+          <p class="sidebar-note">Prototype 0.4<br />UI shell · boj běží na pozadí při přepínání stránek</p>
         </div>
-        <div class="session-status" aria-live="polite">
-          <span id="statusDot" class="status-dot"></span>
-          <span id="sessionStatus">Připraveno</span>
-        </div>
-      </header>
+      </aside>
+      <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
 
-      <section class="progress-strip" aria-label="Postup postavy">
-        <div class="level-badge">
-          <span>ÚROVEŇ</span>
-          <strong id="levelValue">1</strong>
-        </div>
-        <div class="xp-area">
-          <div class="bar-label">
-            <span>Zkušenosti</span>
-            <span><strong id="xpValue">0</strong> / <span id="xpGoal">50</span> XP</span>
-          </div>
-          <div class="progress-track xp-track">
-            <div id="xpBar" class="progress-fill xp-fill"></div>
-          </div>
-        </div>
-        <div class="run-stats">
-          <div><span>Vítězství</span><strong id="killsValue">0</strong></div>
-          <div><span>Nalezené předměty</span><strong id="dropsValue">0</strong></div>
-          <div><span>Gold</span><strong id="goldValue">0</strong></div>
-          <div><span>Čas výpravy</span><strong id="runTimeValue">00:00</strong></div>
-        </div>
-      </section>
-
-      <section class="game-grid">
-        <article class="panel character-panel">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">TVÁ POSTAVA</p>
-              <h2>Poutník</h2>
-            </div>
-            <span class="tag">Člověk</span>
-          </div>
-
-          <div class="portrait player-portrait" aria-hidden="true">
-            <div class="rune">I</div>
-            <div class="figure player-figure" role="img" aria-label="Poutník"></div>
-          </div>
-
-          <div class="health-block">
-            <div class="bar-label">
-              <span>Životy</span>
-              <span><strong id="playerHpValue">100</strong> / <span id="playerMaxHp">100</span></span>
-            </div>
-            <div class="progress-track health-track">
-              <div id="playerHpBar" class="progress-fill health-fill"></div>
-            </div>
-          </div>
-
-          <dl class="stats-list">
-            <div><dt>Poškození</dt><dd id="damageValue">9–13</dd></div>
-            <div><dt>Rychlost útoku</dt><dd>1,6 s</dd></div>
-            <div><dt>Kritický zásah</dt><dd id="critValue">10 %</dd></div>
-          </dl>
-        </article>
-
-        <article class="panel encounter-panel">
-          <div class="location-line">
-            <span class="location-mark" aria-hidden="true">⌖</span>
-            <div>
-              <p class="eyebrow" id="currentLocationName">OKRAJ STARÉHO LESA</p>
-              <p class="muted">Vybraný nepřítel se po porážce vrací</p>
-            </div>
-          </div>
-
-          <div id="arena" class="arena">
-            <div id="slashEffect" class="slash-effect" aria-hidden="true"></div>
-            <div class="enemy-meta">
-              <span class="tag danger">NEPŘÍTEL</span>
-              <h2 id="enemyName">Goblin</h2>
-              <p id="enemyLevel">Úroveň 1</p>
-            </div>
-
-            <div id="enemyPortrait" class="portrait enemy-portrait" aria-hidden="true">
-              <div class="rune">G</div>
-              <div id="goblinFigure" class="figure goblin-figure" role="img" aria-label="Goblin"></div>
-              <img id="enemyImage" class="figure enemy-image hidden" alt="" />
-            </div>
-
-            <div class="health-block enemy-health-block">
-              <div class="bar-label">
-                <span>Životy nepřítele</span>
-                <span><strong id="enemyHpValue">48</strong> / <span id="enemyMaxHpValue">48</span></span>
-              </div>
-              <div class="progress-track health-track enemy-health-track">
-                <div id="enemyHpBar" class="progress-fill enemy-health-fill"></div>
-              </div>
-            </div>
-
-            <div id="encounterMessage" class="encounter-message" aria-live="polite">
-              Připraven k boji
-            </div>
-          </div>
-
-          <div class="controls">
-            <button id="fightButton" class="primary-button" type="button">
-              <span id="fightButtonIcon">▶</span>
-              <span id="fightButtonText">Zahájit boj</span>
-            </button>
-            <button id="mapButton" class="icon-button" type="button" aria-label="Otevřít mapu" title="Otevřít mapu">
-              🗺
-            </button>
-            <button id="resetButton" class="icon-button" type="button" aria-label="Resetovat prototyp" title="Resetovat prototyp">
-              ↻
-            </button>
-          </div>
-          <p class="control-hint">Boj pokračuje automaticky, dokud ho nezastavíš.</p>
-          <div class="recent-drops" aria-label="Poslední kořist">
-            <p class="eyebrow">POSLEDNÍ KOŘIST</p>
-            <ol id="recentDropsList" class="recent-drops-list"></ol>
-          </div>
-        </article>
-
-        <aside class="panel log-panel">
-          <div class="panel-heading log-heading">
-            <div>
-              <p class="eyebrow">ŽIVÝ ZÁZNAM</p>
-              <h2>Průběh boje</h2>
-            </div>
-            <button id="clearLogButton" class="text-button" type="button">Vyčistit</button>
-          </div>
-          <ol id="combatLog" class="combat-log" aria-live="polite" aria-relevant="additions">
-            <li class="log-entry system">
-              <time>—</time>
-              <span>Vyber si okamžik a zahaj první boj.</span>
+      <div class="main-column">
+        <!-- ============ HORNÍ STAVOVÁ LIŠTA ============ -->
+        <header class="statusbar">
+          <button id="menuButton" class="btn menu-button" type="button" aria-controls="sidebar" aria-expanded="false">☰ Menu</button>
+          <h1 id="pageTitle" class="page-title">Boj</h1>
+          <ul class="status-items" aria-label="Stav postavy">
+            <li class="status-item"><span>Úroveň</span><strong data-bind="level">1</strong></li>
+            <li class="status-item status-xp">
+              <span>XP <strong><span data-bind="xp">0</span> / <span data-bind="xpGoal">50</span></strong></span>
+              <div class="bar xp-bar" role="presentation"><div class="bar-fill" data-bar="xp"></div></div>
             </li>
-          </ol>
-          <div class="log-legend">
-            <span><i class="legend-dot player"></i> Poutník</span>
-            <span><i class="legend-dot enemy"></i> <span id="legendEnemyLabel">Goblin</span></span>
-            <span><i class="legend-dot event"></i> Událost</span>
-          </div>
-        </aside>
-      </section>
+            <li class="status-item"><span>Gold</span><strong data-bind="gold">0</strong></li>
+            <li class="status-item status-state"><i class="status-dot" data-bind-dot></i><strong data-bind="status" aria-live="polite">Připraveno</strong></li>
+            <li class="status-item status-target"><span>Cíl</span><strong data-bind="enemyName">Goblin</strong></li>
+          </ul>
+        </header>
 
-      <section class="loot-section" aria-labelledby="lootSectionTitle">
-        <article class="panel equipment-panel">
-          <div class="panel-heading loot-heading">
-            <div>
-              <p class="eyebrow">VYBAVENÍ</p>
-              <h2 id="lootSectionTitle">Síla postavy</h2>
-            </div>
-            <span class="tag">7 slotů</span>
-          </div>
-          <div class="equipment-slots">
-            <div id="weaponSlot" class="equipment-slot" data-slot="weapon"></div>
-            <div id="armorSlot" class="equipment-slot" data-slot="armor"></div>
-            <div id="helmetSlot" class="equipment-slot" data-slot="helmet"></div>
-            <div id="glovesSlot" class="equipment-slot" data-slot="gloves"></div>
-            <div id="bootsSlot" class="equipment-slot" data-slot="boots"></div>
-            <div id="pantsSlot" class="equipment-slot" data-slot="pants"></div>
-            <div id="charmSlot" class="equipment-slot" data-slot="charm"></div>
-          </div>
-          <p class="panel-footnote">Kliknutím na vybavený předmět zobrazíš jeho detail — sundat ho jde přímo odtud.</p>
-        </article>
+        <main id="main" class="page-area" tabindex="-1">
+          <!-- ============ STRÁNKA: POSTAVA ============ -->
+          <section id="page-postava" class="page" data-page="postava" aria-labelledby="pageTitle" hidden>
+            <div class="postava-grid">
+              <article class="panel profile-panel">
+                <div class="profile-portrait" data-character-preview role="img" aria-label="Poutník"></div>
+                <div class="profile-body">
+                  <p class="eyebrow">TVÁ POSTAVA</p>
+                  <h2 class="section-title">Poutník</h2>
+                  <span class="tag">Člověk</span>
+                  <div class="bar-block">
+                    <div class="bar-label"><span>Zkušenosti</span><span><strong data-bind="xp">0</strong> / <span data-bind="xpGoal">50</span> XP</span></div>
+                    <div class="bar xp-bar"><div class="bar-fill" data-bar="xp"></div></div>
+                  </div>
+                  <div class="bar-block">
+                    <div class="bar-label"><span>Životy</span><span><strong data-bind="playerHp">100</strong> / <span data-bind="playerMaxHp">100</span></span></div>
+                    <div class="bar health-bar"><div class="bar-fill" data-bar="playerHp"></div></div>
+                  </div>
+                </div>
+              </article>
 
-        <article class="panel inventory-panel">
-          <div class="panel-heading loot-heading">
-            <div>
-              <p class="eyebrow">KOŘIST</p>
-              <h2>Inventář</h2>
-            </div>
-            <div id="inventoryHeadingActions" class="inventory-heading-actions">
-              <div class="inventory-capacity"><strong id="inventoryCount">0</strong> / <span id="inventoryCapacity">18</span></div>
-              <button id="deleteModeButton" class="icon-button" type="button" aria-label="Vybrat předměty ke smazání" title="Smazat předměty">🗑</button>
-            </div>
-          </div>
-          <div class="inventory-tabs" role="tablist" aria-label="Sekce inventáře">
-            <button id="tabEquipment" class="inventory-tab active" type="button" role="tab" aria-selected="true">VYBAVENÍ <span id="tabEquipmentCount">0/18</span></button>
-            <button id="tabMaterials" class="inventory-tab" type="button" role="tab" aria-selected="false">MATERIÁLY <span id="tabMaterialsCount">0</span></button>
-          </div>
-          <div id="equipmentTabPanel" class="inventory-tab-panel" role="tabpanel">
-          <div id="bulkDeleteBar" class="bulk-delete-bar hidden">
-            <span><strong id="selectedCount">0</strong> vybráno ke smazání</span>
-            <div class="bulk-delete-actions">
-              <button id="confirmDeleteButton" class="secondary-button danger-button" type="button" disabled>Smazat vybrané</button>
-              <button id="cancelDeleteButton" class="text-button" type="button">Zrušit</button>
-            </div>
-          </div>
-          <div id="inventoryGrid" class="inventory-grid"></div>
-          <p class="panel-footnote">Klikni na předmět pro detail a staty, tlačítkem ho rovnou vybavíš. Košem vybereš předměty ke smazání.</p>
-          <div id="inventoryEmpty" class="inventory-empty">
-            <span class="empty-rune">◇</span>
-            <strong>Žádné vybavení</strong>
-            <p>Porážej nepřátele. Každý může zanechat vybavení s náhodnými vlastnostmi.</p>
-          </div>
-          </div>
-          <div id="materialsTabPanel" class="inventory-tab-panel hidden" role="tabpanel">
-            <div id="materialGrid" class="inventory-grid material-grid"></div>
-            <p class="panel-footnote">Materiály se stackují a nezabírají místo pro vybavení. Klikni pro detail a zdroj získání.</p>
-            <div id="materialEmpty" class="inventory-empty">
-              <span class="empty-rune">◇</span>
-              <strong>Žádné materiály</strong>
-              <p>Materiály padají z nepřátel v Pustině ticha. Na mapě si u každého nepřítele otevři „Možná kořist“ a vyber, koho farmit.</p>
-            </div>
-          </div>
-          <div class="rarity-legend" aria-label="Vzácnosti">
-            <span><i class="rarity-dot common"></i>Běžný</span>
-            <span><i class="rarity-dot uncommon"></i>Neobvyklý</span>
-            <span><i class="rarity-dot rare"></i>Vzácný</span>
-            <span><i class="rarity-dot epic"></i>Epický</span>
-          </div>
-        </article>
-      </section>
+              <article class="panel">
+                <h2 class="section-title">Statistiky</h2>
+                <dl class="stat-table">
+                  <div><dt>Úroveň</dt><dd data-bind="level">1</dd></div>
+                  <div><dt>Poškození</dt><dd data-bind="damage">9–13</dd></div>
+                  <div><dt>Maximální životy</dt><dd data-bind="playerMaxHp">100</dd></div>
+                  <div><dt>Kritický zásah</dt><dd data-bind="crit">10 %</dd></div>
+                  <div><dt>Rychlost útoku</dt><dd>1,6 s</dd></div>
+                  <div><dt>Vítězství</dt><dd data-bind="kills">0</dd></div>
+                  <div><dt>Nalezené předměty</dt><dd data-bind="drops">0</dd></div>
+                  <div><dt>Gold</dt><dd data-bind="gold">0</dd></div>
+                  <div><dt>Čas výpravy</dt><dd data-bind="runTime">00:00</dd></div>
+                </dl>
+              </article>
 
-      <footer class="prototype-note">
-        <span>TESTOVACÍ SMYČKA</span>
-        Goblin → šance na kořist → porovnání → vybavení → silnější postava
-        <a href="item-catalog.html" class="catalog-link">Katalog předmětů →</a>
-      </footer>
-    </main>
+              <article class="panel postava-equipment">
+                <div class="panel-head">
+                  <h2 class="section-title">Přehled vybavení</h2>
+                  <a class="btn" href="#/inventar">Otevřít inventář →</a>
+                </div>
+                <ul id="equipmentOverview" class="equipment-overview"></ul>
+              </article>
+            </div>
+          </section>
 
-    <!-- Neblokující oznámení o dropu (Oprava 1): nahrazuje bývalý modal, který
-         se otevíral po každém dropu a vyžadoval ruční potvrzení. Boj i tik
-         hry běží dál beze změny, toast sám zmizí a nic nezakrývá ovládání. -->
+          <!-- ============ STRÁNKA: INVENTÁŘ (paper-doll) ============ -->
+          <section id="page-inventar" class="page" data-page="inventar" aria-labelledby="pageTitle" hidden>
+            <div class="inv-layout">
+              <!-- 1) INVENTÁŘOVÝ GRID -->
+              <section class="panel inv-panel" aria-labelledby="invTitle">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">KOŘIST</p>
+                    <h2 id="invTitle" class="section-title">Inventář</h2>
+                  </div>
+                  <div class="inv-head-actions">
+                    <div class="capacity" title="Využité místo pro vybavení"><strong id="inventoryCount">0</strong> / <span id="inventoryCapacity">18</span></div>
+                    <button id="deleteModeButton" class="btn" type="button" aria-pressed="false" title="Vybrat předměty ke smazání">Smazat…</button>
+                  </div>
+                </div>
+
+                <div id="invTabs" class="inv-tabs" role="group" aria-label="Kategorie inventáře">
+                  <button class="inv-tab active" type="button" aria-pressed="true" data-tab="all">VŠE <span data-tab-count="all">0</span></button>
+                  <button class="inv-tab" type="button" aria-pressed="false" data-tab="equipment">VYBAVENÍ <span data-tab-count="equipment">0</span></button>
+                  <button class="inv-tab" type="button" aria-pressed="false" data-tab="materials">MATERIÁLY <span data-tab-count="materials">0</span></button>
+                  <button class="inv-tab" type="button" aria-pressed="false" data-tab="scrolls">SVITKY <span data-tab-count="scrolls">0</span></button>
+                </div>
+
+                <div class="inv-toolbar">
+                  <label class="field field-search">
+                    <span class="field-label">Hledat</span>
+                    <input id="invSearch" type="search" placeholder="Název nebo slot…" autocomplete="off" />
+                  </label>
+                  <label class="field" id="invTypeField">
+                    <span class="field-label">Typ</span>
+                    <select id="invType"></select>
+                  </label>
+                  <label class="field">
+                    <span class="field-label">Rarita</span>
+                    <select id="invRarity">
+                      <option value="all">Všechny</option>
+                      <option value="common">Běžný</option>
+                      <option value="uncommon">Neobvyklý</option>
+                      <option value="rare">Vzácný</option>
+                      <option value="epic">Epický</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span class="field-label">Řazení</span>
+                    <select id="invSort">
+                      <option value="newest">Nejnovější</option>
+                      <option value="rarity">Rarita</option>
+                      <option value="name">Název</option>
+                      <option value="slot">Slot</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div id="bulkDeleteBar" class="bulk-bar hidden">
+                  <span><strong id="selectedCount">0</strong> vybráno ke smazání</span>
+                  <div class="bulk-actions">
+                    <button id="confirmDeleteButton" class="btn btn-danger" type="button" disabled>Smazat vybrané</button>
+                    <button id="cancelDeleteButton" class="btn" type="button">Zrušit</button>
+                  </div>
+                </div>
+
+                <div id="inventoryGrid" class="inv-grid" role="group" aria-label="Předměty v inventáři"></div>
+                <div id="inventoryEmpty" class="inv-empty hidden">
+                  <span class="empty-rune" aria-hidden="true">◇</span>
+                  <strong id="inventoryEmptyTitle">Nic tu není</strong>
+                  <p id="inventoryEmptyText">Porážej nepřátele. Každý může zanechat vybavení nebo materiál.</p>
+                </div>
+
+                <div class="rarity-legend" aria-label="Vzácnosti">
+                  <span><i class="rarity-dot common"></i>Běžný</span>
+                  <span><i class="rarity-dot uncommon"></i>Neobvyklý</span>
+                  <span><i class="rarity-dot rare"></i>Vzácný</span>
+                  <span><i class="rarity-dot epic"></i>Epický</span>
+                </div>
+              </section>
+
+              <!-- 2) PAPER-DOLL VYBAVENÍ -->
+              <section class="panel doll-panel" aria-labelledby="dollTitle">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">NASAZENO</p>
+                    <h2 id="dollTitle" class="section-title">Vybavení postavy</h2>
+                  </div>
+                  <span class="tag"><span id="equippedCount">0</span> / 7 slotů</span>
+                </div>
+
+                <!-- Sloty jsou rozmístěné podle částí těla. Náhled postavy je
+                     samostatná vyměnitelná vrstva (data-character-preview,
+                     viz CHARACTER_PREVIEW v app.js). -->
+                <div class="doll" id="paperDoll" role="group" aria-label="Vybavení postavy">
+                  <div class="doll-figure" data-character-preview role="img" aria-label="Náhled postavy"></div>
+                  <button type="button" class="pd-slot" data-slot="helmet"></button>
+                  <button type="button" class="pd-slot" data-slot="gloves"></button>
+                  <button type="button" class="pd-slot" data-slot="armor"></button>
+                  <button type="button" class="pd-slot" data-slot="charm"></button>
+                  <button type="button" class="pd-slot" data-slot="weapon"></button>
+                  <button type="button" class="pd-slot" data-slot="pants"></button>
+                  <button type="button" class="pd-slot" data-slot="boots"></button>
+                </div>
+
+                <dl class="doll-stats" aria-label="Souhrn statistik postavy">
+                  <div><dt>Poškození</dt><dd data-bind="damage">9–13</dd></div>
+                  <div><dt>Max. životy</dt><dd data-bind="playerMaxHp">100</dd></div>
+                  <div><dt>Kritický zásah</dt><dd data-bind="crit">10 %</dd></div>
+                  <div><dt>Rychlost útoku</dt><dd>1,6 s</dd></div>
+                </dl>
+              </section>
+
+              <!-- 3) PERSISTENTNÍ DETAIL VYBRANÉHO ITEMU -->
+              <aside id="itemDetail" class="panel detail-panel" aria-label="Detail předmětu">
+                <div class="detail-topbar">
+                  <span class="eyebrow">DETAIL PŘEDMĚTU</span>
+                  <button id="detailCloseButton" class="btn detail-close" type="button">Zavřít ✕</button>
+                </div>
+
+                <div id="detailEmpty" class="detail-empty">
+                  <span class="empty-rune" aria-hidden="true">◇</span>
+                  <strong>Vyber předmět</strong>
+                  <p>Kliknutím na item zobrazíš jeho detail.</p>
+                </div>
+
+                <div id="detailBody" class="detail-body hidden">
+                  <div class="detail-visual">
+                    <div id="detailRarity" class="detail-rarity">Běžný</div>
+                    <div id="detailIcon" class="detail-icon" aria-hidden="true"></div>
+                  </div>
+                  <div class="detail-info">
+                    <h3 id="detailTitle" class="detail-title">Předmět</h3>
+                    <p id="detailType" class="detail-type"></p>
+                    <div class="detail-actions">
+                      <button id="detailActionButton" class="btn btn-primary" type="button">VYBAVIT</button>
+                      <p id="detailNote" class="detail-note hidden"></p>
+                    </div>
+                    <div id="detailStats" class="kv-list"></div>
+                    <div id="detailCompare" class="detail-compare hidden"></div>
+                    <p id="detailFlavor" class="detail-flavor hidden"></p>
+                    <div id="detailMeta" class="kv-list kv-list-meta"></div>
+                  </div>
+                </div>
+              </aside>
+            </div>
+          </section>
+
+          <!-- ============ STRÁNKA: MAPA ============ -->
+          <section id="page-mapa" class="page" data-page="mapa" aria-labelledby="pageTitle" hidden>
+            <p class="page-lead">Vyber lokaci a poté konkrétního nepřítele, kterého chceš farmit. Všichni nepřátelé jsou dostupní od začátku.</p>
+            <div id="mapLocations" class="loc-list" role="group" aria-label="Lokace"></div>
+            <div class="panel-head map-head">
+              <div>
+                <p class="eyebrow">NEPŘÁTELÉ</p>
+                <h2 id="mapLocationTitle" class="section-title">Okraj starého lesa</h2>
+              </div>
+            </div>
+            <div id="mapEnemyGrid" class="map-enemy-grid"></div>
+          </section>
+
+          <!-- ============ STRÁNKA: BOJ ============ -->
+          <section id="page-boj" class="page" data-page="boj" aria-labelledby="pageTitle" hidden>
+            <article class="panel combat-scene">
+              <div class="scene-head">
+                <div>
+                  <p class="eyebrow" id="currentLocationName">OKRAJ STARÉHO LESA</p>
+                  <p class="muted">Vybraný nepřítel se po porážce vrací</p>
+                </div>
+                <a class="btn" href="#/mapa">Změnit cíl na mapě</a>
+              </div>
+
+              <div id="arena" class="arena">
+                <div id="slashEffect" class="slash-effect" aria-hidden="true"></div>
+                <div class="fighter fighter-player">
+                  <span class="tag">TY</span>
+                  <div class="fighter-art player-art" data-character-preview role="img" aria-label="Poutník"></div>
+                  <h2 class="fighter-name">Poutník</h2>
+                  <div class="bar-block">
+                    <div class="bar-label"><span>Životy</span><span><strong data-bind="playerHp">100</strong> / <span data-bind="playerMaxHp">100</span></span></div>
+                    <div class="bar health-bar bar-lg"><div class="bar-fill" data-bar="playerHp"></div></div>
+                  </div>
+                </div>
+
+                <div class="versus" aria-hidden="true">VS</div>
+
+                <div class="fighter fighter-enemy">
+                  <span class="tag danger">NEPŘÍTEL</span>
+                  <div id="enemyPortrait" class="fighter-art enemy-art" aria-hidden="true">
+                    <div id="goblinFigure" class="goblin-figure" role="img" aria-label="Goblin"></div>
+                    <img id="enemyImage" class="enemy-image hidden" alt="" />
+                  </div>
+                  <h2 id="enemyName" class="fighter-name" data-bind-name>Goblin</h2>
+                  <p id="enemyLevel" class="fighter-level">Úroveň 1</p>
+                  <div class="bar-block">
+                    <div class="bar-label"><span>Životy nepřítele</span><span><strong data-bind="enemyHp">48</strong> / <span data-bind="enemyMaxHp">48</span></span></div>
+                    <div class="bar health-bar enemy-bar bar-lg"><div class="bar-fill" data-bar="enemyHp"></div></div>
+                  </div>
+                </div>
+              </div>
+
+              <div id="encounterMessage" class="encounter-message" aria-live="polite">Připraven k boji</div>
+
+              <div class="controls">
+                <button id="fightButton" class="btn btn-primary btn-lg" type="button">
+                  <span id="fightButtonIcon" aria-hidden="true">▶</span>
+                  <span id="fightButtonText">Zahájit boj</span>
+                </button>
+                <button id="resetButton" class="btn btn-lg" type="button" title="Smaže postup, inventář i materiály">↻ Reset prototypu</button>
+              </div>
+              <p class="control-hint">Boj pokračuje automaticky, dokud ho nezastavíš — i když se přepneš na jinou stránku.</p>
+            </article>
+
+            <div class="combat-lower">
+              <section class="panel log-panel" aria-labelledby="logTitle">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">ŽIVÝ ZÁZNAM</p>
+                    <h2 id="logTitle" class="section-title">Průběh boje</h2>
+                  </div>
+                  <button id="clearLogButton" class="btn" type="button">Vyčistit</button>
+                </div>
+                <ol id="combatLog" class="combat-log" aria-live="polite" aria-relevant="additions">
+                  <li class="log-entry system"><time>—</time><span>Vyber si okamžik a zahaj první boj.</span></li>
+                </ol>
+                <div class="log-legend">
+                  <span><i class="legend-dot player"></i> Poutník</span>
+                  <span><i class="legend-dot enemy"></i> <span data-bind="enemyName">Goblin</span></span>
+                  <span><i class="legend-dot event"></i> Událost</span>
+                </div>
+              </section>
+
+              <aside class="combat-side">
+                <section class="panel">
+                  <h2 class="section-title">Základní statistiky</h2>
+                  <dl class="stat-table">
+                    <div><dt>Poškození</dt><dd data-bind="damage">9–13</dd></div>
+                    <div><dt>Kritický zásah</dt><dd data-bind="crit">10 %</dd></div>
+                    <div><dt>Vítězství</dt><dd data-bind="kills">0</dd></div>
+                    <div><dt>Nalezené předměty</dt><dd data-bind="drops">0</dd></div>
+                    <div><dt>Čas výpravy</dt><dd data-bind="runTime">00:00</dd></div>
+                  </dl>
+                </section>
+                <section class="panel" aria-label="Poslední kořist">
+                  <h2 class="section-title">Poslední kořist</h2>
+                  <ol id="recentDropsList" class="recent-drops-list"></ol>
+                </section>
+              </aside>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <!-- Neblokující oznámení o dropu: boj běží dál, toast sám zmizí. -->
     <div id="dropToastStack" class="drop-toast-stack" aria-live="polite" aria-atomic="false"></div>
-
-    <div id="itemDetailModal" class="drop-reveal" aria-hidden="true">
-      <div class="drop-backdrop"></div>
-      <section class="drop-card item-detail-card" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
-        <!-- Oprava 2: popup rozdělen na velkou vizuální část (asset jako
-             dominanta, object-fit:contain, průhledné pozadí) a kompaktní
-             datovou část se staty/akcemi. Karta samotná je výškově omezená
-             na výšku obrazovky (viz .item-detail-card v styles.css) a
-             datová část se v případě potřeby posouvá. -->
-        <div class="detail-visual">
-          <p class="eyebrow">DETAIL PŘEDMĚTU</p>
-          <div id="detailRarity" class="drop-rarity">Běžný předmět</div>
-          <div id="detailIcon" class="drop-icon detail-icon" aria-hidden="true"></div>
-        </div>
-        <div class="detail-data">
-          <h2 id="detailTitle">Železný meč</h2>
-          <p id="detailType" class="drop-type">Zbraň</p>
-          <div id="detailStats" class="drop-stats"></div>
-          <div id="detailMeta" class="detail-meta"></div>
-          <p id="detailFlavor" class="detail-flavor hidden"></p>
-          <div class="drop-actions">
-            <button id="detailActionButton" class="primary-button hidden" type="button">Vybavit</button>
-            <button id="detailCloseButton" class="secondary-button" type="button">Zavřít</button>
-          </div>
-        </div>
-      </section>
-    </div>
-
-    <!-- Mapa → lokace → výběr nepřítele. Jeden modal se dvěma pohledy
-         (seznam lokací / seznam nepřátel dané lokace), stylově navazuje na
-         zbytek rozhraní (viz .map-* v styles.css). -->
-    <div id="mapModal" class="drop-reveal map-reveal" aria-hidden="true">
-      <div class="drop-backdrop"></div>
-      <section class="map-card" role="dialog" aria-modal="true" aria-labelledby="mapTitle">
-        <div id="mapLocationsView" class="map-view">
-          <div class="panel-heading map-heading">
-            <div>
-              <p class="eyebrow">MAPA</p>
-              <h2 id="mapTitle">Dostupné lokace</h2>
-            </div>
-            <button id="mapCloseButton" class="icon-button" type="button" aria-label="Zavřít mapu">✕</button>
-          </div>
-          <p class="muted map-hint">Vyber lokaci a poté konkrétního nepřítele, kterého chceš farmit.</p>
-          <div id="mapLocationsGrid" class="map-locations-grid"></div>
-        </div>
-        <div id="mapEnemiesView" class="map-view hidden">
-          <div class="panel-heading map-heading">
-            <div>
-              <button id="mapBackButton" class="text-button" type="button">← Lokace</button>
-              <h2 id="mapLocationTitle">Pustina ticha</h2>
-            </div>
-            <button id="mapCloseButton2" class="icon-button" type="button" aria-label="Zavřít mapu">✕</button>
-          </div>
-          <p class="muted map-hint">Všichni nepřátelé této lokace jsou dostupní od začátku. Klikni na jednoho a nastav ho jako cíl farmení.</p>
-          <div id="mapEnemyGrid" class="map-enemy-grid"></div>
-        </div>
-      </section>
-    </div>
 
     <script src="item-data.js"></script>
     <script src="material-data.js"></script>

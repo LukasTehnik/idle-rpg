@@ -57,51 +57,75 @@ let state = loadState();
 let gameLoopId = null;
 let timerLoopId = null;
 
-const elements = {
-  level: document.querySelector("#levelValue"), xp: document.querySelector("#xpValue"),
-  xpGoal: document.querySelector("#xpGoal"), xpBar: document.querySelector("#xpBar"),
-  kills: document.querySelector("#killsValue"), drops: document.querySelector("#dropsValue"),
-  gold: document.querySelector("#goldValue"),
-  runTime: document.querySelector("#runTimeValue"), playerHp: document.querySelector("#playerHpValue"),
-  playerMaxHp: document.querySelector("#playerMaxHp"), playerHpBar: document.querySelector("#playerHpBar"),
-  damage: document.querySelector("#damageValue"), crit: document.querySelector("#critValue"),
-  enemyHp: document.querySelector("#enemyHpValue"), enemyMaxHp: document.querySelector("#enemyMaxHpValue"), enemyHpBar: document.querySelector("#enemyHpBar"),
-  enemyPortrait: document.querySelector("#enemyPortrait"), encounterMessage: document.querySelector("#encounterMessage"),
-  enemyName: document.querySelector("#enemyName"), enemyLevel: document.querySelector("#enemyLevel"),
-  goblinFigure: document.querySelector("#goblinFigure"), enemyImage: document.querySelector("#enemyImage"),
-  currentLocationName: document.querySelector("#currentLocationName"), legendEnemyLabel: document.querySelector("#legendEnemyLabel"),
-  fightButton: document.querySelector("#fightButton"), fightButtonText: document.querySelector("#fightButtonText"),
-  fightButtonIcon: document.querySelector("#fightButtonIcon"), resetButton: document.querySelector("#resetButton"),
-  clearLogButton: document.querySelector("#clearLogButton"), combatLog: document.querySelector("#combatLog"),
-  sessionStatus: document.querySelector("#sessionStatus"), statusDot: document.querySelector("#statusDot"),
-  arena: document.querySelector("#arena"), inventoryGrid: document.querySelector("#inventoryGrid"),
-  inventoryEmpty: document.querySelector("#inventoryEmpty"), inventoryCount: document.querySelector("#inventoryCount"),
-  inventoryCapacity: document.querySelector("#inventoryCapacity"), weaponSlot: document.querySelector("#weaponSlot"),
-  armorSlot: document.querySelector("#armorSlot"), charmSlot: document.querySelector("#charmSlot"),
-  helmetSlot: document.querySelector("#helmetSlot"), glovesSlot: document.querySelector("#glovesSlot"),
-  bootsSlot: document.querySelector("#bootsSlot"), pantsSlot: document.querySelector("#pantsSlot"),
-  dropToastStack: document.querySelector("#dropToastStack"),
-  tabEquipment: document.querySelector("#tabEquipment"), tabMaterials: document.querySelector("#tabMaterials"),
-  tabEquipmentCount: document.querySelector("#tabEquipmentCount"), tabMaterialsCount: document.querySelector("#tabMaterialsCount"),
-  equipmentTabPanel: document.querySelector("#equipmentTabPanel"), materialsTabPanel: document.querySelector("#materialsTabPanel"),
-  inventoryHeadingActions: document.querySelector("#inventoryHeadingActions"),
-  materialGrid: document.querySelector("#materialGrid"), materialEmpty: document.querySelector("#materialEmpty"),
-  recentDropsList: document.querySelector("#recentDropsList"),
-  itemDetailModal: document.querySelector("#itemDetailModal"), detailCard: document.querySelector(".item-detail-card"),
-  detailRarity: document.querySelector("#detailRarity"), detailIcon: document.querySelector("#detailIcon"),
-  detailTitle: document.querySelector("#detailTitle"), detailType: document.querySelector("#detailType"),
-  detailStats: document.querySelector("#detailStats"), detailMeta: document.querySelector("#detailMeta"),
-  detailFlavor: document.querySelector("#detailFlavor"), detailActionButton: document.querySelector("#detailActionButton"),
-  detailCloseButton: document.querySelector("#detailCloseButton"),
-  deleteModeButton: document.querySelector("#deleteModeButton"), bulkDeleteBar: document.querySelector("#bulkDeleteBar"),
-  selectedCount: document.querySelector("#selectedCount"), confirmDeleteButton: document.querySelector("#confirmDeleteButton"),
-  cancelDeleteButton: document.querySelector("#cancelDeleteButton"),
-  mapButton: document.querySelector("#mapButton"), mapModal: document.querySelector("#mapModal"),
-  mapLocationsView: document.querySelector("#mapLocationsView"), mapEnemiesView: document.querySelector("#mapEnemiesView"),
-  mapLocationsGrid: document.querySelector("#mapLocationsGrid"), mapEnemyGrid: document.querySelector("#mapEnemyGrid"),
-  mapLocationTitle: document.querySelector("#mapLocationTitle"), mapBackButton: document.querySelector("#mapBackButton"),
-  mapCloseButton: document.querySelector("#mapCloseButton"), mapCloseButton2: document.querySelector("#mapCloseButton2"),
+const $ = (selector, root = document) => root.querySelector(selector);
+const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+
+// Datové zásuvky UI: [data-bind="name"] dostane textContent, [data-bar="name"]
+// šířku v %. Stejná hodnota se tak může zobrazit na víc místech (horní lišta,
+// sidebar, stránka Postava, Boj) bez duplicitních id.
+const binds = {};
+$$("[data-bind]").forEach((node) => (binds[node.dataset.bind] ??= []).push(node));
+const bars = {};
+$$("[data-bar]").forEach((node) => (bars[node.dataset.bar] ??= []).push(node));
+const statusDots = $$("[data-bind-dot]");
+
+function setText(name, value) {
+  const text = String(value);
+  for (const node of binds[name] ?? []) if (node.textContent !== text) node.textContent = text;
+}
+function setBar(name, percent) {
+  const width = `${percent}%`;
+  for (const node of bars[name] ?? []) if (node.style.width !== width) node.style.width = width;
+}
+
+const ELEMENT_IDS = [
+  "sidebar", "sidebarBackdrop", "menuButton", "pageTitle", "main",
+  "arena", "enemyPortrait", "goblinFigure", "enemyImage", "enemyLevel", "currentLocationName", "encounterMessage",
+  "fightButton", "fightButtonText", "fightButtonIcon", "resetButton", "clearLogButton", "combatLog",
+  "recentDropsList", "dropToastStack", "equipmentOverview",
+  "inventoryGrid", "inventoryEmpty", "inventoryEmptyTitle", "inventoryEmptyText", "inventoryCount", "inventoryCapacity", "equippedCount",
+  "invTabs", "invSearch", "invType", "invTypeField", "invRarity", "invSort", "paperDoll",
+  "deleteModeButton", "bulkDeleteBar", "selectedCount", "confirmDeleteButton", "cancelDeleteButton",
+  "itemDetail", "detailEmpty", "detailBody", "detailRarity", "detailIcon", "detailTitle", "detailType",
+  "detailStats", "detailCompare", "detailFlavor", "detailMeta", "detailActionButton", "detailNote", "detailCloseButton",
+  "mapLocations", "mapLocationTitle", "mapEnemyGrid",
+];
+const elements = Object.fromEntries(ELEMENT_IDS.map((id) => [id, document.getElementById(id)]));
+for (const [id, node] of Object.entries(elements)) if (!node) console.warn(`[ui] chybí element #${id}`);
+
+// Náhled postavy — JEDINÉ místo, kde se vyměňuje character asset. Paper-doll,
+// profil, sidebar i bojová scéna berou obrázek z CSS proměnné --character-art,
+// kterou tady nastavujeme. Až bude hotový plnohodnotný model postavy, stačí
+// změnit `src` (PNG/SVG/WebP) — nic dalšího se nemusí upravovat.
+const CHARACTER_PREVIEW = Object.freeze({ src: "assets/icons/wanderer.svg", label: "Poutník" });
+
+function applyCharacterPreview() {
+  document.documentElement.style.setProperty("--character-art", `url("${CHARACTER_PREVIEW.src}")`);
+  $$("[data-character-preview]").forEach((node) => {
+    node.setAttribute("aria-label", node.classList.contains("doll-figure") ? `Náhled postavy: ${CHARACTER_PREVIEW.label}` : CHARACTER_PREVIEW.label);
+  });
+}
+
+// Stav rozhraní. Záměrně NENÍ součástí `state`, takže se nikdy neukládá do savu
+// (výběr itemu, filtry, aktuální stránka — vše se po reloadu vrací do výchozího stavu).
+const ui = {
+  page: "boj",
+  selection: null, // { kind: "item", id } | { kind: "equipped", slot } | { kind: "material", id }
+  tab: "all", // all | equipment | materials | scrolls
+  search: "", type: "all", rarity: "all", sort: "newest",
+  mapLocationId: null,
 };
+const mqMobile = window.matchMedia("(max-width: 760px)");
+const mqWide = window.matchMedia("(min-width: 1440px)");
+const mqDrawer = window.matchMedia("(max-width: 899px)");
+const RARITY_ORDER = ["epic", "rare", "uncommon", "common"];
+const SLOT_ORDER = Object.keys(SLOT_META);
+const STAT_KEYS = ["damageMin", "damageMax", "maxHp", "critChance"];
+const STAT_LABELS = Object.freeze({
+  damageMin: "Minimální poškození", damageMax: "Maximální poškození", maxHp: "Maximální životy", critChance: "Kritický zásah",
+});
+function roundStat(value) { return Math.round(value * 10) / 10; }
+function formatStat(key, value) { return key === "critChance" ? `${Math.round(value * 10) / 10} %` : String(value); }
 
 // Bulk-delete UI state. Transient/UI-only -- deliberately NOT part of
 // `state` (so it never gets persisted or saved), reset whenever delete mode
@@ -261,22 +285,22 @@ function render() {
   const stats = getPlayerStats();
   const goal = xpNeeded();
   state.player.hp = Math.min(state.player.hp, stats.maxHp);
-  elements.level.textContent = state.level;
-  elements.xp.textContent = state.xp;
-  elements.xpGoal.textContent = goal;
-  elements.xpBar.style.width = `${clampPercent(state.xp, goal)}%`;
-  elements.kills.textContent = state.kills;
-  elements.drops.textContent = state.drops;
-  elements.gold.textContent = state.gold;
-  elements.runTime.textContent = formatTime(state.elapsedSeconds);
-  elements.playerHp.textContent = Math.ceil(state.player.hp);
-  elements.playerMaxHp.textContent = stats.maxHp;
-  elements.playerHpBar.style.width = `${clampPercent(state.player.hp, stats.maxHp)}%`;
-  elements.damage.textContent = `${stats.minDamage}–${stats.maxDamage}`;
-  elements.crit.textContent = `${Math.round(stats.critChance * 1000) / 10} %`;
-  elements.enemyHp.textContent = Math.max(0, Math.ceil(state.enemy.hp));
-  elements.enemyMaxHp.textContent = state.enemy.maxHp;
-  elements.enemyHpBar.style.width = `${clampPercent(state.enemy.hp, state.enemy.maxHp)}%`;
+  setText("level", state.level);
+  setText("xp", state.xp);
+  setText("xpGoal", goal);
+  setBar("xp", clampPercent(state.xp, goal));
+  setText("kills", state.kills);
+  setText("drops", state.drops);
+  setText("gold", state.gold);
+  setText("runTime", formatTime(state.elapsedSeconds));
+  setText("playerHp", Math.ceil(state.player.hp));
+  setText("playerMaxHp", roundStat(stats.maxHp));
+  setBar("playerHp", clampPercent(state.player.hp, stats.maxHp));
+  setText("damage", `${roundStat(stats.minDamage)}–${roundStat(stats.maxDamage)}`);
+  setText("crit", `${Math.round(stats.critChance * 1000) / 10} %`);
+  setText("enemyHp", Math.max(0, Math.ceil(state.enemy.hp)));
+  setText("enemyMaxHp", state.enemy.maxHp);
+  setBar("enemyHp", clampPercent(state.enemy.hp, state.enemy.maxHp));
   elements.enemyPortrait.classList.toggle("defeated", state.phase === "searching");
   elements.fightButton.classList.toggle("running", state.running);
   elements.fightButtonIcon.textContent = state.running ? "Ⅱ" : "▶";
@@ -289,9 +313,11 @@ function render() {
 }
 
 function setStatus(label, mode) {
-  elements.sessionStatus.textContent = label;
-  elements.statusDot.classList.toggle("active", mode === "active");
-  elements.statusDot.classList.toggle("danger", mode === "danger");
+  setText("status", label);
+  statusDots.forEach((dot) => {
+    dot.classList.toggle("active", mode === "active");
+    dot.classList.toggle("danger", mode === "danger");
+  });
 }
 
 function addLog(message, type = "system") {
@@ -320,15 +346,14 @@ function animateHit(target) {
 // Refreshes every bit of UI that names/shows the currently selected enemy:
 // the arena heading, its portrait (raster image for the new location
 // enemies, or the original hand-drawn figure for Goblin), the location
-// eyebrow above the arena, and the combat-log legend. Called once at
-// startup and again whenever the target changes via the map.
+// eyebrow above the arena, the status bar target and the combat-log legend.
+// Called once at startup and again whenever the target changes via the map.
 function updateArenaHeader() {
   const enemyCfg = getCurrentEnemy();
   const location = LOCATIONS[enemyCfg.locationId];
-  elements.enemyName.textContent = enemyCfg.name;
+  setText("enemyName", enemyCfg.name);
   elements.enemyLevel.textContent = `Úroveň ${enemyCfg.level}${enemyCfg.type ? ` · ${ENEMY_TYPE_LABELS[enemyCfg.type] ?? ""}` : ""}`;
   elements.currentLocationName.textContent = (location?.name ?? "").toUpperCase();
-  elements.legendEnemyLabel.textContent = enemyCfg.name;
   elements.enemyPortrait.setAttribute("aria-label", enemyCfg.name);
   if (enemyCfg.image) {
     elements.enemyImage.src = enemyCfg.image;
@@ -521,7 +546,7 @@ function pushRecentDrop(entry) {
   state.recentDrops.length = Math.min(state.recentDrops.length, CONFIG.maxRecentDrops);
 }
 
-// Compact "last drops" list next to the fight controls. Purely informative:
+// Compact "last drops" list on the combat page. Purely informative:
 // no modal, no interaction, never blocks combat.
 function renderRecentDrops() {
   const list = elements.recentDropsList;
@@ -534,10 +559,8 @@ function renderRecentDrops() {
     return;
   }
   state.recentDrops.forEach((drop) => {
-    const rarity = RARITIES[drop.rarity] ?? RARITIES.common;
     const row = document.createElement("li");
     row.className = `recent-drop rarity-${drop.rarity}`;
-    row.style.setProperty("--item-color", rarity.color);
     row.innerHTML = `<span class="recent-drop-icon" aria-hidden="true"></span><span class="recent-drop-name"></span><span class="recent-drop-qty"></span><time class="recent-drop-time"></time>`;
     const iconSource = drop.type === "material"
       ? { image: MATERIALS[drop.key]?.asset }
@@ -612,6 +635,7 @@ function equipItem(itemId) {
   const index = state.inventory.findIndex((item) => item.id === itemId);
   if (index < 0) return;
   const item = state.inventory[index];
+  if (!SLOT_META[item.slot]) return;
   const previousMaxHp = getPlayerStats().maxHp;
   const replaced = state.equipment[item.slot];
   state.inventory.splice(index, 1);
@@ -620,110 +644,220 @@ function equipItem(itemId) {
   const newMaxHp = getPlayerStats().maxHp;
   state.player.hp = Math.min(newMaxHp, state.player.hp + Math.max(0, newMaxHp - previousMaxHp));
   addLog(`${item.name} byl vybaven.`, item.rarity === "common" ? "system" : "level-up");
+  // Výběr sleduje předmět: z inventáře přechází na jeho slot, kde nabídne SUNDAT.
+  ui.selection = { kind: "equipped", slot: item.slot };
   render(); renderLoot(); saveState();
 }
 
 function unequipItem(slot) {
   const item = state.equipment[slot];
-  if (!item || state.inventory.length >= CONFIG.inventoryCapacity) return;
+  if (!item) return;
+  if (state.inventory.length >= CONFIG.inventoryCapacity) {
+    addLog(`Inventář je plný — ${item.name} nelze sundat.`, "system");
+    renderInventoryView();
+    return;
+  }
   state.equipment[slot] = null;
   state.inventory.unshift(item);
   state.player.hp = Math.min(state.player.hp, getPlayerStats().maxHp);
   addLog(`${item.name} byl vrácen do inventáře.`, "system");
+  ui.selection = { kind: "item", id: item.id };
   render(); renderLoot(); saveState();
 }
 
+// ---------------------------------------------------------------------
+// Inventář, paper-doll a persistentní detail
+// ---------------------------------------------------------------------
+
+function getOwnedMaterialIds() {
+  const known = MATERIAL_ORDER.filter((id) => state.materials[id] > 0);
+  const unknown = Object.keys(state.materials).filter((id) => !MATERIALS[id] && state.materials[id] > 0);
+  return [...known, ...unknown];
+}
+
+// Jednotný seznam pro grid: vybavení (state.inventory, omezená kapacita) a
+// materiály/svitky (state.materials, stackují se, kapacitu nezabírají).
+function getInventoryEntries() {
+  const entries = state.inventory.map((item, index) => ({
+    kind: "item", key: `item:${item.id}`, id: item.id, name: item.name, rarity: item.rarity, slot: item.slot,
+    category: "equipment", qty: 1, order: index, iconSource: item,
+  }));
+  getOwnedMaterialIds().filter((id) => MATERIALS[id]).forEach((id, index) => {
+    const material = MATERIALS[id];
+    entries.push({
+      kind: "material", key: `mat:${id}`, id, name: material.name, rarity: material.rarity, slot: null,
+      category: material.category === "scroll" ? "scrolls" : "materials",
+      qty: state.materials[id], order: 1000 + index, iconSource: { image: material.asset },
+    });
+  });
+  return entries;
+}
+
+function entryAriaLabel(entry) {
+  const rarity = RARITIES[entry.rarity]?.label ?? "";
+  const slot = SLOT_META[entry.slot]?.label;
+  const qty = entry.kind === "material" ? `, ${entry.qty} ks` : "";
+  return `${entry.name}, ${rarity}${slot ? `, ${slot}` : ""}${qty}`;
+}
+
+function filterEntries(entries) {
+  const query = ui.search.trim().toLowerCase();
+  const slotFilterApplies = ui.tab === "all" || ui.tab === "equipment";
+  return entries.filter((entry) => {
+    if (ui.tab !== "all" && entry.category !== ui.tab) return false;
+    if (ui.rarity !== "all" && entry.rarity !== ui.rarity) return false;
+    if (slotFilterApplies && ui.type !== "all" && entry.slot !== ui.type) return false;
+    if (query) {
+      const haystack = `${entry.name} ${SLOT_META[entry.slot]?.label ?? ""} ${RARITIES[entry.rarity]?.label ?? ""}`.toLowerCase();
+      if (!haystack.includes(query)) return false;
+    }
+    return true;
+  });
+}
+
+function sortEntries(entries) {
+  const byName = (a, b) => a.name.localeCompare(b.name, "cs");
+  const rank = (list, value) => { const i = list.indexOf(value); return i < 0 ? list.length : i; };
+  const sorters = {
+    newest: (a, b) => a.order - b.order,
+    rarity: (a, b) => rank(RARITY_ORDER, a.rarity) - rank(RARITY_ORDER, b.rarity) || byName(a, b),
+    name: byName,
+    slot: (a, b) => rank(SLOT_ORDER, a.slot) - rank(SLOT_ORDER, b.slot) || byName(a, b),
+  };
+  return [...entries].sort(sorters[ui.sort] ?? sorters.newest);
+}
+
+function selectionKey() {
+  const s = ui.selection;
+  if (!s) return null;
+  if (s.kind === "item") return `item:${s.id}`;
+  if (s.kind === "material") return `mat:${s.id}`;
+  return null;
+}
+
+// Převede uložený výběr na skutečná data; zastaralý výběr (item byl smazán,
+// vybaven jinam…) se tiše zruší.
+function resolveSelection() {
+  const s = ui.selection;
+  if (!s) return null;
+  let resolved = null;
+  if (s.kind === "item") {
+    const item = state.inventory.find((entry) => entry.id === s.id);
+    if (item) resolved = { kind: "item", item };
+  } else if (s.kind === "equipped") {
+    const item = state.equipment[s.slot];
+    if (item) resolved = { kind: "equipped", slot: s.slot, item };
+  } else if (s.kind === "material") {
+    const material = MATERIALS[s.id];
+    if (material && state.materials[s.id] > 0) resolved = { kind: "material", id: s.id, material };
+  }
+  if (!resolved) ui.selection = null;
+  return resolved;
+}
+
 function renderInventory() {
+  const grid = elements.inventoryGrid;
+  const focusKey = grid.contains(document.activeElement) ? document.activeElement.dataset?.key : null;
+  const entries = getInventoryEntries();
+  const counts = {
+    all: entries.length,
+    equipment: entries.filter((e) => e.category === "equipment").length,
+    materials: entries.filter((e) => e.category === "materials").length,
+    scrolls: entries.filter((e) => e.category === "scrolls").length,
+  };
+  $$("[data-tab-count]").forEach((node) => { node.textContent = counts[node.dataset.tabCount] ?? 0; });
   elements.inventoryCapacity.textContent = CONFIG.inventoryCapacity;
   elements.inventoryCount.textContent = state.inventory.length;
-  elements.tabEquipmentCount.textContent = `${state.inventory.length}/${CONFIG.inventoryCapacity}`;
-  elements.inventoryEmpty.classList.toggle("hidden", state.inventory.length > 0);
-  elements.inventoryGrid.classList.toggle("delete-mode", deleteMode);
-  elements.inventoryGrid.innerHTML = "";
-  state.inventory.forEach((item) => {
-    const rarity = RARITIES[item.rarity];
-    const selected = selectedForDeletion.has(item.id);
-    const isEquippable = Boolean(SLOT_META[item.slot]);
-    const card = document.createElement("article");
-    card.className = `inventory-item rarity-${item.rarity}`;
-    card.classList.toggle("selected-for-deletion", selected);
-    card.style.setProperty("--item-color", rarity.color);
-    card.innerHTML = `<div class="inventory-item-top"><input type="checkbox" class="inventory-item-checkbox" tabindex="-1" aria-hidden="true" /><span class="item-icon-small" aria-hidden="true"></span><span class="inventory-item-type"></span>${item.quantity > 1 ? `<span class="inventory-item-quantity">×${item.quantity}</span>` : ""}</div><strong class="inventory-item-name"></strong><p class="inventory-item-stats"></p>${isEquippable ? `<button type="button">Vybavit</button>` : ""}`;
-    renderItemIcon(card.querySelector(".item-icon-small"), item);
-    card.querySelector(".inventory-item-checkbox").checked = selected;
-    card.querySelector(".inventory-item-type").textContent = isEquippable ? `${rarity.label} · ${SLOT_META[item.slot].label}` : `${rarity.label} · Ostatní`;
-    card.querySelector(".inventory-item-name").textContent = item.name;
-    card.querySelector(".inventory-item-stats").textContent = statSummary(item);
-    card.querySelector("button")?.addEventListener("click", (event) => {
-      event.stopPropagation();
-      equipItem(item.id);
-    });
-    // Clicking the card itself (but not the Vybavit button) opens the full
-    // item detail view; the button keeps its own direct equip shortcut. In
-    // delete mode the same click instead toggles this item's checkbox --
-    // preventDefault stops the checkbox's own native toggle so the visible
-    // "selectedForDeletion" Set stays the single source of truth.
-    card.tabIndex = 0;
-    card.setAttribute("aria-label", deleteMode ? `Vybrat ke smazání: ${item.name}` : `Zobrazit detail předmětu: ${item.name}`);
-    card.addEventListener("click", (event) => {
-      if (deleteMode) { event.preventDefault(); toggleSelection(item.id); return; }
-      openItemDetail(item, "inventory");
-    });
-    card.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      if (deleteMode) toggleSelection(item.id);
-      else openItemDetail(item, "inventory");
-    });
-    elements.inventoryGrid.append(card);
-  });
-}
 
-function renderEquipment() {
-  for (const [slot, meta] of Object.entries(SLOT_META)) {
-    const container = elements[`${slot}Slot`];
-    const item = state.equipment[slot];
-    container.classList.remove("rarity-common", "rarity-uncommon", "rarity-rare", "rarity-epic");
-    container.classList.toggle("filled", Boolean(item));
-    container.innerHTML = "";
-    container.onclick = null;
-    if (!item) {
-      container.innerHTML = `<div class="slot-empty"><span class="slot-symbol" aria-hidden="true">${ICONS[meta.icon] ?? ""}</span><div><span>${meta.label}</span><strong>Prázdný slot</strong></div></div>`;
-      continue;
+  const visible = sortEntries(filterEntries(entries));
+  const selectedKeyValue = selectionKey();
+  grid.classList.toggle("delete-mode", deleteMode);
+  grid.innerHTML = "";
+
+  visible.forEach((entry) => {
+    const rarity = RARITIES[entry.rarity] ?? RARITIES.common;
+    const cell = document.createElement("button");
+    cell.type = "button";
+    cell.className = `inv-cell rarity-${entry.rarity}`;
+    cell.dataset.key = entry.key;
+    const marked = deleteMode && entry.kind === "item" && selectedForDeletion.has(entry.id);
+    const selected = !deleteMode && entry.key === selectedKeyValue;
+    cell.classList.toggle("selected", selected);
+    cell.classList.toggle("marked", marked);
+    cell.setAttribute("aria-pressed", String(deleteMode ? marked : selected));
+    cell.setAttribute("aria-label", deleteMode ? `Vybrat ke smazání: ${entryAriaLabel(entry)}` : `${entryAriaLabel(entry)} — zobrazit detail`);
+    cell.title = `${entry.name} · ${rarity.label}`;
+    cell.innerHTML = `<span class="cell-check" aria-hidden="true"></span><span class="cell-icon" aria-hidden="true"></span>${entry.kind === "material" ? `<span class="cell-qty">×${entry.qty}</span>` : ""}<span class="cell-name"></span>`;
+    renderItemIcon(cell.querySelector(".cell-icon"), entry.iconSource);
+    cell.querySelector(".cell-name").textContent = entry.name;
+    grid.append(cell);
+  });
+
+  // Prázdné buňky ukazují kapacitu vybavení (jen na záložce VYBAVENÍ bez filtrů).
+  const unfiltered = !ui.search.trim() && ui.rarity === "all" && ui.type === "all";
+  if (ui.tab === "equipment" && unfiltered) {
+    for (let i = counts.equipment; i < CONFIG.inventoryCapacity; i += 1) {
+      const empty = document.createElement("div");
+      empty.className = "inv-cell empty";
+      empty.setAttribute("aria-hidden", "true");
+      empty.textContent = "Prázdné";
+      grid.append(empty);
     }
-    const rarity = RARITIES[item.rarity];
-    container.classList.add(`rarity-${item.rarity}`);
-    const wrapper = document.createElement("div");
-    wrapper.className = "equipped-item";
-    wrapper.innerHTML = `<span class="item-icon-small" aria-hidden="true"></span><div class="equipped-copy"><span></span><strong></strong></div><div class="equipped-stats"></div>`;
-    renderItemIcon(wrapper.querySelector(".item-icon-small"), item);
-    wrapper.querySelector(".item-icon-small").style.color = rarity.color;
-    wrapper.querySelector(".equipped-copy span").textContent = `${rarity.label} · ${meta.label}`;
-    wrapper.querySelector("strong").textContent = item.name;
-    wrapper.querySelector("strong").classList.add("rarity-text", `rarity-${item.rarity}`);
-    wrapper.querySelector(".equipped-stats").textContent = statSummary(item);
-    container.append(wrapper);
-    // Clicking an equipped item now opens its detail view (with an "Sundat"
-    // button inside) rather than unequipping immediately on click.
-    container.tabIndex = 0;
-    container.setAttribute("aria-label", `Zobrazit detail vybaveného předmětu: ${item.name}`);
-    container.onclick = () => openItemDetail(item, "equipped");
-    container.onkeydown = (event) => {
-      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openItemDetail(item, "equipped"); }
-    };
   }
+
+  const nothing = visible.length === 0;
+  elements.inventoryEmpty.classList.toggle("hidden", !nothing);
+  if (nothing) {
+    const filtered = Boolean(ui.search.trim()) || ui.rarity !== "all" || (ui.type !== "all" && (ui.tab === "all" || ui.tab === "equipment"));
+    const texts = {
+      all: ["Inventář je prázdný", "Porážej nepřátele. Každý může zanechat vybavení nebo materiál."],
+      equipment: ["Žádné vybavení", "Porážej nepřátele. Každý může zanechat vybavení s náhodnými vlastnostmi."],
+      materials: ["Žádné materiály", "Materiály padají z nepřátel v Pustině ticha. Na mapě si u každého nepřítele otevři „Možná kořist“."],
+      scrolls: ["Žádné svitky", "Svitky padají velmi vzácně z vybraných nepřátel — mrkni na „Možná kořist“ na mapě."],
+    };
+    const [title, text] = filtered ? ["Nic neodpovídá filtru", "Zkus upravit hledání nebo vyčistit filtry."] : texts[ui.tab];
+    elements.inventoryEmptyTitle.textContent = title;
+    elements.inventoryEmptyText.textContent = text;
+  }
+
+  if (focusKey) grid.querySelector(`[data-key="${CSS.escape(focusKey)}"]`)?.focus({ preventScroll: true });
 }
 
-// Renders the shared stat-row list into a target container (used by both
-// the drop-reveal card and the item detail view).
-function renderStatRows(container, item) {
-  container.innerHTML = "";
-  statRows(item).forEach(([label, value]) => {
-    const row = document.createElement("div"); row.className = "drop-stat";
-    const name = document.createElement("span"); name.textContent = label;
-    const amount = document.createElement("strong"); amount.textContent = value;
-    row.append(name, amount); container.append(row);
+function renderPaperDoll() {
+  const resolved = resolveSelection();
+  const compatibleSlot = resolved?.kind === "item" ? resolved.item.slot : null;
+  let equippedCount = 0;
+  $$(".pd-slot", elements.paperDoll).forEach((button) => {
+    const slot = button.dataset.slot;
+    const meta = SLOT_META[slot];
+    const item = state.equipment[slot];
+    if (item) equippedCount += 1;
+    const selected = resolved?.kind === "equipped" && resolved.slot === slot;
+    const compatible = compatibleSlot === slot;
+    button.className = `pd-slot${item ? ` filled rarity-${item.rarity}` : ""}`;
+    button.classList.toggle("selected", selected);
+    button.classList.toggle("compatible", compatible);
+    button.setAttribute("aria-pressed", String(selected));
+    button.setAttribute("aria-label", item
+      ? `${meta.label}: ${item.name}, ${RARITIES[item.rarity].label} — zobrazit detail`
+      : `${meta.label}: prázdný slot${compatible ? " — sem lze vybavit vybraný předmět" : ""}`);
+    button.title = item ? `${item.name} · ${RARITIES[item.rarity].label}` : `${meta.label} — prázdný slot`;
+    button.innerHTML = `<span class="pd-type"></span><span class="pd-icon" aria-hidden="true"></span>${compatible ? `<span class="pd-badge">${item ? "Vyměnit" : "Vybavit"}</span>` : ""}`;
+    button.querySelector(".pd-type").textContent = meta.label;
+    const icon = button.querySelector(".pd-icon");
+    if (item) renderItemIcon(icon, item);
+    else icon.innerHTML = ICONS[meta.icon] ?? "";
   });
+  elements.equippedCount.textContent = equippedCount;
+}
+
+function kvRow(label, value) {
+  const row = document.createElement("div");
+  row.className = "kv-row";
+  const name = document.createElement("span"); name.textContent = label;
+  const amount = document.createElement("strong"); amount.textContent = value;
+  row.append(name, amount);
+  return row;
 }
 
 function formatAcquiredAt(ms) {
@@ -731,165 +865,251 @@ function formatAcquiredAt(ms) {
   return new Date(ms).toLocaleString("cs-CZ", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-let detailView = null; // { itemId, context: "inventory" | "equipped" }
+// Porovnání vybraného předmětu z inventáře s tím, co je nasazené ve stejném slotu.
+function renderCompare(item) {
+  const box = elements.detailCompare;
+  box.innerHTML = "";
+  const equipped = state.equipment[item.slot];
+  if (!SLOT_META[item.slot]) { box.classList.add("hidden"); return; }
+  const title = document.createElement("p");
+  title.className = "detail-compare-title";
+  if (!equipped) {
+    title.textContent = `Slot ${SLOT_META[item.slot].label} je prázdný — předmět je čistý zisk.`;
+    box.append(title);
+    box.classList.remove("hidden");
+    return;
+  }
+  title.innerHTML = "Oproti vybavenému: <strong></strong>";
+  title.querySelector("strong").textContent = equipped.name;
+  box.append(title);
+  STAT_KEYS.forEach((key) => {
+    const next = item.stats?.[key] ?? 0;
+    const prev = equipped.stats?.[key] ?? 0;
+    if (!next && !prev) return;
+    const diff = Math.round((next - prev) * 10) / 10;
+    const row = document.createElement("div");
+    row.className = "cmp-row";
+    const label = document.createElement("span"); label.textContent = STAT_LABELS[key];
+    const value = document.createElement("span");
+    value.className = diff > 0 ? "up" : diff < 0 ? "down" : "same";
+    value.textContent = diff === 0 ? "beze změny" : `${diff > 0 ? "+" : "−"}${formatStat(key, Math.abs(diff))}`;
+    row.append(label, value);
+    box.append(row);
+  });
+  box.classList.remove("hidden");
+}
 
-function openItemDetail(item, context) {
-  detailView = { itemId: item.id, context };
+function renderDetail() {
+  const resolved = resolveSelection();
+  const panel = elements.itemDetail;
+  ["common", "uncommon", "rare", "epic"].forEach((key) => panel.classList.remove(`rarity-${key}`));
+  elements.detailEmpty.classList.toggle("hidden", Boolean(resolved));
+  elements.detailBody.classList.toggle("hidden", !resolved);
+  if (!resolved) { closeSheet({ restoreFocus: false }); return; }
+
+  const isMaterial = resolved.kind === "material";
+  const source = isMaterial ? resolved.material : resolved.item;
+  const rarity = RARITIES[source.rarity] ?? RARITIES.common;
+  panel.classList.add(`rarity-${source.rarity}`);
   elements.detailIcon.classList.remove("material-art");
-  const rarity = RARITIES[item.rarity];
+  elements.detailTitle.textContent = source.name;
+  elements.detailTitle.className = `detail-title rarity-text rarity-${source.rarity}`;
+  elements.detailStats.innerHTML = "";
+  elements.detailMeta.innerHTML = "";
+  elements.detailCompare.classList.add("hidden");
+  const action = elements.detailActionButton;
+  const note = elements.detailNote;
+  note.classList.add("hidden");
+  action.disabled = false;
+
+  if (isMaterial) {
+    const material = resolved.material;
+    const categoryLabel = MATERIAL_CATEGORY_LABELS[material.category] ?? "Materiál";
+    elements.detailRarity.textContent = `${rarity.label} ${categoryLabel.toLowerCase()}`;
+    renderItemIcon(elements.detailIcon, { image: material.asset });
+    elements.detailType.textContent = categoryLabel;
+    elements.detailFlavor.textContent = material.description ?? "";
+    elements.detailFlavor.classList.toggle("hidden", !material.description);
+    const enemyNames = material.sourceEnemyIds.map((id) => ENEMIES[id]?.name ?? id).join(", ");
+    [
+      ["Vlastněno", `${state.materials[resolved.id] ?? 0}×`],
+      ["Kategorie", categoryLabel],
+      ["Lokace původu", LOCATIONS[material.sourceLocationId]?.name ?? "Neznámo"],
+      ["Získatelné z", enemyNames],
+      ["Obchodovatelné", material.tradeable ? "Ano" : "Ne"],
+    ].forEach(([label, value]) => elements.detailMeta.append(kvRow(label, value)));
+    action.classList.add("hidden");
+    return;
+  }
+
+  const item = resolved.item;
   const template = findItemTemplate(item);
-  elements.detailCard.classList.remove("rarity-common", "rarity-uncommon", "rarity-rare", "rarity-epic");
-  elements.detailCard.classList.add(`rarity-${item.rarity}`);
-  elements.detailCard.style.setProperty("--drop-color", rarity.color);
+  const equippedNow = resolved.kind === "equipped";
   elements.detailRarity.textContent = `${rarity.label} předmět`;
   renderItemIcon(elements.detailIcon, item);
-  const isEquippable = Boolean(SLOT_META[item.slot]);
-  elements.detailTitle.textContent = item.name;
-  elements.detailTitle.className = `rarity-text rarity-${item.rarity}`;
-  elements.detailType.textContent = `${isEquippable ? SLOT_META[item.slot].label : "Materiál"}${context === "equipped" ? " · právě vybaveno" : ""}`;
-  renderStatRows(elements.detailStats, item);
+  elements.detailType.textContent = `${SLOT_META[item.slot]?.label ?? "Ostatní"}${equippedNow ? " · právě vybaveno" : ""}`;
+  statRows(item).forEach(([label, value]) => elements.detailStats.append(kvRow(label, value)));
+  if (!equippedNow) renderCompare(item);
 
   const flavorText = item.flavorText ?? template?.flavorText ?? null;
   elements.detailFlavor.textContent = flavorText ?? "";
   elements.detailFlavor.classList.toggle("hidden", !flavorText);
 
   const tradeable = item.tradeable ?? template?.tradeable ?? true;
-  const source = item.source ?? "Neznámo (starší nález)";
   const acquiredAt = formatAcquiredAt(item.acquiredAt);
-  elements.detailMeta.innerHTML = "";
-  const metaRows = [["Zdroj", source], ["Obchodovatelné", tradeable ? "Ano" : "Ne · jedinečný nález"]];
+  const metaRows = [
+    ["Slot", SLOT_META[item.slot]?.label ?? "—"],
+    ["Zdroj", item.source ?? "Neznámo (starší nález)"],
+    ["Obchodovatelné", tradeable ? "Ano" : "Ne · jedinečný nález"],
+  ];
   if (item.quantity > 1) metaRows.push(["Počet kusů", `${item.quantity}×`]);
   if (acquiredAt) metaRows.push(["Získáno", acquiredAt]);
-  metaRows.forEach(([label, value]) => {
-    const row = document.createElement("div"); row.className = "detail-meta-row";
-    const name = document.createElement("span"); name.textContent = label;
-    const amount = document.createElement("strong"); amount.textContent = value;
-    row.append(name, amount); elements.detailMeta.append(row);
-  });
+  metaRows.forEach(([label, value]) => elements.detailMeta.append(kvRow(label, value)));
 
-  if (context === "inventory" && isEquippable) { elements.detailActionButton.textContent = "Vybavit"; elements.detailActionButton.classList.remove("hidden"); }
-  else if (context === "equipped") { elements.detailActionButton.textContent = "Sundat"; elements.detailActionButton.classList.remove("hidden"); }
-  else elements.detailActionButton.classList.add("hidden");
-
-  elements.itemDetailModal.classList.add("visible");
-  elements.itemDetailModal.setAttribute("aria-hidden", "false");
-}
-
-function metaRow(label, value) {
-  const row = document.createElement("div"); row.className = "detail-meta-row";
-  const name = document.createElement("span"); name.textContent = label;
-  const amount = document.createElement("strong"); amount.textContent = value;
-  row.append(name, amount);
-  return row;
-}
-
-// Material detail: same modal/visual system as the equipment detail, but no
-// stats and no equip action -- it shows where the material comes from.
-function openMaterialDetail(materialId) {
-  const material = MATERIALS[materialId];
-  if (!material) return;
-  detailView = { materialId, context: "material" };
-  const rarity = RARITIES[material.rarity];
-  const categoryLabel = MATERIAL_CATEGORY_LABELS[material.category] ?? "Materiál";
-  elements.detailCard.classList.remove("rarity-common", "rarity-uncommon", "rarity-rare", "rarity-epic");
-  elements.detailCard.classList.add(`rarity-${material.rarity}`);
-  elements.detailCard.style.setProperty("--drop-color", rarity.color);
-  elements.detailRarity.textContent = `${rarity.label} ${categoryLabel.toLowerCase()}`;
-  renderItemIcon(elements.detailIcon, { image: material.asset });
-  elements.detailIcon.classList.add("material-art");
-  elements.detailTitle.textContent = material.name;
-  elements.detailTitle.className = `rarity-text rarity-${material.rarity}`;
-  elements.detailType.textContent = categoryLabel;
-  renderStatRows(elements.detailStats, {});
-  elements.detailFlavor.textContent = material.description;
-  elements.detailFlavor.classList.toggle("hidden", !material.description);
-  const enemyNames = material.sourceEnemyIds.map((id) => ENEMIES[id]?.name ?? id).join(", ");
-  elements.detailMeta.innerHTML = "";
-  [
-    ["Vlastněno", `${state.materials[materialId] ?? 0}×`],
-    ["Kategorie", categoryLabel],
-    ["Lokace původu", LOCATIONS[material.sourceLocationId]?.name ?? "Neznámo"],
-    ["Získatelné z", enemyNames],
-    ["Obchodovatelné", material.tradeable ? "Ano" : "Ne"],
-  ].forEach(([label, value]) => elements.detailMeta.append(metaRow(label, value)));
-  elements.detailActionButton.classList.add("hidden");
-  elements.itemDetailModal.classList.add("visible");
-  elements.itemDetailModal.setAttribute("aria-hidden", "false");
-}
-
-function closeItemDetail() {
-  detailView = null;
-  elements.detailIcon.classList.remove("material-art");
-  elements.itemDetailModal.classList.remove("visible");
-  elements.itemDetailModal.setAttribute("aria-hidden", "true");
-}
-
-function runDetailAction() {
-  if (!detailView || detailView.context === "material") return;
-  if (detailView.context === "inventory") equipItem(detailView.itemId);
-  else if (detailView.context === "equipped") {
-    const slot = Object.entries(state.equipment).find(([, equipped]) => equipped?.id === detailView.itemId)?.[0];
-    if (slot) unequipItem(slot);
+  action.classList.remove("hidden");
+  if (equippedNow) {
+    action.textContent = "SUNDAT";
+    if (state.inventory.length >= CONFIG.inventoryCapacity) {
+      action.disabled = true;
+      note.textContent = "Inventář je plný — uvolni místo, aby šel předmět sundat.";
+      note.classList.remove("hidden");
+    }
+  } else if (SLOT_META[item.slot]) {
+    action.textContent = state.equipment[item.slot] ? "VYMĚNIT" : "VYBAVIT";
+  } else {
+    action.classList.add("hidden");
   }
-  closeItemDetail();
 }
 
-// Materials are shown in a separate tab of the inventory and are NOT part of
-// state.inventory, so they never use up the equipment capacity.
-function getOwnedMaterialIds() {
-  const known = MATERIAL_ORDER.filter((id) => state.materials[id] > 0);
-  const unknown = Object.keys(state.materials).filter((id) => !MATERIALS[id] && state.materials[id] > 0);
-  return [...known, ...unknown];
-}
-
-function renderMaterials() {
-  const ids = getOwnedMaterialIds().filter((id) => MATERIALS[id]);
-  elements.tabMaterialsCount.textContent = ids.length;
-  elements.materialEmpty.classList.toggle("hidden", ids.length > 0);
-  elements.materialGrid.innerHTML = "";
-  ids.forEach((id) => {
-    const material = MATERIALS[id];
-    const rarity = RARITIES[material.rarity];
-    const card = document.createElement("article");
-    card.className = `inventory-item material-item rarity-${material.rarity}`;
-    card.style.setProperty("--item-color", rarity.color);
-    card.innerHTML = `<div class="inventory-item-top"><span class="item-icon-small material-art" aria-hidden="true"></span><span class="inventory-item-type"></span><span class="inventory-item-quantity"></span></div><strong class="inventory-item-name"></strong>`;
-    renderItemIcon(card.querySelector(".item-icon-small"), { image: material.asset });
-    card.querySelector(".inventory-item-type").textContent = material.category === "scroll" ? `${rarity.label} · SVITEK` : rarity.label;
-    card.querySelector(".inventory-item-quantity").textContent = `×${state.materials[id]}`;
-    card.querySelector(".inventory-item-name").textContent = material.name;
-    card.tabIndex = 0;
-    card.setAttribute("aria-label", `Zobrazit detail materiálu: ${material.name}, ${state.materials[id]} ks`);
-    card.addEventListener("click", () => openMaterialDetail(id));
-    card.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      openMaterialDetail(id);
-    });
-    elements.materialGrid.append(card);
+function renderEquipmentOverview() {
+  const list = elements.equipmentOverview;
+  list.innerHTML = "";
+  ["helmet", "armor", "gloves", "pants", "boots", "weapon", "charm"].forEach((slot) => {
+    const meta = SLOT_META[slot];
+    const item = state.equipment[slot];
+    const li = document.createElement("li");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `ov-item${item ? ` filled rarity-${item.rarity}` : ""}`;
+    button.dataset.slot = slot;
+    button.setAttribute("aria-label", item ? `${meta.label}: ${item.name} — otevřít v inventáři` : `${meta.label}: prázdný slot`);
+    button.innerHTML = `<span class="ov-icon" aria-hidden="true"></span><span class="ov-copy"><span class="ov-slot"></span><span class="ov-name"></span><span class="ov-rar"></span></span>`;
+    button.querySelector(".ov-slot").textContent = meta.label;
+    button.querySelector(".ov-name").textContent = item ? item.name : "Prázdný slot";
+    button.querySelector(".ov-rar").textContent = item ? RARITIES[item.rarity].label : "—";
+    const icon = button.querySelector(".ov-icon");
+    if (item) renderItemIcon(icon, item);
+    else icon.innerHTML = ICONS[meta.icon] ?? "";
+    li.append(button);
+    list.append(li);
   });
 }
 
-let inventoryTab = "equipment"; // UI-only, not saved
-
-function setInventoryTab(tab) {
-  inventoryTab = tab === "materials" ? "materials" : "equipment";
-  if (inventoryTab === "materials" && deleteMode) setDeleteMode(false);
-  const isEquipment = inventoryTab === "equipment";
-  elements.tabEquipment.classList.toggle("active", isEquipment);
-  elements.tabMaterials.classList.toggle("active", !isEquipment);
-  elements.tabEquipment.setAttribute("aria-selected", String(isEquipment));
-  elements.tabMaterials.setAttribute("aria-selected", String(!isEquipment));
-  elements.equipmentTabPanel.classList.toggle("hidden", !isEquipment);
-  elements.materialsTabPanel.classList.toggle("hidden", isEquipment);
-  elements.inventoryHeadingActions.classList.toggle("hidden", !isEquipment);
+// Celý pohled inventáře najednou (grid + paper-doll + detail). Volá se po každé
+// změně vybavení, výběru nebo filtru; boj tím není nijak dotčen.
+function renderInventoryView() {
+  renderInventory();
+  renderPaperDoll();
+  renderDetail();
 }
 
 function renderLoot() {
-  renderInventory();
-  renderEquipment();
-  renderMaterials();
+  renderInventoryView();
+  renderEquipmentOverview();
   renderRecentDrops();
+}
+
+// --- Výběr ------------------------------------------------------------
+let sheetReturnFocus = null;
+
+function isSheetOpen() { return elements.itemDetail.classList.contains("sheet-open"); }
+
+// Na mobilu se detail otevírá jako celoobrazovkový panel (bottom sheet).
+function openSheet() {
+  if (!mqMobile.matches || isSheetOpen()) return;
+  sheetReturnFocus = document.activeElement;
+  elements.itemDetail.classList.add("sheet-open");
+  document.body.classList.add("no-scroll");
+  elements.itemDetail.scrollTop = 0;
+  elements.detailCloseButton.focus({ preventScroll: true });
+}
+
+function closeSheet({ restoreFocus = true } = {}) {
+  if (!isSheetOpen()) return;
+  elements.itemDetail.classList.remove("sheet-open");
+  document.body.classList.remove("no-scroll");
+  const target = sheetReturnFocus;
+  sheetReturnFocus = null;
+  if (restoreFocus && target?.isConnected) target.focus({ preventScroll: true });
+}
+
+function selectEntity(selection, { reveal = true } = {}) {
+  ui.selection = selection;
+  renderInventoryView();
+  if (!reveal || !ui.selection) return;
+  if (mqMobile.matches) openSheet();
+  else if (!mqWide.matches) {
+    // Detail leží pod ostatními zónami — dostaň ho do záběru, ale nescrolluj zbytečně.
+    const rect = elements.itemDetail.getBoundingClientRect();
+    const barHeight = $(".statusbar")?.offsetHeight ?? 0;
+    const fullyVisible = rect.top >= barHeight && rect.bottom <= window.innerHeight;
+    if (!fullyVisible) {
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      elements.itemDetail.scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" });
+    }
+  }
+}
+
+function onInventoryCell(key) {
+  const separator = key.indexOf(":");
+  const kind = key.slice(0, separator);
+  const id = key.slice(separator + 1);
+  if (deleteMode) { if (kind === "item") toggleSelection(id); return; }
+  selectEntity(kind === "item" ? { kind: "item", id } : { kind: "material", id });
+}
+
+function onDollSlot(slot) {
+  if (state.equipment[slot]) { selectEntity({ kind: "equipped", slot }); return; }
+  // Prázdný slot: nic se nevybavuje — jen se inventář přefiltruje na vhodné předměty
+  // (druhý klik filtr zruší).
+  ui.type = ui.type === slot ? "all" : slot;
+  if (ui.tab === "materials" || ui.tab === "scrolls") ui.tab = "equipment";
+  syncInventoryControls();
+  renderInventory();
+}
+
+function runDetailAction() {
+  const resolved = resolveSelection();
+  if (!resolved) return;
+  if (resolved.kind === "item") equipItem(resolved.item.id);
+  else if (resolved.kind === "equipped") unequipItem(resolved.slot);
+  else return;
+  if (mqMobile.matches) closeSheet(); // na mobilu chceme hned vidět aktualizované vybavení
+}
+
+// --- Filtry a záložky -------------------------------------------------
+function populateTypeFilter() {
+  elements.invType.innerHTML = `<option value="all">Všechny sloty</option>${SLOT_ORDER.map((slot) => `<option value="${slot}">${SLOT_META[slot].label}</option>`).join("")}`;
+}
+
+function syncInventoryControls() {
+  $$("[data-tab]", elements.invTabs).forEach((button) => {
+    const active = button.dataset.tab === ui.tab;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  elements.invSearch.value = ui.search;
+  elements.invType.value = ui.type;
+  elements.invRarity.value = ui.rarity;
+  elements.invSort.value = ui.sort;
+  elements.invTypeField.classList.toggle("hidden", ui.tab === "materials" || ui.tab === "scrolls");
+}
+
+function setInventoryTab(tab) {
+  ui.tab = ["all", "equipment", "materials", "scrolls"].includes(tab) ? tab : "all";
+  if ((ui.tab === "materials" || ui.tab === "scrolls") && deleteMode) setDeleteMode(false);
+  syncInventoryControls();
+  renderInventory();
 }
 
 function updateCountdown(now) {
@@ -947,49 +1167,63 @@ function resetGame() {
   localStorage.removeItem(CONFIG.saveKey);
   state = initialState();
   elements.combatLog.innerHTML = "";
-  closeItemDetail();
-  closeMap();
+  ui.selection = null;
+  ui.tab = "all"; ui.search = ""; ui.type = "all"; ui.rarity = "all"; ui.sort = "newest";
+  closeSheet({ restoreFocus: false });
   deleteMode = false;
   selectedForDeletion.clear();
   elements.bulkDeleteBar.classList.add("hidden");
-  elements.deleteModeButton.classList.remove("active");
-  setInventoryTab("equipment");
+  elements.deleteModeButton.setAttribute("aria-pressed", "false");
+  updateSelectedCount();
+  syncInventoryControls();
   addLog("Prototyp byl resetován včetně inventáře a materiálů.", "system");
   elements.encounterMessage.textContent = "Připraven k boji";
   updateArenaHeader();
   render();
   renderLoot();
+  if (ui.page === "mapa") renderMapPage();
 }
 
 // --- Mapa → lokace → výběr nepřítele -----------------------------------
 //
-// Jeden modal, dva pohledy: seznam lokací a seznam nepřátel dané lokace.
+// Samostatná stránka: nahoře karty lokací, pod nimi nepřátelé vybrané lokace.
 // Všichni nepřátelé lokace jsou vidět a vybratelní hned od začátku -- žádné
 // postupné odemykání. Výběr nepřítele jen nastaví nová data cíle a bezpečně
 // (znovu)spustí boj -- existující smyčka (startLoops/tick) běží od startu
 // stránky pořád stejná, žádný další interval/timer se nikdy nezakládá, takže
 // tu není nic, co by šlo zdvojit.
 
-function renderMapLocations() {
-  elements.mapLocationsGrid.innerHTML = "";
+function renderMapPage() {
+  const currentLocationId = ENEMIES[state.currentEnemyId]?.locationId;
+  if (!LOCATIONS[ui.mapLocationId]) ui.mapLocationId = LOCATIONS[currentLocationId] ? currentLocationId : Object.keys(LOCATIONS)[0];
+  renderMapLocations(currentLocationId);
+  renderMapEnemies();
+}
+
+function renderMapLocations(currentLocationId) {
+  elements.mapLocations.innerHTML = "";
   Object.values(LOCATIONS).forEach((location) => {
-    const isCurrentLocation = ENEMIES[state.currentEnemyId]?.locationId === location.id;
+    const isViewed = ui.mapLocationId === location.id;
+    const isActiveTarget = currentLocationId === location.id;
+    const previewEnemy = ENEMIES[location.enemies[0]];
     const card = document.createElement("button");
     card.type = "button";
-    card.className = "map-location-card";
-    card.classList.toggle("active", isCurrentLocation);
-    card.innerHTML = `<span class="map-location-name"></span><span class="map-location-meta"></span>`;
-    card.querySelector(".map-location-name").textContent = location.name;
-    card.querySelector(".map-location-meta").textContent =
-      `${location.enemies.length} ${pluralizeNepritel(location.enemies.length)}${isCurrentLocation ? " · aktivní cíl zde" : ""}`;
-    card.addEventListener("click", () => openMapLocation(location.id));
-    elements.mapLocationsGrid.append(card);
+    card.className = "loc-card";
+    card.classList.toggle("selected", isViewed);
+    card.setAttribute("aria-pressed", String(isViewed));
+    card.dataset.locationId = location.id;
+    card.innerHTML = `<span class="loc-thumb" aria-hidden="true"></span><span class="loc-copy"><span class="loc-name"></span><span class="loc-meta"></span><span class="loc-active"></span></span>`;
+    card.querySelector(".loc-thumb").innerHTML = previewEnemy?.image
+      ? `<img src="${previewEnemy.image}" alt="" />` : `<span class="goblin-figure"></span>`;
+    card.querySelector(".loc-name").textContent = location.name;
+    card.querySelector(".loc-meta").textContent = `${location.enemies.length} ${pluralizeNepritel(location.enemies.length)}`;
+    card.querySelector(".loc-active").textContent = isActiveTarget ? "◆ aktivní cíl zde" : "";
+    elements.mapLocations.append(card);
   });
 }
 
-function openMapLocation(locationId) {
-  const location = LOCATIONS[locationId];
-  if (!location) return;
+function renderMapEnemies() {
+  const location = LOCATIONS[ui.mapLocationId];
   elements.mapLocationTitle.textContent = location.name;
   elements.mapEnemyGrid.innerHTML = "";
   location.enemies.forEach((enemyId) => {
@@ -1015,9 +1249,9 @@ function openMapLocation(locationId) {
           <ul class="map-loot-list"></ul>
         </details>
       </div>
-      <button type="button" class="map-select-button secondary-button"></button>`;
+      <button type="button" class="btn map-select-button"></button>`;
     const portrait = card.querySelector(".map-enemy-portrait");
-    portrait.innerHTML = enemyCfg.image ? `<img src="${enemyCfg.image}" alt="" />` : `<div class="figure goblin-figure" aria-hidden="true"></div>`;
+    portrait.innerHTML = enemyCfg.image ? `<img src="${enemyCfg.image}" alt="" />` : `<div class="goblin-figure"></div>`;
     card.querySelector(".map-enemy-name").textContent = enemyCfg.name;
     card.querySelector(".map-enemy-level").textContent = `Úroveň ${enemyCfg.level}${enemyCfg.type ? ` · ${ENEMY_TYPE_LABELS[enemyCfg.type] ?? ""}` : ""}`;
     renderEnemyLoot(card.querySelector(".map-loot-list"), enemyCfg);
@@ -1027,18 +1261,16 @@ function openMapLocation(locationId) {
     card.querySelector(".map-stat-xp").textContent = enemyCfg.xp;
     card.querySelector(".map-stat-gold").textContent = enemyCfg.gold ?? 0;
     const button = card.querySelector(".map-select-button");
+    button.dataset.enemyId = enemyId;
     if (isActive) {
       button.textContent = "Aktivní cíl";
       button.disabled = true;
-      button.classList.add("active");
     } else {
       button.textContent = "Vybrat cíl";
-      button.addEventListener("click", () => selectEnemyTarget(enemyId));
+      button.classList.add("btn-primary");
     }
     elements.mapEnemyGrid.append(card);
   });
-  elements.mapLocationsView.classList.add("hidden");
-  elements.mapEnemiesView.classList.remove("hidden");
 }
 
 // Builds the "MOŽNÁ KOŘIST" list of an enemy from its data-driven drop table.
@@ -1077,7 +1309,6 @@ function renderEnemyLoot(list, enemyCfg) {
     const rarity = row.rarity ? RARITIES[row.rarity] : null;
     const li = document.createElement("li");
     li.className = `map-loot-row${row.rarity ? ` rarity-${row.rarity}` : ""}`;
-    if (rarity) li.style.setProperty("--item-color", rarity.color);
     li.innerHTML = `<span class="map-loot-icon" aria-hidden="true"></span><span class="map-loot-copy"><strong></strong><span></span></span><span class="map-loot-tier"></span>`;
     renderItemIcon(li.querySelector(".map-loot-icon"), row.icon);
     const name = li.querySelector("strong");
@@ -1089,25 +1320,6 @@ function renderEnemyLoot(list, enemyCfg) {
     tier.dataset.tier = row.tier;
     list.append(li);
   });
-}
-
-function backToMapLocations() {
-  elements.mapEnemiesView.classList.add("hidden");
-  elements.mapLocationsView.classList.remove("hidden");
-  renderMapLocations();
-}
-
-function openMap() {
-  renderMapLocations();
-  elements.mapEnemiesView.classList.add("hidden");
-  elements.mapLocationsView.classList.remove("hidden");
-  elements.mapModal.classList.add("visible");
-  elements.mapModal.setAttribute("aria-hidden", "false");
-}
-
-function closeMap() {
-  elements.mapModal.classList.remove("visible");
-  elements.mapModal.setAttribute("aria-hidden", "true");
 }
 
 // Sets a new farming target. Safe against duplicate combat timers: there is
@@ -1135,28 +1347,119 @@ function switchEnemy(enemyId) {
 
 function selectEnemyTarget(enemyId) {
   switchEnemy(enemyId);
-  closeMap();
+  navigate("boj");
+}
+
+// --- Stránky, navigace a sidebar ---------------------------------------
+//
+// Všechny stránky zůstávají v DOM (jen se přepíná atribut hidden) a herní
+// smyčka běží mimo ně — přepnutí stránky proto boj nikdy nerestartuje.
+
+const PAGE_TITLES = Object.freeze({ postava: "Postava", inventar: "Inventář", mapa: "Mapa", boj: "Boj" });
+
+function pageFromHash() {
+  const match = /^#\/?([a-z]+)/.exec(location.hash);
+  return match && PAGE_TITLES[match[1]] ? match[1] : "boj";
+}
+
+function navigate(page) {
+  if (location.hash === `#/${page}`) showPage(page);
+  else location.hash = `#/${page}`; // hashchange zavolá showPage
+}
+
+function showPage(page) {
+  ui.page = page;
+  $$(".page").forEach((section) => { section.hidden = section.dataset.page !== page; });
+  $$("[data-page-link]").forEach((link) => {
+    if (link.dataset.pageLink === page) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  });
+  elements.pageTitle.textContent = PAGE_TITLES[page];
+  document.title = `${PAGE_TITLES[page]} — Idle RPG`;
+  closeSidebar({ restoreFocus: false });
+  closeSheet({ restoreFocus: false });
+  if (page === "mapa") renderMapPage();
+  else if (page === "inventar") renderInventoryView();
+  else if (page === "postava") renderEquipmentOverview();
+  window.scrollTo(0, 0);
+}
+
+function openSidebar() {
+  document.body.classList.add("nav-open");
+  elements.menuButton.setAttribute("aria-expanded", "true");
+  $(".nav-link", elements.sidebar)?.focus({ preventScroll: true });
+}
+
+function closeSidebar({ restoreFocus = true } = {}) {
+  if (!document.body.classList.contains("nav-open")) return;
+  document.body.classList.remove("nav-open");
+  elements.menuButton.setAttribute("aria-expanded", "false");
+  if (restoreFocus) elements.menuButton.focus({ preventScroll: true });
 }
 
 elements.fightButton.addEventListener("click", toggleFight);
-elements.resetButton.addEventListener("click", resetGame);
+elements.resetButton.addEventListener("click", () => {
+  if (window.confirm("Opravdu resetovat prototyp? Smaže se postup, inventář i materiály.")) resetGame();
+});
 elements.clearLogButton.addEventListener("click", () => { elements.combatLog.innerHTML = ""; addLog("Záznam byl vyčištěn.", "system"); });
-elements.detailCloseButton.addEventListener("click", closeItemDetail);
+
+// Inventář: delegované události (grid se překresluje, listenery se tedy nikdy nezdvojují).
+elements.inventoryGrid.addEventListener("click", (event) => {
+  const cell = event.target.closest(".inv-cell[data-key]");
+  if (cell) onInventoryCell(cell.dataset.key);
+});
+elements.paperDoll.addEventListener("click", (event) => {
+  const slotButton = event.target.closest(".pd-slot[data-slot]");
+  if (slotButton) onDollSlot(slotButton.dataset.slot);
+});
+elements.equipmentOverview.addEventListener("click", (event) => {
+  const button = event.target.closest(".ov-item[data-slot]");
+  if (!button) return;
+  const slot = button.dataset.slot;
+  if (state.equipment[slot]) ui.selection = { kind: "equipped", slot };
+  navigate("inventar");
+});
 elements.detailActionButton.addEventListener("click", runDetailAction);
-elements.itemDetailModal.querySelector(".drop-backdrop").addEventListener("click", closeItemDetail);
-document.addEventListener("keydown", (event) => { if (event.key === "Escape" && detailView) closeItemDetail(); });
+elements.detailCloseButton.addEventListener("click", () => closeSheet());
 elements.deleteModeButton.addEventListener("click", () => setDeleteMode(!deleteMode));
-elements.tabEquipment.addEventListener("click", () => setInventoryTab("equipment"));
-elements.tabMaterials.addEventListener("click", () => setInventoryTab("materials"));
 elements.cancelDeleteButton.addEventListener("click", () => setDeleteMode(false));
 elements.confirmDeleteButton.addEventListener("click", deleteSelectedItems);
-document.addEventListener("keydown", (event) => { if (event.key === "Escape" && deleteMode) setDeleteMode(false); });
-elements.mapButton.addEventListener("click", openMap);
-elements.mapCloseButton.addEventListener("click", closeMap);
-elements.mapCloseButton2.addEventListener("click", closeMap);
-elements.mapBackButton.addEventListener("click", backToMapLocations);
-elements.mapModal.querySelector(".drop-backdrop").addEventListener("click", closeMap);
-document.addEventListener("keydown", (event) => { if (event.key === "Escape" && elements.mapModal.classList.contains("visible")) closeMap(); });
+elements.invTabs.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-tab]");
+  if (button) setInventoryTab(button.dataset.tab);
+});
+elements.invSearch.addEventListener("input", () => { ui.search = elements.invSearch.value; renderInventory(); });
+elements.invType.addEventListener("change", () => { ui.type = elements.invType.value; renderInventory(); });
+elements.invRarity.addEventListener("change", () => { ui.rarity = elements.invRarity.value; renderInventory(); });
+elements.invSort.addEventListener("change", () => { ui.sort = elements.invSort.value; renderInventory(); });
+
+// Mapa
+elements.mapLocations.addEventListener("click", (event) => {
+  const card = event.target.closest(".loc-card[data-location-id]");
+  if (!card) return;
+  ui.mapLocationId = card.dataset.locationId;
+  renderMapPage();
+});
+elements.mapEnemyGrid.addEventListener("click", (event) => {
+  const button = event.target.closest(".map-select-button[data-enemy-id]");
+  if (button && !button.disabled) selectEnemyTarget(button.dataset.enemyId);
+});
+
+// Navigace
+elements.menuButton.addEventListener("click", () => (document.body.classList.contains("nav-open") ? closeSidebar() : openSidebar()));
+elements.sidebarBackdrop.addEventListener("click", () => closeSidebar());
+$$(".nav-link", elements.sidebar).forEach((link) => link.addEventListener("click", () => closeSidebar({ restoreFocus: false })));
+window.addEventListener("hashchange", () => showPage(pageFromHash()));
+mqDrawer.addEventListener("change", (event) => { if (!event.matches) closeSidebar({ restoreFocus: false }); });
+mqMobile.addEventListener("change", (event) => { if (!event.matches) closeSheet({ restoreFocus: false }); });
+
+// Escape zavírá (v tomto pořadí): mobilní menu, mobilní detail, režim mazání.
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  if (document.body.classList.contains("nav-open")) closeSidebar();
+  else if (isSheetOpen()) closeSheet();
+  else if (deleteMode) setDeleteMode(false);
+});
 window.addEventListener("beforeunload", saveState);
 
 // Dev sanity check: material `sourceEnemyIds` (material-data.js) must match
@@ -1174,7 +1477,11 @@ function validateMaterialSources() {
 }
 validateMaterialSources();
 
+applyCharacterPreview();
+populateTypeFilter();
+syncInventoryControls();
 startLoops();
 updateArenaHeader();
 render();
 renderLoot();
+showPage(pageFromHash());

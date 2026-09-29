@@ -83,3 +83,25 @@ Upgrade předmětu zesiluje stejný efekt postupně; nemění při každém stup
 3. Je informace čitelná i bez barvy?
 4. Nezabírá padding více místa, než vyžaduje čitelnost?
 5. Zapadá typografie a ohraničení do systémového vzhledu?
+
+## Aplikační shell a inventář (UI shell, Prototype 0.4)
+
+Rozhraní je rozdělené na samostatné stránky, které přirozeně scrollují; nic se nesnaží vejít na jednu obrazovku. Velikost UI řeší skutečné rozměry a CSS proměnné (`:root` v `styles.css`), nikdy `zoom` ani `transform: scale()`.
+
+### Shell
+- **Levý sidebar** (256 px, `position: sticky`, vlastní scroll): identita postavy, navigace POSTAVA / INVENTÁŘ / MAPA / BOJ a odkaz na katalog. Aktivní stránka má `aria-current="page"`, světlejší pozadí a linku.
+- **Horní stavová lišta** (sticky): název stránky, level, XP, gold, stav boje a aktuální cíl.
+- **Obsah** má `max-width: 1500px` a padding 32 px. Stránky se přepínají atributem `hidden`, herní smyčka běží mimo ně, takže boj se při navigaci nerestartuje.
+- **Mobil (< 900 px):** sidebar je vysouvací drawer (tlačítko Menu, Escape zavírá).
+
+### Stránka Inventář
+Desktop ≥ 1440 px: `INVENTÁŘ | PAPER-DOLL | DETAIL` (detail sticky). 1100–1439 px: inventář a paper-doll vedle sebe, detail pod nimi. Pod 1100 px: paper-doll nad inventářem, detail pod nimi. Na mobilu (≤ 760 px) se detail otevírá jako celoobrazovkový panel (Escape zavírá).
+
+- **Paper-doll:** všech sedm slotů je vidět současně, rozmístěné anatomicky (helma; rukavice–brnění–amulet; zbraň–kalhoty; boty), sloty 92–96 px. Náhled postavy je vyměnitelná vrstva; asset se mění na jediném místě (`CHARACTER_PREVIEW` v `app.js`).
+- **Slot:** velký asset, rarity rámeček, název typu slotu, prázdný stav (čárkovaný rámeček + symbol), stavy selected / hover / focus a zvýraznění kompatibilního slotu (čárkovaný obrys a štítek VYBAVIT/VYMĚNIT).
+- **Grid:** buňky min. 88 px, počet kusů u materiálů, záložky VŠE / VYBAVENÍ / MATERIÁLY / SVITKY, hledání, filtr slotu a rarity, řazení, kapacita.
+- **Detail:** velký asset, rarita, staty, porovnání s nasazeným kusem, zdroj a čas získání, obchodovatelnost a akce VYBAVIT / VYMĚNIT / SUNDAT. Jedno kliknutí pouze vybírá; vybavuje až tlačítko.
+- Klik na prázdný slot přefiltruje inventář na vhodné předměty (druhý klik filtr zruší). Výběr a filtry jsou stav UI a neukládají se do savu.
+
+### Typografické minimum
+Základ 14 px, pomocný text ≥ 12 px, popisky ≥ 11 px, nadpis stránky 28 px (24 px na mobilu), nadpis sekce 19 px, tlačítka ≥ 13 px s výškou ≥ 40 px.

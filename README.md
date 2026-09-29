@@ -23,7 +23,9 @@ Potom otevři `http://localhost:8080`.
 - XP, gold a levelování s růstem základních statů,
 - třísekundové hledání dalšího nepřítele stejného typu,
 - živý combat log, počet vítězství a čas výpravy,
-- responzivní zobrazení pro desktop, tablet a telefon,
+- **(UI shell)** aplikační shell: pevný levý sidebar, horní stavová lišta a samostatné stránky Postava / Inventář / Mapa / Boj (hash routing, boj běží na pozadí při přepínání),
+- **(UI shell)** inventář jako paper-doll: 7 slotů kolem náhledu postavy, inventářový grid vedle něj a persistentní detail itemu s porovnáním,
+- responzivní zobrazení pro desktop, tablet a telefon (na mobilu vysouvací menu a detail jako celoobrazovkový panel),
 - náhodné dropy z osmnácti typů předmětů (běžná sada, tematická „andělská" sada se září a „chitinová" sada z Pustiny ticha),
 - **(0.4)** šest nepřátel Pustiny ticha s finálními jmény (Prašná můra, Plastová můra, Slepá můra, Pamětnice, Můra z hlubiny, Matka děr) a typem COMMON / UNCOMMON / RARE / ELITE / BOSS,
 - **(0.4)** sedm materiálů (`material-data.js`) se stabilními ID, cílené drop tabulky každého nepřítele (`world-data.js`) a sekce „Možná kořist“ v mapě,
@@ -80,7 +82,7 @@ odpovídající zbytku sady ikon.
 
 ## Struktura
 
-- `index.html` — struktura rozhraní,
+- `index.html` — aplikační shell a čtyři stránky (Postava, Inventář, Mapa, Boj),
 - `styles.css` — responzivní vizuální vrstva,
 - `app.js` — stav hry, souboj, mapa/výběr cíle a postup,
 - `item-data.js` — sdílená data předmětů (rarity, sloty, ikony, šablony předmětů),
