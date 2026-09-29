@@ -96,7 +96,7 @@ Rozhraní je rozdělené na samostatné stránky, které přirozeně scrollují;
 ### Stránka Inventář
 Desktop ≥ 1440 px: `INVENTÁŘ | PAPER-DOLL | DETAIL` (detail sticky). 1100–1439 px: inventář a paper-doll vedle sebe, detail pod nimi. Pod 1100 px: paper-doll nad inventářem, detail pod nimi. Na mobilu (≤ 760 px) se detail otevírá jako celoobrazovkový panel (Escape zavírá).
 
-- **Paper-doll:** všech sedm slotů je vidět současně, rozmístěné anatomicky (helma; rukavice–brnění–amulet; zbraň–kalhoty; boty), sloty 92–96 px. Náhled postavy je vyměnitelná vrstva; asset se mění na jediném místě (`CHARACTER_PREVIEW` v `app.js`).
+- **Paper-doll:** všech osm slotů je vidět současně, rozmístěné anatomicky (helma; rukavice–brnění–amulet; zbraň–kalhoty–křídla; boty), sloty 92–96 px. Náhled postavy je vyměnitelná vrstva; asset se mění na jediném místě (`CHARACTER_PREVIEW` v `app.js`).
 - **Slot:** velký asset, rarity rámeček, název typu slotu, prázdný stav (čárkovaný rámeček + symbol), stavy selected / hover / focus a zvýraznění kompatibilního slotu (čárkovaný obrys a štítek VYBAVIT/VYMĚNIT).
 - **Grid:** buňky min. 88 px, počet kusů u materiálů, záložky VŠE / VYBAVENÍ / MATERIÁLY / SVITKY, hledání, filtr slotu a rarity, řazení, kapacita.
 - **Detail:** velký asset, rarita, staty, porovnání s nasazeným kusem, zdroj a čas získání, obchodovatelnost a akce VYBAVIT / VYMĚNIT / SUNDAT. Jedno kliknutí pouze vybírá; vybavuje až tlačítko.

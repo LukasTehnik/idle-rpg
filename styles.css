@@ -550,7 +550,7 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
   grid-template-areas:
     ". helmet ."
     "gloves armor charm"
-    "weapon pants ."
+    "weapon pants wings"
     ". boots .";
 }
 .doll-figure {
@@ -564,6 +564,7 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 .pd-slot[data-slot="weapon"] { grid-area: weapon; }
 .pd-slot[data-slot="pants"] { grid-area: pants; }
 .pd-slot[data-slot="boots"] { grid-area: boots; }
+.pd-slot[data-slot="wings"] { grid-area: wings; }
 
 /* prázdný slot: tmavší plocha, jasný přerušovaný obrys */
 .pd-slot {

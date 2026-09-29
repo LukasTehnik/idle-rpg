@@ -21,6 +21,7 @@ const PUSTINA_TICHA_DROP_POOL = [
   "chitin-gloves",
   "chitin-boots",
   "chitin-pants",
+  "moth-wings",
 ];
 
 // The original prototype's full item set (base + signature "andělská" gear)

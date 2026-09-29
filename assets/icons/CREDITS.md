@@ -28,6 +28,7 @@ rarity předmětu.
 | `items/copper-ring.svg` | Měděný prsten | Ring | [Delapouite](https://game-icons.net/1x1/delapouite/ring.html) | CC BY 3.0 |
 | `items/slot-weapon.svg` | prázdný slot zbraně | Crossed Swords | [Lorc](https://game-icons.net/1x1/lorc/crossed-swords.html) | CC BY 3.0 |
 | `items/slot-armor.svg` | prázdný slot zbroje | Breastplate | [Lorc](https://game-icons.net/1x1/lorc/breastplate.html) | CC BY 3.0 |
+| `items/slot-wings.svg` | prázdný slot křídel | Angel Wings | [Lorc](https://game-icons.net/1x1/lorc/angel-wings.html) | CC BY 3.0 |
 | `items/slot-charm.svg` | prázdný slot talismanu | Gem Pendant | [Lorc](https://game-icons.net/1x1/lorc/gem-pendant.html) | CC BY 3.0 |
 | `items/slot-helmet.svg` | prázdný slot helmy | Closed Barbute | [Delapouite](https://game-icons.net/1x1/delapouite/closed-barbute.html) | CC BY 3.0 |
 | `items/slot-gloves.svg` | prázdný slot rukavic | Gloves | [Delapouite](https://game-icons.net/1x1/delapouite/gloves.html) | CC BY 3.0 |
@@ -47,3 +48,5 @@ Zdroj a licence zatím nejsou známé — doplnit, jakmile je uživatel upřesn�
 | `items/angel-gloves.png` | Rukavice andělských spárů (rukavice) | uživatel (neznámý) | TBD |
 | `items/angel-boots.png` | Boty andělského vzletu (boty) | uživatel (neznámý) | TBD |
 | `items/angel-charm.png` | Přívěsek andělské záře (talisman) | uživatel (neznámý) | TBD |
+
+`items/moth-wings.png` (Můří křídla) je dodaný asset, beze změny obsahu — oříznutý na obsah a proporcionálně zmenšený na 256 × 256 px (LANCZOS, zachovaná průhlednost).

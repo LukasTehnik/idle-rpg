@@ -41,7 +41,7 @@ const initialState = () => ({
   materials: {},
   // Last few drops (materials + equipment) for the compact combat-screen list.
   recentDrops: [],
-  equipment: { weapon: null, armor: null, charm: null, helmet: null, gloves: null, boots: null, pants: null },
+  equipment: { weapon: null, armor: null, charm: null, helmet: null, gloves: null, boots: null, pants: null, wings: null },
   // Which location/enemy the player has selected on the map as their
   // current farming target. Defaults to the original Goblin encounter so
   // existing saves (and a fresh game) behave exactly as before.
@@ -984,7 +984,7 @@ function renderDetail() {
 function renderEquipmentOverview() {
   const list = elements.equipmentOverview;
   list.innerHTML = "";
-  ["helmet", "armor", "gloves", "pants", "boots", "weapon", "charm"].forEach((slot) => {
+  ["helmet", "armor", "gloves", "pants", "boots", "weapon", "charm", "wings"].forEach((slot) => {
     const meta = SLOT_META[slot];
     const item = state.equipment[slot];
     const li = document.createElement("li");
