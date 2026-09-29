@@ -94,7 +94,7 @@ Rozhraní je rozdělené na samostatné stránky, které přirozeně scrollují;
 - **Mobil (< 900 px):** sidebar je vysouvací drawer (tlačítko Menu, Escape zavírá).
 
 ### Stránka Inventář
-Desktop ≥ 1440 px: `INVENTÁŘ | PAPER-DOLL | DETAIL` (detail sticky). 1100–1439 px: inventář a paper-doll vedle sebe, detail pod nimi. Pod 1100 px: paper-doll nad inventářem, detail pod nimi. Na mobilu (≤ 760 px) se detail otevírá jako celoobrazovkový panel (Escape zavírá).
+Desktop ≥ 1440 px: `INVENTÁŘ | PAPER-DOLL | DETAIL` (detail sticky). Pod 1440 px se detail otevírá klikem na item jako výsuvný panel zprava (460 px, na mobilu ≤ 760 px přes celou obrazovku); zavírá ho ✕, klik mimo panel nebo Escape. 1100–1439 px: inventář a paper-doll vedle sebe. Pod 1100 px: paper-doll nad inventářem. Katalog předmětů má stejný výsuvný detail (staty, kde padá, obchodovatelnost).
 
 - **Paper-doll:** všech osm slotů je vidět současně, rozmístěné anatomicky (helma; rukavice–brnění–amulet; zbraň–kalhoty–křídla; boty), sloty 92–96 px. Náhled postavy je vyměnitelná vrstva; asset se mění na jediném místě (`CHARACTER_PREVIEW` v `app.js`).
 - **Slot:** velký asset, rarity rámeček, název typu slotu, prázdný stav (čárkovaný rámeček + symbol), stavy selected / hover / focus a zvýraznění kompatibilního slotu (čárkovaný obrys a štítek VYBAVIT/VYMĚNIT).

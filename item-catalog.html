@@ -28,10 +28,28 @@
         vykreslen přesně tou samou funkcí <code>renderItemIcon()</code>, jakou používá hra samotná.
       </p>
 
-      <section id="catalogGrid" class="catalog-grid" aria-label="Seznam předmětů"></section>
+      <section id="catalogGrid" class="catalog-grid" aria-label="Seznam předmětů (klikni na kartu pro detail)"></section>
     </main>
 
+    <div id="catBackdrop" class="cat-backdrop" aria-hidden="true" hidden></div>
+    <aside id="catDetail" class="cat-detail" role="dialog" aria-modal="true" aria-label="Detail předmětu" hidden>
+      <div class="detail-topbar">
+        <span class="eyebrow">DETAIL PŘEDMĚTU</span>
+        <button id="catClose" class="btn" type="button">Zavřít ✕</button>
+      </div>
+      <div id="catIcon" class="detail-icon" aria-hidden="true"></div>
+      <h2 id="catTitle" class="detail-title"></h2>
+      <p id="catType" class="detail-type"></p>
+      <div id="catRolls" class="kv-list"></div>
+      <p class="detail-compare-title cat-section-title">Kde padá</p>
+      <div id="catSources" class="kv-list"></div>
+      <p id="catFlavor" class="detail-flavor hidden"></p>
+      <div id="catMeta" class="kv-list kv-list-meta"></div>
+    </aside>
+
     <script src="item-data.js"></script>
+    <script src="material-data.js"></script>
+    <script src="world-data.js"></script>
     <script>
       "use strict";
 
@@ -51,6 +69,10 @@
       function buildCatalogCard(item) {
         const card = document.createElement("article");
         card.className = "catalog-card";
+        card.tabIndex = 0;
+        card.setAttribute("role", "button");
+        card.setAttribute("aria-label", `${item.name} — zobrazit detail`);
+        card.dataset.icon = item.icon;
 
         const icon = document.createElement("div");
         icon.className = "catalog-icon";
@@ -93,6 +115,103 @@
 
       const grid = document.getElementById("catalogGrid");
       ITEM_TEMPLATES.forEach((item) => grid.appendChild(buildCatalogCard(item)));
+
+      // ------------------------------------------------ detail předmětu (výsuvný panel)
+      const $id = (id) => document.getElementById(id);
+      const detail = $id("catDetail");
+      const backdrop = $id("catBackdrop");
+      let openerCard = null;
+
+      function kvRow(label, value) {
+        const row = document.createElement("div");
+        row.className = "kv-row";
+        const name = document.createElement("span"); name.textContent = label;
+        const amount = document.createElement("strong"); amount.textContent = value;
+        row.append(name, amount);
+        return row;
+      }
+
+      // Kde předmět padá: nepřátelé, jejichž dropPool ho obsahuje (šance na kus = dropChance / velikost poolu;
+      // rarita se losuje zvlášť). Jde o pracovní balance z world-data.js.
+      function dropSources(item) {
+        return Object.values(ENEMIES)
+          .filter((enemy) => (enemy.dropChance ?? 0) > 0 && (enemy.dropPool ?? []).includes(item.icon))
+          .map((enemy) => ({
+            enemy,
+            chance: (enemy.dropChance / enemy.dropPool.length) * 100,
+            location: LOCATIONS[enemy.locationId]?.name ?? "",
+          }));
+      }
+
+      function formatChance(percent) {
+        return `${percent.toLocaleString("cs-CZ", { maximumFractionDigits: percent < 1 ? 2 : 1 })} %`;
+      }
+
+      function openDetail(item, card) {
+        openerCard = card;
+        grid.querySelectorAll(".catalog-card.selected").forEach((el) => el.classList.remove("selected"));
+        card.classList.add("selected");
+        renderItemIcon($id("catIcon"), item);
+        $id("catTitle").textContent = item.name;
+        $id("catType").textContent = SLOT_META[item.slot]?.label ?? item.slot;
+
+        const rolls = $id("catRolls");
+        rolls.replaceChildren(...Object.entries(item.rolls).map(([key, range]) => kvRow(ROLL_LABELS[key] ?? key, formatRollRange(key, range))));
+
+        const sources = $id("catSources");
+        const list = dropSources(item);
+        sources.replaceChildren(...(list.length
+          ? list.map(({ enemy, chance, location }) => kvRow(`${enemy.name} · ${location}`, formatChance(chance)))
+          : [kvRow("Zatím nepadá", "—")]));
+
+        const flavor = $id("catFlavor");
+        flavor.textContent = item.flavorText ?? "";
+        flavor.classList.toggle("hidden", !item.flavorText);
+
+        const meta = $id("catMeta");
+        meta.replaceChildren(
+          kvRow("Slot", SLOT_META[item.slot]?.label ?? item.slot),
+          kvRow("Obchodovatelné", item.tradeable === false ? "Ne" : "Ano"),
+          kvRow("Vlastní zář", item.glowColor ? "Ano" : "Ne"),
+        );
+
+        detail.hidden = false;
+        backdrop.hidden = false;
+        detail.scrollTop = 0;
+        document.body.classList.add("no-scroll");
+        $id("catClose").focus({ preventScroll: true });
+      }
+
+      function closeDetail() {
+        if (detail.hidden) return;
+        detail.hidden = true;
+        backdrop.hidden = true;
+        document.body.classList.remove("no-scroll");
+        grid.querySelectorAll(".catalog-card.selected").forEach((el) => el.classList.remove("selected"));
+        openerCard?.focus({ preventScroll: true });
+        openerCard = null;
+      }
+
+      function itemFromCard(card) {
+        return ITEM_TEMPLATES.find((item) => item.icon === card.dataset.icon);
+      }
+
+      grid.addEventListener("click", (event) => {
+        const card = event.target.closest(".catalog-card");
+        const item = card && itemFromCard(card);
+        if (item) openDetail(item, card);
+      });
+      grid.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        const card = event.target.closest(".catalog-card");
+        const item = card && itemFromCard(card);
+        if (!item) return;
+        event.preventDefault();
+        openDetail(item, card);
+      });
+      $id("catClose").addEventListener("click", closeDetail);
+      backdrop.addEventListener("click", closeDetail);
+      document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeDetail(); });
     </script>
   </body>
 </html>

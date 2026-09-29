@@ -793,6 +793,19 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 .catalog-intro { margin: 16px 0; padding: 14px 18px; border: 1px solid var(--color-border); background: var(--color-surface-1); color: var(--color-text-secondary); font-size: var(--fs-small); line-height: 1.7; }
 .catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
 .catalog-card { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 0 -1px -1px 0; padding: 24px 16px 18px; border: 1px solid var(--color-border); background: var(--color-surface-1); text-align: center; }
+.catalog-card { cursor: pointer; transition: background var(--t-fast) linear, box-shadow var(--t-fast) linear; }
+.catalog-card:hover { background: var(--color-surface-2); box-shadow: inset 0 0 0 1px var(--color-border-highlight); }
+.catalog-card:active { background: var(--color-surface-3); }
+.catalog-card.selected { background: var(--color-surface-3); box-shadow: inset 0 0 0 2px var(--color-accent-gold); }
+.cat-backdrop { position: fixed; inset: 0; z-index: 49; background: rgba(12, 10, 8, .8); }
+.cat-detail {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 50; width: min(460px, 100vw); padding: 16px 16px 32px; overflow-y: auto;
+  border-left: 2px solid var(--color-border-strong); background: var(--color-bg-page); box-shadow: -4px 0 0 var(--color-shadow); overscroll-behavior: contain;
+}
+.cat-detail .detail-topbar { position: sticky; top: -16px; z-index: 2; margin: -16px -16px 14px; padding: 12px 16px; border-bottom: 2px solid var(--color-border-strong); background: var(--color-surface-1); }
+.cat-detail .detail-icon { width: min(100%, 300px); }
+.cat-section-title { margin: 16px 0 0; }
+@media (max-width: 760px) { .cat-detail { width: 100vw; border-left: 0; box-shadow: none; } }
 .catalog-icon { display: grid; width: 96px; height: 96px; place-items: center; border: 1px solid var(--color-border-strong); background: var(--color-bg-deep); color: var(--color-text-secondary); }
 .catalog-icon svg { width: 52px; height: 52px; }
 .catalog-icon img { width: 84px; height: 84px; object-fit: contain; }
@@ -896,18 +909,27 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
   .map-enemy-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .log-entry { grid-template-columns: 62px 1fr; }
   .drop-toast-stack { right: 8px; bottom: 8px; left: 8px; width: auto; }
+}
 
-  /* Detail itemu = celoobrazovkový panel, otevřený klikem na item */
+/* Detail itemu pod 1440 px = výsuvný panel otevřený klikem na item (vždy viditelný).
+   Na mobilu (≤ 760 px) zabere celou obrazovku, výš je to pravý boční panel. Escape / ✕ / klik mimo zavře. */
+@media (max-width: 1439px) {
   .detail-panel { display: none; }
   .detail-panel.sheet-open {
-    position: fixed; inset: 0; z-index: 50; display: block; max-height: none; padding: 16px 16px 32px;
-    overflow-y: auto; border: 0; background: var(--color-bg-page); box-shadow: none; overscroll-behavior: contain;
+    position: fixed; top: 0; right: 0; bottom: 0; left: auto; z-index: 50; display: block; width: min(460px, 100vw);
+    max-height: none; padding: 16px 16px 32px; overflow-y: auto; border-width: 0 0 0 2px; border-color: var(--color-border-strong);
+    background: var(--color-bg-page); box-shadow: -4px 0 0 var(--color-shadow); overscroll-behavior: contain;
   }
   .detail-panel.sheet-open .detail-topbar { position: sticky; top: -16px; z-index: 2; margin: -16px -16px 14px; padding: 12px 16px; border-bottom: 2px solid var(--color-border-strong); background: var(--color-surface-1); }
+  .detail-panel.sheet-open .detail-body { display: block; }
+  .detail-panel.sheet-open .detail-icon { width: min(100%, 300px); }
+  .detail-panel.sheet-open .detail-title { margin-top: 16px; }
   .detail-close { display: inline-flex; min-height: 44px; }
-  .detail-body { display: block; }
-  .detail-icon { width: min(100%, 300px); }
-  .detail-title { margin-top: 16px; }
+  .detail-backdrop { display: none; }
+  body.detail-open .detail-backdrop { display: block; position: fixed; inset: 0; z-index: 49; background: rgba(12, 10, 8, .8); }
+}
+@media (max-width: 760px) {
+  .detail-panel.sheet-open { width: 100vw; border-width: 0; box-shadow: none; }
 }
 
 @media (max-width: 400px) {

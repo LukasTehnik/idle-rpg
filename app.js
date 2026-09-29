@@ -87,7 +87,7 @@ const ELEMENT_IDS = [
   "invTabs", "invSearch", "invType", "invTypeField", "invRarity", "invSort", "paperDoll",
   "deleteModeButton", "bulkDeleteBar", "selectedCount", "confirmDeleteButton", "cancelDeleteButton",
   "itemDetail", "detailEmpty", "detailBody", "detailRarity", "detailIcon", "detailTitle", "detailType",
-  "detailStats", "detailCompare", "detailFlavor", "detailMeta", "detailActionButton", "detailNote", "detailCloseButton",
+  "detailStats", "detailCompare", "detailFlavor", "detailMeta", "detailActionButton", "detailNote", "detailCloseButton", "detailBackdrop",
   "mapLocations", "mapLocationTitle", "mapEnemyGrid",
 ];
 const elements = Object.fromEntries(ELEMENT_IDS.map((id) => [id, document.getElementById(id)]));
@@ -115,8 +115,8 @@ const ui = {
   search: "", type: "all", rarity: "all", sort: "newest",
   mapLocationId: null,
 };
-const mqMobile = window.matchMedia("(max-width: 760px)");
-const mqWide = window.matchMedia("(min-width: 1440px)");
+// Pod 1440 px se detail itemu otevírá jako výsuvný panel (na mobilu přes celou obrazovku).
+const mqSheet = window.matchMedia("(max-width: 1439px)");
 const mqDrawer = window.matchMedia("(max-width: 899px)");
 const RARITY_ORDER = ["epic", "rare", "uncommon", "common"];
 const SLOT_ORDER = Object.keys(SLOT_META);
@@ -1026,10 +1026,10 @@ function isSheetOpen() { return elements.itemDetail.classList.contains("sheet-op
 
 // Na mobilu se detail otevírá jako celoobrazovkový panel (bottom sheet).
 function openSheet() {
-  if (!mqMobile.matches || isSheetOpen()) return;
+  if (!mqSheet.matches || isSheetOpen()) return;
   sheetReturnFocus = document.activeElement;
   elements.itemDetail.classList.add("sheet-open");
-  document.body.classList.add("no-scroll");
+  document.body.classList.add("detail-open", "no-scroll");
   elements.itemDetail.scrollTop = 0;
   elements.detailCloseButton.focus({ preventScroll: true });
 }
@@ -1037,7 +1037,7 @@ function openSheet() {
 function closeSheet({ restoreFocus = true } = {}) {
   if (!isSheetOpen()) return;
   elements.itemDetail.classList.remove("sheet-open");
-  document.body.classList.remove("no-scroll");
+  document.body.classList.remove("detail-open", "no-scroll");
   const target = sheetReturnFocus;
   sheetReturnFocus = null;
   if (restoreFocus && target?.isConnected) target.focus({ preventScroll: true });
@@ -1047,17 +1047,7 @@ function selectEntity(selection, { reveal = true } = {}) {
   ui.selection = selection;
   renderInventoryView();
   if (!reveal || !ui.selection) return;
-  if (mqMobile.matches) openSheet();
-  else if (!mqWide.matches) {
-    // Detail leží pod ostatními zónami — dostaň ho do záběru, ale nescrolluj zbytečně.
-    const rect = elements.itemDetail.getBoundingClientRect();
-    const barHeight = $(".statusbar")?.offsetHeight ?? 0;
-    const fullyVisible = rect.top >= barHeight && rect.bottom <= window.innerHeight;
-    if (!fullyVisible) {
-      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      elements.itemDetail.scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" });
-    }
-  }
+  if (mqSheet.matches) openSheet();
 }
 
 function onInventoryCell(key) {
@@ -1084,7 +1074,7 @@ function runDetailAction() {
   if (resolved.kind === "item") equipItem(resolved.item.id);
   else if (resolved.kind === "equipped") unequipItem(resolved.slot);
   else return;
-  if (mqMobile.matches) closeSheet(); // na mobilu chceme hned vidět aktualizované vybavení
+  if (mqSheet.matches) closeSheet(); // na mobilu chceme hned vidět aktualizované vybavení
 }
 
 // --- Filtry a záložky -------------------------------------------------
@@ -1421,6 +1411,7 @@ elements.equipmentOverview.addEventListener("click", (event) => {
 });
 elements.detailActionButton.addEventListener("click", runDetailAction);
 elements.detailCloseButton.addEventListener("click", () => closeSheet());
+elements.detailBackdrop.addEventListener("click", () => closeSheet());
 elements.deleteModeButton.addEventListener("click", () => setDeleteMode(!deleteMode));
 elements.cancelDeleteButton.addEventListener("click", () => setDeleteMode(false));
 elements.confirmDeleteButton.addEventListener("click", deleteSelectedItems);
@@ -1451,7 +1442,7 @@ elements.sidebarBackdrop.addEventListener("click", () => closeSidebar());
 $$(".nav-link", elements.sidebar).forEach((link) => link.addEventListener("click", () => closeSidebar({ restoreFocus: false })));
 window.addEventListener("hashchange", () => showPage(pageFromHash()));
 mqDrawer.addEventListener("change", (event) => { if (!event.matches) closeSidebar({ restoreFocus: false }); });
-mqMobile.addEventListener("change", (event) => { if (!event.matches) closeSheet({ restoreFocus: false }); });
+mqSheet.addEventListener("change", (event) => { if (!event.matches) closeSheet({ restoreFocus: false }); });
 
 // Escape zavírá (v tomto pořadí): mobilní menu, mobilní detail, režim mazání.
 document.addEventListener("keydown", (event) => {
