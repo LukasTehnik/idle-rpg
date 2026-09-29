@@ -7,12 +7,12 @@
 // global scope.
 
 const RARITIES = Object.freeze({
-  common: { label: "Běžný", color: "#9fa59f", weight: 74, multiplier: 1 },
+  common: { label: "Běžný", color: "#c8bda8", weight: 74, multiplier: 1 },
   // Prototype 0.4: "uncommon" is used by materials only. weight 0 keeps it
   // out of the equipment rarity roll (chooseRarity), so gear odds are unchanged.
-  uncommon: { label: "Neobvyklý", color: "#8fbf8a", weight: 0, multiplier: 1.2 },
-  rare: { label: "Vzácný", color: "#6fa8dc", weight: 22, multiplier: 1.55 },
-  epic: { label: "Epický", color: "#b985e6", weight: 4, multiplier: 2.3 },
+  uncommon: { label: "Neobvyklý", color: "#6ea263", weight: 0, multiplier: 1.2 },
+  rare: { label: "Vzácný", color: "#5f9bd0", weight: 22, multiplier: 1.55 },
+  epic: { label: "Epický", color: "#a47dd2", weight: 4, multiplier: 2.3 },
 });
 
 const SLOT_META = Object.freeze({

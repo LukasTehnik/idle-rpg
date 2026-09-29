@@ -80,10 +80,15 @@ Nepřátelé a itemy lokace Pustina ticha (`assets/icons/enemies/pustina-ticha-*
 proporcionálně zmenšené (LANCZOS, zachovaný poměr stran a průhlednost) na velikost
 odpovídající zbytku sady ikon.
 
+## Vzhled
+
+Od verze 0.5 používá rozhraní teplé retro RPG téma (hnědé povrchy, zlatý akcent, pixelový display font). Popis palety, kontrastu, typografie a stavů komponent je v [`docs/ui-direction.md`](docs/ui-direction.md), fonty a licence v [`assets/fonts/README.md`](assets/fonts/README.md).
+
 ## Struktura
 
 - `index.html` — aplikační shell a čtyři stránky (Postava, Inventář, Mapa, Boj),
-- `styles.css` — responzivní vizuální vrstva,
+- `styles.css` — responzivní vizuální vrstva (retro RPG téma, centrální design tokeny v `:root`),
+- `assets/fonts/` — lokální fonty (Jersey 10, IBM Plex Mono) a jejich licence OFL,
 - `app.js` — stav hry, souboj, mapa/výběr cíle a postup,
 - `item-data.js` — sdílená data předmětů (rarity, sloty, ikony, šablony předmětů),
 - `material-data.js` — centrální data materiálů a svitků (stabilní ID, rarita, zdroje, popis),

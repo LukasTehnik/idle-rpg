@@ -4,11 +4,10 @@ Tento dokument drží jednotný vizuální jazyk prototypu při dalších úprav
 
 ## Základ
 
-- Rozhraní působí jako technický systém, inventární databáze nebo herní terminál.
-- Text používá monospace písmo ze systémového font stacku; prototyp nestahuje externí font.
-- Panely jsou hranaté, bez stínů a bez dekorativního zaoblení.
-- Hierarchii tvoří tenké černé a šedé linky, kontrast textu a hustota dat.
-- Přibližně 90 % rozhraní zůstává v odstínech černé, bílé a šedé.
+> Od Prototype 0.5 platí vizuální směr z oddílu **Retro RPG téma** na konci tohoto dokumentu (teplé hnědé povrchy, zlatý akcent, pixelový display font). Původní monochromatická pravidla níže jsou historická; zůstává z nich hranatost, ostré linky a střídmost efektů.
+
+- Panely jsou hranaté a bez měkkých stínů, používá se pouze tvrdý pixelový stín.
+- Hierarchii tvoří rámečky, kontrast ploch a hustota dat.
 
 ## Barva a rarita
 
@@ -105,3 +104,33 @@ Desktop ≥ 1440 px: `INVENTÁŘ | PAPER-DOLL | DETAIL` (detail sticky). 1100–
 
 ### Typografické minimum
 Základ 14 px, pomocný text ≥ 12 px, popisky ≥ 11 px, nadpis stránky 28 px (24 px na mobilu), nadpis sekce 19 px, tlačítka ≥ 13 px s výškou ≥ 40 px.
+
+## Retro RPG téma (Prototype 0.5)
+
+Změna je čistě vizuální: rozložení, stránky, paper-doll, inventář, detail a responzivita zůstaly beze změny. Všechny hodnoty jsou centrální tokeny v `:root` v `styles.css`; komponenty nepoužívají vlastní barvy.
+
+### Paleta
+Tmavé teplé pozadí (`--color-bg-*`), hnědé herní povrchy ve třech úrovních (`--color-surface-1..3`, `--color-surface-hover`), pergamenové plochy pro datové bloky (`--color-parchment*` + tmavý inkoust `--color-ink*`), zlatý akcent (`--color-accent-gold*`), hnědé konstrukční linky (`--color-border*`), barvy stavů (HP červená, XP zelená, mana modrá, varování/nebezpečí) a rarity (`--rarity-*`). Orientační poměr: 65–75 % tmavé neutrální plochy, 15–20 % hnědé konstrukční prvky, 5–10 % pergamen, do 5 % stavové a rarity barvy.
+
+### Kontrast
+Primární text `#f2e8d5` na povrchech ≥ 11:1, sekundární ≥ 6:1, muted (jen vedlejší informace) ≥ 4.5:1 na základních plochách. Rarity texty (`--rarity-rare`, `--rarity-epic` byly oproti výchozí paletě mírně zesvětlené) dosahují ≥ 4.5:1 na buňkách i panelech. Text na pergamenu používá pouze `--color-ink*`. Rarita se nikdy nesděluje jen barvou: buňky a sloty mají značku z 1–4 čtverečků (běžný → epický), detail a nasazený slot slovní štítek.
+
+### Typografie
+- **Display:** Jersey 10 (nadpisy, navigace, tlačítka, štítky, číselné hodnoty). V `@font-face` je `size-adjust: 125 %`, protože font má malý x-height.
+- **Text:** IBM Plex Mono 400/700 (popisy, statistiky, combat log, detail).
+- Oba fonty jsou lokálně v `assets/fonts/` (`woff2`, `latin` + `latin-ext`), licence SIL OFL 1.1 a zdroje viz `assets/fonts/README.md`. Pixelify Sans byl zamítnut kvůli nečitelným číslicím (`7` ≈ `1`, `5` ≈ `S`) a písmenu `Z`.
+- Stupnice: název stránky 32 px, hlavní nadpis 22, nadpis panelu 18, navigace 16, text 14, metadata 13, nejmenší popisek 12 (min. 11), tlačítka 14.
+
+### Povrchy a rámečky
+- Běžný rámeček 1 px, aktivní/vybraný 2 px zlatý, výrazné panely (inventář, paper-doll, detail, bojová scéna) mají dvojitou linku a zlaté rohové značky.
+- Pixelový stín `--shadow-hard` (2 px, bez blur), jemný dithering pouze na pozadí stránky a sidebaru.
+- Detail itemu: tmavý rám → pergamenová datová plocha (staty, meta) s inkoustovým textem; náhled itemu zůstává na tmavém podkladu.
+
+### Stavy komponent
+Každý interaktivní prvek má default, hover, `:focus-visible` (2 px světle zlatá linka), active (posun o 1 px a menší stín), selected (2 px zlatý rámeček + rohový marker) a disabled (čitelný, ale ztlumený). Přechody 100 ms, respektuje se `prefers-reduced-motion`.
+
+### Bary a log
+Bary mají pevný track, rámeček, dvoutónovou výplň a jemné segmenty (HP červená, XP zelená, progress zlatá). Combat log má základ ve světlém textu; barva jen pro význam (zásah hráče krémová, nepřítel červená, kritický zásah zlatá, level up/drop zelenozlatá, systém sekundární).
+
+### Assety
+Itemové a enemy assety se barevně neupravují (žádný globální `filter`); statický glow signature itemů zůstal.

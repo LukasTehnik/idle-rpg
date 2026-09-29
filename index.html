@@ -3,12 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0b0d0c" />
+    <meta name="theme-color" content="#12100d" />
     <meta
       name="description"
       content="Prohlížečový idle RPG prototyp s aplikačním shellem, samostatnými stránkami a paper-doll inventářem."
     />
     <title>Idle RPG — Prototype 0.4</title>
+    <link rel="preload" href="assets/fonts/jersey-10-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="assets/fonts/ibm-plex-mono-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -28,10 +30,12 @@
           </div>
 
           <nav class="nav" aria-label="Stránky hry">
-            <a class="nav-link" href="#/postava" data-page-link="postava">Postava</a>
-            <a class="nav-link" href="#/inventar" data-page-link="inventar">Inventář</a>
-            <a class="nav-link" href="#/mapa" data-page-link="mapa">Mapa</a>
-            <a class="nav-link" href="#/boj" data-page-link="boj">Boj</a>
+            <p class="nav-heading">Hra</p>
+            <a class="nav-link" href="#/postava" data-page-link="postava"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M3 0h2v2H3zM2 3h4v3H2zM1 3h1v2H1zM6 3h1v2H6zM2 6h1v2H2zM5 6h1v2H5z"/></svg><span>Postava</span></a>
+            <a class="nav-link" href="#/inventar" data-page-link="inventar"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M3 0h2v1H3zM2 1h4v1H2zM1 2h6v6H1zM3 4h2v2H3z"/></svg><span>Inventář</span></a>
+            <a class="nav-link" href="#/mapa" data-page-link="mapa"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M2 0h4v1H2zM1 1h6v3H1zM2 4h4v1H2zM3 5h2v1H3zM3 6h2v2H3zM3 2h2v1H3z"/></svg><span>Mapa</span></a>
+            <a class="nav-link" href="#/boj" data-page-link="boj"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M6 0h2v1H6zM5 1h3v1H5zM4 2h3v1H4zM3 3h3v1H3zM1 4h4v1H1zM2 5h2v1H2zM1 6h2v2H1z"/></svg><span>Boj</span></a>
+            <p class="nav-heading">Ostatní</p>
             <a class="nav-link nav-link-external" href="item-catalog.html">Katalog předmětů <span aria-hidden="true">↗</span></a>
           </nav>
 
@@ -46,14 +50,17 @@
           <button id="menuButton" class="btn menu-button" type="button" aria-controls="sidebar" aria-expanded="false">☰ Menu</button>
           <h1 id="pageTitle" class="page-title">Boj</h1>
           <ul class="status-items" aria-label="Stav postavy">
-            <li class="status-item"><span>Úroveň</span><strong data-bind="level">1</strong></li>
+            <li class="status-item"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M3 0h2v1H3zM2 1h4v1H2zM1 2h6v1H1zM3 3h2v5H3z"/></svg><span>Úroveň</span><strong data-bind="level">1</strong></li>
             <li class="status-item status-xp">
-              <span>XP <strong><span data-bind="xp">0</span> / <span data-bind="xpGoal">50</span></strong></span>
-              <div class="bar xp-bar" role="presentation"><div class="bar-fill" data-bar="xp"></div></div>
+              <svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M3 0h2v2H3zM0 3h8v2H0zM3 6h2v2H3zM1 1h1v1H1zM6 1h1v1H6zM1 6h1v1H1zM6 6h1v1H6z"/></svg>
+              <div class="status-xp-body">
+                <span>XP <strong><span data-bind="xp">0</span> / <span data-bind="xpGoal">50</span></strong></span>
+                <div class="bar xp-bar" role="presentation"><div class="bar-fill" data-bar="xp"></div></div>
+              </div>
             </li>
-            <li class="status-item"><span>Gold</span><strong data-bind="gold">0</strong></li>
+            <li class="status-item status-gold"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M2 0h4v1H2zM1 1h6v6H1zM2 7h4v1H2zM3 2h2v4H3z"/></svg><span>Gold</span><strong data-bind="gold">0</strong></li>
             <li class="status-item status-state"><i class="status-dot" data-bind-dot></i><strong data-bind="status" aria-live="polite">Připraveno</strong></li>
-            <li class="status-item status-target"><span>Cíl</span><strong data-bind="enemyName">Goblin</strong></li>
+            <li class="status-item status-target"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M3 0h2v2H3zM0 3h2v2H0zM6 3h2v2H6zM3 6h2v2H3z"/></svg><span>Cíl</span><strong data-bind="enemyName">Goblin</strong></li>
           </ul>
         </header>
 
