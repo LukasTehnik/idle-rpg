@@ -50,3 +50,7 @@ Zdroj a licence zatím nejsou známé — doplnit, jakmile je uživatel upřesn�
 | `items/angel-charm.png` | Přívěsek andělské záře (talisman) | uživatel (neznámý) | TBD |
 
 `items/moth-wings.png` (Můří křídla) je dodaný asset, beze změny obsahu — oříznutý na obsah a proporcionálně zmenšený na 256 × 256 px (LANCZOS, zachovaná průhlednost).
+
+## Lokace Odpadkové hory, Magma, Elektrika a backgrounds (dodané assety)
+
+Backgrounds lokací (`assets/backgrounds/*.webp`), ikony nepřátel, itemů a materiálů nových lokací jsou dodané artworky. Pro web byly pouze zmenšeny (backgrounds na 1280 px šířky WebP, nepřátelé 480 × 480, itemy a materiály 256 × 256, oříznuto na obsah, LANCZOS). U nepřítele „Vězeň v kleci“ bylo odstraněno vložené šachovnicové pozadí. Okraj starého lesa zatím žádný background nemá.

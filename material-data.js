@@ -58,6 +58,66 @@ const MATERIALS = Object.freeze({
     sourceLocationId: "pustina-ticha", sourceEnemyIds: ["e04", "e06"],
     description: "Zavinutý svitek, jehož písmo se ztrácí při čtení.",
   },
+  "ember-coal": {
+    id: "ember-coal", name: "Žhavé uhlí", asset: "assets/materials/ember-coal.png",
+    rarity: "common", category: "material", stackable: true, tradeable: true,
+    sourceLocationId: "magma", sourceEnemyIds: ["magma-e01", "magma-e02"],
+    description: "Kus uhlí, který uvnitř pořád žhne.",
+  },
+  "slag-chunk": {
+    id: "slag-chunk", name: "Kus strusky", asset: "assets/materials/slag-chunk.png",
+    rarity: "common", category: "material", stackable: true, tradeable: true,
+    sourceLocationId: "magma", sourceEnemyIds: ["magma-e02", "magma-e04"],
+    description: "Těžký zbytek po tavbě, plný bublin.",
+  },
+  "scorched-cloth-bundle": {
+    id: "scorched-cloth-bundle", name: "Svazek spáleného sukna", asset: "assets/materials/scorched-cloth-bundle.png",
+    rarity: "uncommon", category: "material", stackable: true, tradeable: true,
+    sourceLocationId: "magma", sourceEnemyIds: ["magma-e03", "magma-e04"],
+    description: "Ohořelé hadry svázané do uzlu.",
+  },
+  "magma-crystal": {
+    id: "magma-crystal", name: "Magmový krystal", asset: "assets/materials/magma-crystal.png",
+    rarity: "rare", category: "material", stackable: true, tradeable: true,
+    sourceLocationId: "magma", sourceEnemyIds: ["magma-e03", "magma-e04", "magma-e05"],
+    description: "Rudý krystal, který se za tmy slabě rozsvěcí.",
+  },
+  "furnace-core": {
+    id: "furnace-core", name: "Jádro výhně", asset: "assets/materials/furnace-core.png",
+    rarity: "epic", category: "material", stackable: true, tradeable: true,
+    sourceLocationId: "magma", sourceEnemyIds: ["magma-e05"],
+    description: "Klec z železa, v níž hoří malá výheň.",
+  },
+  "cracked-crt-membrane": {
+    id: "cracked-crt-membrane", name: "Popraskaná CRT membrána", asset: "assets/materials/cracked-crt-membrane.png",
+    rarity: "common", category: "material", stackable: true, tradeable: true,
+    sourceLocationId: "elektrika", sourceEnemyIds: ["elektrika-e01", "elektrika-e03"],
+    description: "Zbytek obrazovky, kterou už nikdo nezapne.",
+  },
+  "nerve-cable-bundle": {
+    id: "nerve-cable-bundle", name: "Svazek nervových kabelů", asset: "assets/materials/nerve-cable-bundle.png",
+    rarity: "common", category: "material", stackable: true, tradeable: true,
+    sourceLocationId: "elektrika", sourceEnemyIds: ["elektrika-e01", "elektrika-e02"],
+    description: "Kabely obrostlé něčím, co vypadá jako nervy.",
+  },
+  "overgrown-data-chip": {
+    id: "overgrown-data-chip", name: "Zarostlý datový čip", asset: "assets/materials/overgrown-data-chip.png",
+    rarity: "uncommon", category: "material", stackable: true, tradeable: true,
+    sourceLocationId: "elektrika", sourceEnemyIds: ["elektrika-e02", "elektrika-e04"],
+    description: "Čip zarostlý blanitým pletivem.",
+  },
+  "bile-capacitor": {
+    id: "bile-capacitor", name: "Žlučový kondenzátor", asset: "assets/materials/bile-capacitor.png",
+    rarity: "rare", category: "material", stackable: true, tradeable: true,
+    sourceLocationId: "elektrika", sourceEnemyIds: ["elektrika-e03", "elektrika-e04"],
+    description: "Kondenzátor plný žlutého kalu.",
+  },
+  "kernel-fiber": {
+    id: "kernel-fiber", name: "Vlákno jádra", asset: "assets/materials/kernel-fiber.png",
+    rarity: "epic", category: "material", stackable: true, tradeable: true,
+    sourceLocationId: "elektrika", sourceEnemyIds: ["elektrika-e05"],
+    description: "Pevné vlákno z útrob Matky jádra.",
+  },
 });
 
 const MATERIAL_CATEGORY_LABELS = Object.freeze({
@@ -70,6 +130,8 @@ const MATERIAL_CATEGORY_LABELS = Object.freeze({
 const MATERIAL_ORDER = Object.freeze([
   "wing-dust", "torn-membrane", "underground-fiber", "polymer-nest-piece",
   "human-memory-fragment", "mother-eye", "scroll-of-oblivion",
+  "ember-coal", "slag-chunk", "scorched-cloth-bundle", "magma-crystal", "furnace-core",
+  "cracked-crt-membrane", "nerve-cable-bundle", "overgrown-data-chip", "bile-capacitor", "kernel-fiber",
 ]);
 
 // Historické/generické ikony materiálů (Prototype 0.3 měl jen stackovací

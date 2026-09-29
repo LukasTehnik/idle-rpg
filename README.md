@@ -27,6 +27,7 @@ Potom otevři `http://localhost:8080`.
 - **(UI shell)** inventář jako paper-doll: 8 slotů kolem náhledu postavy, inventářový grid vedle něj a persistentní detail itemu s porovnáním,
 - responzivní zobrazení pro desktop, tablet a telefon (na mobilu vysouvací menu a detail jako celoobrazovkový panel),
 - náhodné dropy z osmnácti typů předmětů (běžná sada, tematická „andělská" sada se září a „chitinová" sada z Pustiny ticha),
+- **(obsah)** lokace Okraj starého lesa, Pustina ticha, Magma, Elektrika (plně hratelné) a Odpadkové hory (náhled bez kořisti) s dodanými backgroundy, nepřáteli, itemy a materiály; statistiky nových lokací jsou pracovní,
 - **(mapa)** skutečná obrazová mapa světa s body lokací z dat (`mapPosition` v %), rychlým tooltipem, detailem lokace (background, záložky Informace / Nepřátelé / Kořist) a potvrzeným vstupem do lokace; prohlížení mapy boj nezastaví,
 - **(boj na pozadí)** živý combat widget v sidebaru (na mobilu stavový pruh) se statistikami současného farmení (poražení, XP, gold, čas) a pause/resume z jakékoli stránky,
 - **(0.4)** šest nepřátel Pustiny ticha s finálními jmény (Prašná můra, Plastová můra, Slepá můra, Pamětnice, Můra z hlubiny, Matka děr) a typem COMMON / UNCOMMON / RARE / ELITE / BOSS,

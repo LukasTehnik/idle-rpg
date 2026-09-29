@@ -31,6 +31,13 @@ const OKRAJ_STAREHO_LESA_DROP_POOL = [
   "greatsword-angels", "angel-armor", "angel-helmet", "angel-gloves", "angel-boots", "angel-charm",
 ];
 
+// Prozatímní pooly kořisti nových lokací (content-first fáze, bez finální balance).
+const MAGMA_DROP_POOL = ["molten-armor", "molten-axe", "molten-boots", "molten-hammer"];
+const ELEKTRIKA_DROP_POOL = [
+  "interrupted-armor", "interrupted-helmet", "interrupted-gloves", "interrupted-boots", "interrupted-pants",
+  "debug-port-needle", "stack-cleaner", "core-ring",
+];
+
 // Dočasný mapový podklad. Finální mapu světa stačí uložit jako jeden obrázek
 // (PNG/WebP/SVG) a změnit `src` + rozměry -- body lokací se počítají z
 // procentuálních `mapPosition` a poměr stran se bere z width/height.
@@ -71,11 +78,44 @@ const LOCATION_DEFS = [
     name: "Pustina ticha",
     mapPosition: { x: 67, y: 35 },
     recommendedLevel: 2,
-    backgroundAsset: null,
+    backgroundAsset: "assets/backgrounds/pustina-ticha.webp",
     shortDescription: "Šedá pustina plná můr, po které se nese jen šepot křídel.",
     status: "available",
     enemyIds: ["e01", "e02", "e03", "e04", "e05", "e06"],
     itemIds: PUSTINA_TICHA_DROP_POOL,
+  },
+  {
+    id: "odpadkove-hory",
+    name: "Odpadkové hory",
+    mapPosition: { x: 50, y: 80 },
+    recommendedLevel: 8,
+    backgroundAsset: "assets/backgrounds/odpadkove-hory.webp",
+    shortDescription: "Nekonečné haldy odpadu, ve kterých se něco hýbe.",
+    status: "preview", // má nepřátele, ale zatím žádnou kořist -- po doplnění drop tabulek přepnout na "available"
+    enemyIds: ["odpadky-e01", "odpadky-e02", "odpadky-e03"],
+    itemIds: [],
+  },
+  {
+    id: "magma",
+    name: "Magma",
+    mapPosition: { x: 84, y: 62 },
+    recommendedLevel: 12,
+    backgroundAsset: "assets/backgrounds/magma.webp",
+    shortDescription: "Rozpálená pustina zhrouceného hutního komplexu.",
+    status: "available",
+    enemyIds: ["magma-e01", "magma-e02", "magma-e03", "magma-e04", "magma-e05"],
+    itemIds: MAGMA_DROP_POOL,
+  },
+  {
+    id: "elektrika",
+    name: "Elektrika",
+    mapPosition: { x: 39, y: 28 },
+    recommendedLevel: 16,
+    backgroundAsset: "assets/backgrounds/elektrika.webp",
+    shortDescription: "Odpojený server, kde kabely rostou jako nervy.",
+    status: "available",
+    enemyIds: ["elektrika-e01", "elektrika-e02", "elektrika-e03", "elektrika-e04", "elektrika-e05"],
+    itemIds: ELEKTRIKA_DROP_POOL,
   },
 ];
 
@@ -184,6 +224,138 @@ const ENEMIES = Object.freeze({
       { id: "scroll-of-oblivion", chance: 0.10, min: 1, max: 1, tier: "rare" },
       // Oko Matky padá VÝHRADNĚ z Matky děr.
       { id: "mother-eye", chance: 0.05, min: 1, max: 1, tier: "veryRare" },
+    ],
+  },
+
+  // Prozatímní statistiky nových lokací -- content-first fáze, žádná finální balance.
+  "odpadky-e01": {
+    id: "odpadky-e01", locationId: "odpadkove-hory", name: "Odpadkový duch", level: 8, type: "common",
+    image: "assets/icons/enemies/odpadkove-hory-e01-odpadkovy-duch.png",
+    maxHp: 184, minDamage: 17, maxDamage: 28, defense: 8, xp: 68, gold: 18,
+    dropChance: 0, dropPool: [],
+    materialDrops: [],
+  },
+  "odpadky-e02": {
+    id: "odpadky-e02", locationId: "odpadkove-hory", name: "Sběračský krtek", level: 9, type: "uncommon",
+    image: "assets/icons/enemies/odpadkove-hory-e02-sberacsky-krtek.png",
+    maxHp: 207, minDamage: 19, maxDamage: 32, defense: 9, xp: 76, gold: 21,
+    dropChance: 0, dropPool: [],
+    materialDrops: [],
+  },
+  "odpadky-e03": {
+    id: "odpadky-e03", locationId: "odpadkove-hory", name: "Vězeň v kleci", level: 10, type: "rare",
+    image: "assets/icons/enemies/odpadkove-hory-e03-vezen-v-kleci.png",
+    maxHp: 230, minDamage: 21, maxDamage: 35, defense: 10, xp: 85, gold: 23,
+    dropChance: 0, dropPool: [],
+    materialDrops: [],
+  },
+  "magma-e01": {
+    id: "magma-e01", locationId: "magma", name: "Uhelný lezec", level: 12, type: "common",
+    image: "assets/icons/enemies/magma-e01-uhelny-lezec.png",
+    maxHp: 276, minDamage: 25, maxDamage: 42, defense: 12, xp: 102, gold: 28,
+    dropChance: 0.03, dropPool: MAGMA_DROP_POOL,
+    equipmentLoot: { name: "Roztavené vybavení", icon: "molten-armor", tier: "veryRare" },
+    materialDrops: [
+      { id: "ember-coal", chance: 0.8, min: 1, max: 3, tier: "common" },
+    ],
+  },
+  "magma-e02": {
+    id: "magma-e02", locationId: "magma", name: "Nosič strusky", level: 13, type: "common",
+    image: "assets/icons/enemies/magma-e02-nosic-strusky.png",
+    maxHp: 299, minDamage: 27, maxDamage: 46, defense: 13, xp: 110, gold: 30,
+    dropChance: 0.03, dropPool: MAGMA_DROP_POOL,
+    equipmentLoot: { name: "Roztavené vybavení", icon: "molten-armor", tier: "veryRare" },
+    materialDrops: [
+      { id: "ember-coal", chance: 0.5, min: 1, max: 2, tier: "common" },
+      { id: "slag-chunk", chance: 0.45, min: 1, max: 2, tier: "common" },
+    ],
+  },
+  "magma-e03": {
+    id: "magma-e03", locationId: "magma", name: "Zvoník kouře", level: 14, type: "uncommon",
+    image: "assets/icons/enemies/magma-e03-zvonik-koure.png",
+    maxHp: 322, minDamage: 29, maxDamage: 49, defense: 14, xp: 119, gold: 32,
+    dropChance: 0.04, dropPool: MAGMA_DROP_POOL,
+    equipmentLoot: { name: "Roztavené vybavení", icon: "molten-armor", tier: "veryRare" },
+    materialDrops: [
+      { id: "scorched-cloth-bundle", chance: 0.45, min: 1, max: 2, tier: "uncommon" },
+      { id: "magma-crystal", chance: 0.12, min: 1, max: 1, tier: "rare" },
+    ],
+  },
+  "magma-e04": {
+    id: "magma-e04", locationId: "magma", name: "Spálený kat", level: 15, type: "elite",
+    image: "assets/icons/enemies/magma-e04-spaleny-kat.png",
+    maxHp: 345, minDamage: 32, maxDamage: 52, defense: 15, xp: 128, gold: 34,
+    dropChance: 0.14, dropPool: MAGMA_DROP_POOL,
+    equipmentLoot: { name: "Roztavené vybavení", icon: "molten-armor", tier: "rare" },
+    materialDrops: [
+      { id: "slag-chunk", chance: 0.4, min: 1, max: 3, tier: "common" },
+      { id: "scorched-cloth-bundle", chance: 0.3, min: 1, max: 2, tier: "uncommon" },
+      { id: "magma-crystal", chance: 0.15, min: 1, max: 1, tier: "rare" },
+    ],
+  },
+  "magma-e05": {
+    id: "magma-e05", locationId: "magma", name: "Srdce zhroucené výhně", level: 16, type: "boss",
+    image: "assets/icons/enemies/magma-e05-srdce-zhrouceneho-vyhne.png",
+    maxHp: 736, minDamage: 47, maxDamage: 78, defense: 19, xp: 136, gold: 37,
+    dropChance: 0.45, dropPool: MAGMA_DROP_POOL,
+    equipmentLoot: { name: "Roztavené vybavení", icon: "molten-armor", tier: "uncommon" },
+    materialDrops: [
+      { id: "magma-crystal", chance: 0.55, min: 1, max: 2, tier: "rare" },
+      { id: "furnace-core", chance: 0.05, min: 1, max: 1, tier: "veryRare" },
+    ],
+  },
+  "elektrika-e01": {
+    id: "elektrika-e01", locationId: "elektrika", name: "Cache roztoč", level: 16, type: "common",
+    image: "assets/icons/enemies/elektrika-e01-cache-roztoc.png",
+    maxHp: 368, minDamage: 34, maxDamage: 56, defense: 16, xp: 136, gold: 37,
+    dropChance: 0.03, dropPool: ELEKTRIKA_DROP_POOL,
+    equipmentLoot: { name: "Přerušené vybavení", icon: "interrupted-armor", tier: "veryRare" },
+    materialDrops: [
+      { id: "cracked-crt-membrane", chance: 0.7, min: 1, max: 3, tier: "common" },
+      { id: "nerve-cable-bundle", chance: 0.3, min: 1, max: 2, tier: "uncommon" },
+    ],
+  },
+  "elektrika-e02": {
+    id: "elektrika-e02", locationId: "elektrika", name: "Paketové zrození", level: 17, type: "common",
+    image: "assets/icons/enemies/elektrika-e02-paketove-zrozeni.png",
+    maxHp: 391, minDamage: 36, maxDamage: 60, defense: 17, xp: 144, gold: 39,
+    dropChance: 0.03, dropPool: ELEKTRIKA_DROP_POOL,
+    equipmentLoot: { name: "Přerušené vybavení", icon: "interrupted-armor", tier: "veryRare" },
+    materialDrops: [
+      { id: "nerve-cable-bundle", chance: 0.55, min: 1, max: 2, tier: "common" },
+      { id: "overgrown-data-chip", chance: 0.25, min: 1, max: 1, tier: "uncommon" },
+    ],
+  },
+  "elektrika-e03": {
+    id: "elektrika-e03", locationId: "elektrika", name: "Zastavený démon", level: 18, type: "uncommon",
+    image: "assets/icons/enemies/elektrika-e03-zastaveny-demon.png",
+    maxHp: 414, minDamage: 38, maxDamage: 63, defense: 18, xp: 153, gold: 41,
+    dropChance: 0.04, dropPool: ELEKTRIKA_DROP_POOL,
+    equipmentLoot: { name: "Přerušené vybavení", icon: "interrupted-armor", tier: "veryRare" },
+    materialDrops: [
+      { id: "cracked-crt-membrane", chance: 0.45, min: 1, max: 2, tier: "common" },
+      { id: "bile-capacitor", chance: 0.12, min: 1, max: 1, tier: "rare" },
+    ],
+  },
+  "elektrika-e04": {
+    id: "elektrika-e04", locationId: "elektrika", name: "Sběrač odpadu", level: 19, type: "elite",
+    image: "assets/icons/enemies/elektrika-e04-sberac-odpadu.png",
+    maxHp: 437, minDamage: 40, maxDamage: 66, defense: 19, xp: 162, gold: 44,
+    dropChance: 0.14, dropPool: ELEKTRIKA_DROP_POOL,
+    equipmentLoot: { name: "Přerušené vybavení", icon: "interrupted-armor", tier: "rare" },
+    materialDrops: [
+      { id: "overgrown-data-chip", chance: 0.4, min: 1, max: 2, tier: "uncommon" },
+      { id: "bile-capacitor", chance: 0.18, min: 1, max: 1, tier: "rare" },
+    ],
+  },
+  "elektrika-e05": {
+    id: "elektrika-e05", locationId: "elektrika", name: "Matka jádra", level: 20, type: "boss",
+    image: "assets/icons/enemies/elektrika-e05-matka-jadra.png",
+    maxHp: 920, minDamage: 59, maxDamage: 98, defense: 24, xp: 170, gold: 46,
+    dropChance: 0.45, dropPool: ELEKTRIKA_DROP_POOL,
+    equipmentLoot: { name: "Přerušené vybavení", icon: "interrupted-armor", tier: "uncommon" },
+    materialDrops: [
+      { id: "kernel-fiber", chance: 0.3, min: 1, max: 1, tier: "veryRare" },
     ],
   },
 });

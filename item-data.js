@@ -135,6 +135,71 @@ const ITEM_TEMPLATES = Object.freeze([
     image: "assets/icons/items/moth-wings.png",
     rolls: { maxHp: [6, 12], critChance: [0.2, 0.7] },
   },
+
+  // Sada „Magma" — kořist z lokace Magma. Prozatímní hodnoty rollů (content-first
+  // fáze, nejde o finální balance) -- snadno doladitelné zde.
+  {
+    name: "Roztavené brnění", slot: "armor", icon: "molten-armor",
+    image: "assets/icons/items/molten-armor.png",
+    rolls: { maxHp: [20, 34], damageMin: [0, 2] },
+  },
+  {
+    name: "Roztavená sekera", slot: "weapon", icon: "molten-axe",
+    image: "assets/icons/items/molten-axe.png",
+    rolls: { damageMin: [3, 6], damageMax: [6, 11], critChance: [0.4, 1.4] },
+  },
+  {
+    name: "Roztavené boty", slot: "boots", icon: "molten-boots",
+    image: "assets/icons/items/molten-boots.png",
+    rolls: { maxHp: [11, 20], critChance: [0.3, 1] },
+  },
+  {
+    name: "Roztavené kladivo", slot: "weapon", icon: "molten-hammer",
+    image: "assets/icons/items/molten-hammer.png",
+    rolls: { damageMin: [4, 7], damageMax: [7, 12], critChance: [0.2, 0.8] },
+  },
+
+  // Sada „Přerušená" — kořist z lokace Elektrika. Prozatímní hodnoty rollů.
+  {
+    name: "Přerušené brnění", slot: "armor", icon: "interrupted-armor",
+    image: "assets/icons/items/interrupted-armor.png",
+    rolls: { maxHp: [30, 50], damageMin: [1, 3] },
+  },
+  {
+    name: "Přerušená helma", slot: "helmet", icon: "interrupted-helmet",
+    image: "assets/icons/items/interrupted-helmet.png",
+    rolls: { maxHp: [20, 34], critChance: [0.5, 1.5] },
+  },
+  {
+    name: "Přerušené rukavice", slot: "gloves", icon: "interrupted-gloves",
+    image: "assets/icons/items/interrupted-gloves.png",
+    rolls: { damageMin: [1, 5], damageMax: [3, 8], critChance: [0.5, 1.6] },
+  },
+  {
+    name: "Přerušené boty", slot: "boots", icon: "interrupted-boots",
+    image: "assets/icons/items/interrupted-boots.png",
+    rolls: { maxHp: [16, 30], critChance: [0.4, 1.3] },
+  },
+  {
+    name: "Přerušené kalhoty", slot: "pants", icon: "interrupted-pants",
+    image: "assets/icons/items/interrupted-pants.png",
+    rolls: { maxHp: [22, 38], damageMin: [1, 3] },
+  },
+  {
+    name: "Ladicí jehla", slot: "weapon", icon: "debug-port-needle",
+    image: "assets/icons/items/debug-port-needle.png",
+    rolls: { damageMin: [5, 9], damageMax: [9, 15], critChance: [1, 2.6] },
+  },
+  {
+    name: "Čistič zásobníku", slot: "weapon", icon: "stack-cleaner",
+    image: "assets/icons/items/stack-cleaner.png",
+    rolls: { damageMin: [6, 10], damageMax: [10, 17], critChance: [0.4, 1.2] },
+  },
+  {
+    name: "Prsten jádra", slot: "charm", icon: "core-ring",
+    image: "assets/icons/items/core-ring.png",
+    rolls: { damageMax: [3, 8], critChance: [1, 2.8], maxHp: [8, 18] },
+  },
 ]);
 
 // Finds the template a dropped/equipped item instance was created from
