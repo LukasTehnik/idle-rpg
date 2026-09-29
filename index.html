@@ -34,6 +34,7 @@
             <a class="nav-link" href="#/inventar" data-page-link="inventar"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M3 0h2v1H3zM2 1h4v1H2zM1 2h6v6H1zM3 4h2v2H3z"/></svg><span>Inventář</span></a>
             <a class="nav-link" href="#/mapa" data-page-link="mapa"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M2 0h4v1H2zM1 1h6v3H1zM2 4h4v1H2zM3 5h2v1H3zM3 6h2v2H3zM3 2h2v1H3z"/></svg><span>Mapa</span></a>
             <a class="nav-link" href="#/boj" data-page-link="boj"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M6 0h2v1H6zM5 1h3v1H5zM4 2h3v1H4zM3 3h3v1H3zM1 4h4v1H1zM2 5h2v1H2zM1 6h2v2H1z"/></svg><span>Boj</span></a>
+            <div id="combatWidgetSidebar" class="cw-slot"></div>
             <p class="nav-heading">Ostatní</p>
             <a class="nav-link nav-link-external" href="item-catalog.html">Katalog předmětů <span aria-hidden="true">↗</span></a>
           </nav>
@@ -61,6 +62,12 @@
             <li class="status-item status-state"><i class="status-dot" data-bind-dot></i><strong data-bind="status" aria-live="polite">Připraveno</strong></li>
             <li class="status-item status-target"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M3 0h2v2H3zM0 3h2v2H0zM6 3h2v2H6zM3 6h2v2H3z"/></svg><span>Cíl</span><strong data-bind="enemyName">Goblin</strong></li>
           </ul>
+          <div id="combatStripSlot" class="cw-strip">
+            <button id="combatStripToggle" class="cw-strip-toggle" type="button" aria-expanded="false" aria-controls="combatStripPanel">
+              <span id="combatStripText">ŽÁDNÝ AKTIVNÍ BOJ</span><span class="cw-strip-caret" aria-hidden="true">▾</span>
+            </button>
+            <div id="combatStripPanel" class="cw-strip-panel" hidden></div>
+          </div>
         </header>
 
         <main id="main" class="page-area" tabindex="-1">
@@ -255,16 +262,36 @@
 
           <!-- ============ STRÁNKA: MAPA ============ -->
           <section id="page-mapa" class="page" data-page="mapa" aria-labelledby="pageTitle" hidden>
-            <p class="page-lead">Vyber lokaci a poté konkrétního nepřítele, kterého chceš farmit. Všichni nepřátelé jsou dostupní od začátku.</p>
-            <div id="mapLocations" class="loc-list" role="group" aria-label="Lokace"></div>
-            <div class="panel-head map-head">
-              <div>
-                <p class="eyebrow">NEPŘÁTELÉ</p>
-                <h2 id="mapLocationTitle" class="section-title">Okraj starého lesa</h2>
+            <p class="page-lead">Klikni na bod na mapě a zobraz si náhled lokace. Prohlížení boj nezastaví — lokaci změníš až potvrzením vstupu.</p>
+            <div class="world">
+              <div class="world-map-panel panel panel-framed">
+                <div class="world-map-scroll">
+                  <!-- Mapový podklad: WORLD_MAP v world-data.js (dočasný asset, jde nahradit jedním souborem). -->
+                  <div id="worldMap" class="world-map">
+                    <img id="worldMapImg" class="world-map-img" alt="" draggable="false" />
+                    <div id="mapPins" class="map-pins" role="group" aria-label="Lokace na mapě"></div>
+                    <div id="mapTooltip" class="map-tooltip" role="tooltip" hidden></div>
+                  </div>
+                </div>
+                <p id="mapTempNote" class="map-temp-note" hidden>Dočasný mapový podklad — finální mapu stačí vyměnit jedním souborem (WORLD_MAP ve world-data.js).</p>
+              </div>
+              <div id="locBackdrop" class="loc-backdrop" aria-hidden="true"></div>
+              <aside id="locDetail" class="loc-detail panel" aria-label="Detail lokace"></aside>
+            </div>
+          </section>
+
+          <dialog id="enterDialog" class="confirm-dialog" aria-labelledby="enterDialogTitle" aria-describedby="enterDialogText">
+            <div class="confirm-box">
+              <p class="eyebrow">Potvrzení vstupu</p>
+              <h2 id="enterDialogTitle" class="section-title">Vstoupit do nové lokace?</h2>
+              <p id="enterDialogText" class="confirm-text">VSTUPEM DO NOVÉ LOKACE UKONČÍŠ SOUČASNÉ FARMENÍ.</p>
+              <p id="enterDialogTarget" class="muted"></p>
+              <div class="confirm-actions">
+                <button id="enterCancel" class="btn" type="button">Zůstat</button>
+                <button id="enterConfirm" class="btn btn-primary" type="button">Vstoupit</button>
               </div>
             </div>
-            <div id="mapEnemyGrid" class="map-enemy-grid"></div>
-          </section>
+          </dialog>
 
           <!-- ============ STRÁNKA: BOJ ============ -->
           <section id="page-boj" class="page" data-page="boj" aria-labelledby="pageTitle" hidden>

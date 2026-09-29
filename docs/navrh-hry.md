@@ -102,6 +102,7 @@ U permanentních receptů sledujeme **rozšiřování znalosti na serveru**; u n
 | Prototyp 0.2 | Drop, inventář, equipment, několik itemů, rarity a stat rolls. | Vzbuzuje vzácný loot radost? |
 | Prototyp 0.3 | Více nepřátel, výběr cíle, drop tables, gold, banka, 5% ztráta při smrti. | Je opakované farmení zajímavé? |
 | Prototyp 0.4 | Materiály, cílené drop tabulky jednotlivých nepřátel, oddělený inventář materiálů (bez craftingu). | Motivuje výběr nepřítele podle jeho materiálů střídat farmené cíle? |
+| Content-first world map and location presentation | Obrazová mapa světa s body z dat, detail lokace (background, nepřátelé, možná kořist), potvrzený vstup do lokace a globální boj na pozadí s live widgetem. Bez cestovních poplatků, teleportu, procent dropů a ekonomiky. | Je z mapy jasné, kam hráč jde a co v lokaci najde? |
 | Alpha 0.4 | První malý svět, návrat do starších oblastí; orientačně 3 lokace, 10–15 nepřátel, 1–3 bossové, 30–50 itemů. | Funguje základní svět jako celek? |
 | Alpha 0.5 | Offline postup a report, malá výhoda aktivní hry. | Funguje idle vrstva férově a srozumitelně? |
 | Alpha 0.6 | Datový návrh surovin, receptů, kvality, unikátních item instancí a obchodovatelnosti; první omezený crafting prototype. | Podporují data hlavní crafting smyčku? |
@@ -129,6 +130,8 @@ U permanentních receptů sledujeme **rozšiřování znalosti na serveru**; u n
 ## 9. Co je potvrzený záměr a co zatím není
 
 **Zachovat v návrhu:** automatické idle RPG; výběr konkrétního nepřítele; hodnotný vzácný loot; malé smysluplné staty; aktivní i offline hra; 5% riziko neseného zlata; hráčská ekonomika; předmět vytvořený z base + volitelných naučených prefixů/suffixů; permanentní znalost receptů; materiály několika kvalit ovlivňující kvalitu výrobku; risk selhání; unikátní identita crafted kusů; společenské zakázky s ochranou obou stran.
+
+**Content-first world map and location presentation:** detailní drop balance, cena a čas cestování, teleport a ekonomika se řeší až po integraci obsahu (všech lokací, jejich backgroundů, nepřátel a itemů). Do té doby jsou hodnoty v datech pouze pracovní.
 
 **Nepovažovat za schválené parametry:** 20–30% univerzální úspěšnost, konkrétní procenta Magic Find, rarity tiers a jejich drop rates, pevný termín 14 dní, čísla obsahu v roadmapě, přesný vzorec kvality, kompletní ztráta materiálů, druhy profesí, sazby kontraktů nebo to, že crafted gear musí být vždy silnější než loot.
 

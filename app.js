@@ -25,6 +25,27 @@ function getCurrentEnemy() {
   return ENEMIES[state?.currentEnemyId] ?? ENEMIES[DEFAULT_ENEMY_ID];
 }
 
+// Aktuální farming run (statistiky současného farmení). `targetEnemyId: null`
+// = hráč je v lokaci, ale zatím nevybral nepřítele. Run se zakládá výběrem
+// nepřítele / vstupem do jiné lokace; pauza, navigace a změna vybavení ho
+// neresetují. `elapsedSeconds` běží jen při běžícím boji.
+function createRun(enemyId, locationId = ENEMIES[enemyId]?.locationId ?? null) {
+  return { targetEnemyId: enemyId ?? null, locationId, startedAt: Date.now(), kills: 0, xpEarned: 0, goldEarned: 0, elapsedSeconds: 0 };
+}
+
+function sanitizeRun(raw, fallbackEnemyId, activeLocationId) {
+  const count = (value) => (Number.isFinite(value) && value > 0 ? Math.floor(value) : 0);
+  if (!raw || typeof raw !== "object") return createRun(fallbackEnemyId, activeLocationId);
+  // Výslovné `null` = v lokaci bez vybraného cíle; poškozená hodnota spadne na uloženého nepřítele.
+  const valid = typeof raw.targetEnemyId === "string" && ENEMIES[raw.targetEnemyId]?.locationId === activeLocationId;
+  const target = valid ? raw.targetEnemyId : raw.targetEnemyId === null ? null : (ENEMIES[fallbackEnemyId]?.locationId === activeLocationId ? fallbackEnemyId : null);
+  return {
+    targetEnemyId: target, locationId: activeLocationId,
+    startedAt: Number.isFinite(raw.startedAt) ? raw.startedAt : Date.now(),
+    kills: count(raw.kills), xpEarned: count(raw.xpEarned), goldEarned: count(raw.goldEarned), elapsedSeconds: count(raw.elapsedSeconds),
+  };
+}
+
 const initialState = () => ({
   running: false,
   phase: "ready",
@@ -46,6 +67,10 @@ const initialState = () => ({
   // current farming target. Defaults to the original Goblin encounter so
   // existing saves (and a fresh game) behave exactly as before.
   currentEnemyId: DEFAULT_ENEMY_ID,
+  // Aktivní lokace (potvrzený vstup) a farming run. Pouhý výběr bodu na mapě
+  // je jen `ui.selectedMapLocationId` a tyto hodnoty nemění.
+  activeLocationId: ENEMIES[DEFAULT_ENEMY_ID].locationId,
+  run: createRun(DEFAULT_ENEMY_ID),
   player: { hp: 100, baseMaxHp: 100, baseMinDamage: 9, baseMaxDamage: 13, baseCritChance: 0.1 },
   enemy: { hp: ENEMIES[DEFAULT_ENEMY_ID].maxHp, maxHp: ENEMIES[DEFAULT_ENEMY_ID].maxHp },
   lastPlayerAttackAt: 0,
@@ -88,7 +113,9 @@ const ELEMENT_IDS = [
   "deleteModeButton", "bulkDeleteBar", "selectedCount", "confirmDeleteButton", "cancelDeleteButton",
   "itemDetail", "detailEmpty", "detailBody", "detailRarity", "detailIcon", "detailTitle", "detailType",
   "detailStats", "detailCompare", "detailFlavor", "detailMeta", "detailActionButton", "detailNote", "detailCloseButton", "detailBackdrop",
-  "mapLocations", "mapLocationTitle", "mapEnemyGrid",
+  "worldMap", "worldMapImg", "mapPins", "mapTooltip", "locDetail", "locBackdrop", "mapTempNote",
+  "enterDialog", "enterDialogTarget", "enterCancel", "enterConfirm",
+  "combatWidgetSidebar", "combatStripSlot", "combatStripToggle", "combatStripText", "combatStripPanel",
 ];
 const elements = Object.fromEntries(ELEMENT_IDS.map((id) => [id, document.getElementById(id)]));
 for (const [id, node] of Object.entries(elements)) if (!node) console.warn(`[ui] chybí element #${id}`);
@@ -113,7 +140,9 @@ const ui = {
   selection: null, // { kind: "item", id } | { kind: "equipped", slot } | { kind: "material", id }
   tab: "all", // all | equipment | materials | scrolls
   search: "", type: "all", rarity: "all", sort: "newest",
-  mapLocationId: null,
+  selectedMapLocationId: null, // jen náhled na mapě; aktivní lokace je state.activeLocationId
+  locTab: "info", // info | enemies | loot
+  highlightEnemyId: null,
 };
 // Pod 1440 px se detail itemu otevírá jako výsuvný panel (na mobilu přes celou obrazovku).
 const mqSheet = window.matchMedia("(max-width: 1439px)");
@@ -227,6 +256,10 @@ function loadState() {
       Array.isArray(saved.inventory) ? saved.inventory : [],
       sanitizeMaterials(saved.materials),
     );
+    // activeLocationId / run jsou nové -- starší savy je nemají, odvodí se
+    // z uloženého nepřítele, takže postup ani cíl farmení se neztratí.
+    const activeLocationId = LOCATIONS[saved.activeLocationId] ? saved.activeLocationId : ENEMIES[currentEnemyId].locationId;
+    const run = sanitizeRun(saved.run, currentEnemyId, activeLocationId);
     return {
       ...fresh,
       level: saved.level ?? fresh.level, xp: saved.xp ?? fresh.xp,
@@ -237,7 +270,7 @@ function loadState() {
       recentDrops: sanitizeRecentDrops(saved.recentDrops),
       equipment: { ...fresh.equipment, ...(saved.equipment ?? {}) },
       player: { ...fresh.player, ...(saved.player ?? {}) },
-      currentEnemyId,
+      currentEnemyId, activeLocationId, run,
       enemy: { hp: ENEMIES[currentEnemyId].maxHp, maxHp: ENEMIES[currentEnemyId].maxHp },
     };
   } catch { return fresh; }
@@ -247,6 +280,7 @@ function saveState() {
   const payload = {
     version: 2, level: state.level, xp: state.xp, kills: state.kills, drops: state.drops,
     gold: state.gold, currentEnemyId: state.currentEnemyId,
+    activeLocationId: state.activeLocationId, run: state.run,
     elapsedSeconds: state.elapsedSeconds, inventory: state.inventory, equipment: state.equipment,
     materials: state.materials, recentDrops: state.recentDrops,
     player: {
@@ -310,6 +344,8 @@ function render() {
   else if (state.phase === "fighting") setStatus("Probíhá boj", "active");
   else if (state.phase === "searching") setStatus("Hledá se nepřítel", "active");
   else if (state.phase === "dead") setStatus("Postava padla", "danger");
+  if (!state.run.targetEnemyId) { elements.fightButtonText.textContent = "Vybrat nepřítele"; elements.fightButtonIcon.textContent = "▶"; setStatus("Bez cíle", "idle"); }
+  renderCombatWidgets();
 }
 
 function setStatus(label, mode) {
@@ -409,6 +445,9 @@ function defeatEnemy() {
   state.kills += 1;
   state.xp += enemyCfg.xp;
   state.gold += enemyCfg.gold ?? 0;
+  state.run.kills += 1;
+  state.run.xpEarned += enemyCfg.xp;
+  state.run.goldEarned += enemyCfg.gold ?? 0;
   state.phase = "searching";
   state.phaseEndsAt = performance.now() + CONFIG.enemyRespawnMs;
   elements.encounterMessage.textContent = `Hledám dalšího nepřítele (${enemyCfg.name})… 3 s`;
@@ -636,13 +675,13 @@ function equipItem(itemId) {
   if (index < 0) return;
   const item = state.inventory[index];
   if (!SLOT_META[item.slot]) return;
-  const previousMaxHp = getPlayerStats().maxHp;
   const replaced = state.equipment[item.slot];
   state.inventory.splice(index, 1);
   if (replaced) state.inventory.unshift(replaced);
   state.equipment[item.slot] = item;
   const newMaxHp = getPlayerStats().maxHp;
-  state.player.hp = Math.min(newMaxHp, state.player.hp + Math.max(0, newMaxHp - previousMaxHp));
+  // Změna vybavení nikdy neléčí (jinak by šlo léčit přehazováním itemů) -- HP se jen ořízne na nové maximum.
+  state.player.hp = Math.min(newMaxHp, state.player.hp);
   addLog(`${item.name} byl vybaven.`, item.rarity === "common" ? "system" : "level-up");
   // Výběr sleduje předmět: z inventáře přechází na jeho slot, kde nabídne SUNDAT.
   ui.selection = { kind: "equipped", slot: item.slot };
@@ -1129,11 +1168,14 @@ function tick(now) {
 function startLoops() {
   if (gameLoopId === null) gameLoopId = window.setInterval(() => tick(performance.now()), 100);
   if (timerLoopId === null) timerLoopId = window.setInterval(() => {
-    if (state.running) { state.elapsedSeconds += 1; if (state.elapsedSeconds % 5 === 0) saveState(); render(); }
+    if (state.running) { state.elapsedSeconds += 1; if (state.run.targetEnemyId) state.run.elapsedSeconds += 1; if (state.elapsedSeconds % 5 === 0) saveState(); render(); }
   }, 1000);
 }
 
 function toggleFight() {
+  // Bez vybraného nepřítele (po vstupu do nové lokace) nelze boj spustit --
+  // nejdřív se vybírá cíl.
+  if (!state.run.targetEnemyId) { openEnemyPicker(); return; }
   state.running = !state.running;
   if (state.running) {
     const now = performance.now();
@@ -1158,6 +1200,7 @@ function resetGame() {
   state = initialState();
   elements.combatLog.innerHTML = "";
   ui.selection = null;
+  ui.selectedMapLocationId = null; ui.locTab = "info"; ui.highlightEnemyId = null;
   ui.tab = "all"; ui.search = ""; ui.type = "all"; ui.rarity = "all"; ui.sort = "newest";
   closeSheet({ restoreFocus: false });
   deleteMode = false;
@@ -1172,173 +1215,477 @@ function resetGame() {
   render();
   renderLoot();
   if (ui.page === "mapa") renderMapPage();
+  else updateMapPins();
 }
 
-// --- Mapa → lokace → výběr nepřítele -----------------------------------
+// --- Mapa světa, detail lokace a vstup do lokace -----------------------
 //
-// Samostatná stránka: nahoře karty lokací, pod nimi nepřátelé vybrané lokace.
-// Všichni nepřátelé lokace jsou vidět a vybratelní hned od začátku -- žádné
-// postupné odemykání. Výběr nepřítele jen nastaví nová data cíle a bezpečně
-// (znovu)spustí boj -- existující smyčka (startLoops/tick) běží od startu
-// stránky pořád stejná, žádný další interval/timer se nikdy nezakládá, takže
-// tu není nic, co by šlo zdvojit.
+// Dvě oddělené věci: `ui.selectedMapLocationId` = jen prohlížená lokace
+// (náhled) a `state.activeLocationId` = lokace, kde hráč skutečně farmí.
+// Výběr bodu na mapě, otevření detailu, záložky ani zvýraznění nepřítele
+// nesahají na `state` ani na boj. Změna nastane až v enterLocation() /
+// chooseTarget() po explicitním potvrzení. Herní smyčka (startLoops) je pořád
+// jediná, takže tu nevzniká žádný další interval.
 
-function renderMapPage() {
-  const currentLocationId = ENEMIES[state.currentEnemyId]?.locationId;
-  if (!LOCATIONS[ui.mapLocationId]) ui.mapLocationId = LOCATIONS[currentLocationId] ? currentLocationId : Object.keys(LOCATIONS)[0];
-  renderMapLocations(currentLocationId);
-  renderMapEnemies();
-}
+const mqLocSheet = window.matchMedia("(max-width: 1099px)");
+const LOC_TABS = Object.freeze([["info", "Informace"], ["enemies", "Nepřátelé"], ["loot", "Kořist"]]);
+let mapStageReady = false;
+let pendingEnterId = null;
 
-function renderMapLocations(currentLocationId) {
-  elements.mapLocations.innerHTML = "";
-  Object.values(LOCATIONS).forEach((location) => {
-    const isViewed = ui.mapLocationId === location.id;
-    const isActiveTarget = currentLocationId === location.id;
-    const previewEnemy = ENEMIES[location.enemies[0]];
-    const card = document.createElement("button");
-    card.type = "button";
-    card.className = "loc-card";
-    card.classList.toggle("selected", isViewed);
-    card.setAttribute("aria-pressed", String(isViewed));
-    card.dataset.locationId = location.id;
-    card.innerHTML = `<span class="loc-thumb" aria-hidden="true"></span><span class="loc-copy"><span class="loc-name"></span><span class="loc-meta"></span><span class="loc-active"></span></span>`;
-    card.querySelector(".loc-thumb").innerHTML = previewEnemy?.image
-      ? `<img src="${previewEnemy.image}" alt="" />` : `<span class="goblin-figure"></span>`;
-    card.querySelector(".loc-name").textContent = location.name;
-    card.querySelector(".loc-meta").textContent = `${location.enemies.length} ${pluralizeNepritel(location.enemies.length)}`;
-    card.querySelector(".loc-active").textContent = isActiveTarget ? "◆ aktivní cíl zde" : "";
-    elements.mapLocations.append(card);
-  });
-}
-
-function renderMapEnemies() {
-  const location = LOCATIONS[ui.mapLocationId];
-  elements.mapLocationTitle.textContent = location.name;
-  elements.mapEnemyGrid.innerHTML = "";
-  location.enemies.forEach((enemyId) => {
-    const enemyCfg = ENEMIES[enemyId];
-    const isActive = state.currentEnemyId === enemyId;
-    const card = document.createElement("article");
-    card.className = "map-enemy-card";
-    card.classList.toggle("active", isActive);
-    card.innerHTML = `
-      <div class="map-enemy-portrait" aria-hidden="true"></div>
-      <div class="map-enemy-info">
-        <strong class="map-enemy-name"></strong>
-        <span class="map-enemy-level"></span>
-        <dl class="map-enemy-stats">
-          <div><dt>Život</dt><dd class="map-stat-hp"></dd></div>
-          <div><dt>Útok</dt><dd class="map-stat-dmg"></dd></div>
-          <div><dt>Obrana</dt><dd class="map-stat-def"></dd></div>
-          <div><dt>XP</dt><dd class="map-stat-xp"></dd></div>
-          <div><dt>Gold</dt><dd class="map-stat-gold"></dd></div>
-        </dl>
-        <details class="map-loot" open>
-          <summary>MOŽNÁ KOŘIST</summary>
-          <ul class="map-loot-list"></ul>
-        </details>
-      </div>
-      <button type="button" class="btn map-select-button"></button>`;
-    const portrait = card.querySelector(".map-enemy-portrait");
-    portrait.innerHTML = enemyCfg.image ? `<img src="${enemyCfg.image}" alt="" />` : `<div class="goblin-figure"></div>`;
-    card.querySelector(".map-enemy-name").textContent = enemyCfg.name;
-    card.querySelector(".map-enemy-level").textContent = `Úroveň ${enemyCfg.level}${enemyCfg.type ? ` · ${ENEMY_TYPE_LABELS[enemyCfg.type] ?? ""}` : ""}`;
-    renderEnemyLoot(card.querySelector(".map-loot-list"), enemyCfg);
-    card.querySelector(".map-stat-hp").textContent = enemyCfg.maxHp;
-    card.querySelector(".map-stat-dmg").textContent = `${enemyCfg.minDamage}–${enemyCfg.maxDamage}`;
-    card.querySelector(".map-stat-def").textContent = enemyCfg.defense ?? 0;
-    card.querySelector(".map-stat-xp").textContent = enemyCfg.xp;
-    card.querySelector(".map-stat-gold").textContent = enemyCfg.gold ?? 0;
-    const button = card.querySelector(".map-select-button");
-    button.dataset.enemyId = enemyId;
-    if (isActive) {
-      button.textContent = "Aktivní cíl";
-      button.disabled = true;
-    } else {
-      button.textContent = "Vybrat cíl";
-      button.classList.add("btn-primary");
-    }
-    elements.mapEnemyGrid.append(card);
-  });
-}
-
-// Builds the "MOŽNÁ KOŘIST" list of an enemy from its data-driven drop table.
-// Shows a qualitative tier ("Běžný drop" ... "Velmi vzácný drop") rather than
-// an exact percentage.
-function getEnemyLootRows(enemyCfg) {
-  const rows = (enemyCfg.materialDrops ?? []).map((drop) => {
-    const material = MATERIALS[drop.id];
-    return material && {
-      icon: { image: material.asset }, name: material.name, rarity: material.rarity,
-      type: material.category === "scroll" ? "Svitek" : "Materiál", tier: drop.tier,
-    };
-  }).filter(Boolean);
-  if (enemyCfg.equipmentLoot && (enemyCfg.dropChance ?? 0) > 0) {
-    const loot = enemyCfg.equipmentLoot;
-    rows.push({
-      icon: ITEM_TEMPLATES.find((template) => template.icon === loot.icon) ?? { icon: loot.icon },
-      name: loot.name, rarity: null, type: "Vybavení", tier: loot.tier,
-    });
+function mk(tag, props = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(props)) {
+    if (value == null || value === false) continue;
+    if (key === "class") node.className = value;
+    else if (key === "text") node.textContent = value;
+    else node.setAttribute(key, value === true ? "" : value);
   }
-  // Most common first, so the "main" drop of an enemy is always on top.
-  return rows.sort((a, b) => DROP_TIER_ORDER.indexOf(a.tier) - DROP_TIER_ORDER.indexOf(b.tier));
+  node.append(...children.filter(Boolean));
+  return node;
 }
 
-function renderEnemyLoot(list, enemyCfg) {
-  list.innerHTML = "";
-  const rows = getEnemyLootRows(enemyCfg);
-  if (!rows.length) {
-    const empty = document.createElement("li");
-    empty.className = "map-loot-empty";
-    empty.textContent = "Bez cílené kořisti";
-    list.append(empty);
+function canEnterLocation(location) { return location.status === "available" && location.enemyIds.length > 0; }
+function hasActiveFarming() {
+  const run = state.run;
+  return Boolean(run.targetEnemyId) && (state.running || run.kills > 0 || run.elapsedSeconds > 0 || state.phase !== "ready");
+}
+function locationStatusText(location) { return LOCATION_STATUS_LABELS[location.status] ?? ""; }
+
+function ensureMapStage() {
+  if (mapStageReady) return;
+  mapStageReady = true;
+  elements.worldMapImg.src = WORLD_MAP.src;
+  elements.worldMapImg.alt = WORLD_MAP.alt;
+  elements.worldMapImg.width = WORLD_MAP.width;
+  elements.worldMapImg.height = WORLD_MAP.height;
+  elements.worldMap.style.aspectRatio = `${WORLD_MAP.width} / ${WORLD_MAP.height}`;
+  elements.mapTempNote.hidden = !WORLD_MAP.temporary;
+  // Body se generují z dat; pozice jsou v % vůči mapě, takže zůstanou na místě při každé velikosti.
+  Object.values(LOCATIONS).forEach((location) => {
+    const pin = mk("button", { class: "map-pin", type: "button", "data-location-id": location.id });
+    pin.style.left = `${location.mapPosition.x}%`;
+    pin.style.top = `${location.mapPosition.y}%`;
+    pin.dataset.side = location.mapPosition.x > 68 ? "left" : "right";
+    pin.append(
+      mk("span", { class: "pin-mark", "aria-hidden": "true" }),
+      mk("span", { class: "pin-label", "aria-hidden": "true" },
+        mk("span", { class: "pin-name", text: location.name }),
+        mk("span", { class: "pin-meta", text: `Lv ${location.recommendedLevel}` }),
+        mk("span", { class: "pin-active" })),
+    );
+    elements.mapPins.append(pin);
+  });
+}
+
+function updateMapPins() {
+  if (!mapStageReady) return;
+  $$(".map-pin", elements.mapPins).forEach((pin) => {
+    const location = LOCATIONS[pin.dataset.locationId];
+    const selected = ui.selectedMapLocationId === location.id;
+    const active = state.activeLocationId === location.id;
+    pin.classList.toggle("selected", selected);
+    pin.classList.toggle("active", active);
+    pin.classList.toggle("soon", location.status !== "available");
+    pin.setAttribute("aria-pressed", String(selected));
+    pin.setAttribute("aria-label", `${location.name}, doporučený level ${location.recommendedLevel}, ${locationStatusText(location)}${active ? ", aktuální lokace" : ""}`);
+    $(".pin-active", pin).textContent = active ? "AKTUÁLNÍ LOKACE" : "";
+  });
+}
+
+function showMapTooltip(pin) {
+  const location = LOCATIONS[pin.dataset.locationId];
+  const tip = elements.mapTooltip;
+  tip.replaceChildren(
+    mk("strong", { text: location.name }),
+    mk("span", { text: `Doporučený level ${location.recommendedLevel}` }),
+    mk("span", { class: "tip-status", text: locationStatusText(location) }),
+  );
+  const { x, y } = location.mapPosition;
+  tip.style.left = `${x}%`;
+  tip.style.top = `${y}%`;
+  tip.dataset.edge = x < 16 ? "left" : x > 84 ? "right" : "";
+  tip.dataset.below = y < 22 ? "true" : "false";
+  tip.hidden = false;
+}
+function hideMapTooltip() { elements.mapTooltip.hidden = true; }
+
+let mapCentered = false;
+function renderMapPage() {
+  ensureMapStage();
+  updateMapPins();
+  renderLocationDetail();
+  // Na úzkém displeji je mapa posuvná uvnitř viewportu -- poprvé ji vycentrujeme na aktivní lokaci.
+  if (!mapCentered) {
+    mapCentered = true;
+    const scroller = elements.worldMap.parentElement;
+    const position = LOCATIONS[state.activeLocationId]?.mapPosition;
+    if (position && scroller.scrollWidth > scroller.clientWidth) {
+      scroller.scrollLeft = (position.x / 100) * scroller.scrollWidth - scroller.clientWidth / 2;
+    }
+  }
+}
+
+function getLocationEnemies(location) { return location.enemyIds.map((id) => ENEMIES[id]).filter(Boolean); }
+
+// Kořist lokace rozdělená do skupin. Bez procent a vah -- jen co v lokaci padat může.
+function getLocationLootGroups(location) {
+  const bossIds = new Set(location.bossIds);
+  const materials = location.materialIds.map((id) => MATERIALS[id]).filter(Boolean);
+  const bossOnly = (material) => material.sourceEnemyIds.length > 0 && material.sourceEnemyIds.every((id) => bossIds.has(id));
+  const materialRow = (material, type) => ({ icon: { image: material.asset }, name: material.name, rarity: material.rarity, type });
+  const equipment = location.itemIds
+    .map((iconKey) => ITEM_TEMPLATES.find((template) => template.icon === iconKey))
+    .filter(Boolean)
+    .map((template) => ({ icon: template, name: template.name, rarity: null, type: `Vybavení · ${SLOT_META[template.slot]?.label ?? ""}` }));
+  return [
+    ["Vybavení", equipment],
+    ["Materiály", materials.filter((m) => m.category === "material" && !bossOnly(m)).map((m) => materialRow(m, "Materiál"))],
+    ["Svitky", materials.filter((m) => m.category === "scroll" && !bossOnly(m)).map((m) => materialRow(m, "Svitek"))],
+    ["Unikátní boss itemy", materials.filter(bossOnly).map((m) => materialRow(m, m.category === "scroll" ? "Svitek" : "Boss materiál"))],
+  ].filter(([, rows]) => rows.length);
+}
+
+function renderInfoPanel(location, isActive) {
+  const enemies = getLocationEnemies(location);
+  const bosses = location.bossIds.map((id) => ENEMIES[id]?.name).filter(Boolean);
+  const list = mk("div", { class: "kv-list" });
+  list.append(
+    kvRow("Doporučený level", String(location.recommendedLevel)),
+    kvRow("Stav", locationStatusText(location)),
+    kvRow("Nepřátelé", String(enemies.length)),
+  );
+  if (bosses.length) list.append(kvRow(bosses.length > 1 ? "Bossové" : "Boss", bosses.join(", ")));
+  return [
+    isActive ? mk("p", { class: "ld-current", text: "AKTUÁLNÍ LOKACE" }) : null,
+    mk("p", { class: "ld-desc", text: location.shortDescription }),
+    list,
+  ];
+}
+
+function renderEnemiesPanel(location, isActive) {
+  const enemies = getLocationEnemies(location);
+  const canPick = isActive && canEnterLocation(location);
+  const nodes = [];
+  if (canPick && !state.run.targetEnemyId) nodes.push(mk("p", { class: "ld-banner", text: "VYBER NEPŘÍTELE — automatický boj začne až po výběru cíle." }));
+  else if (canPick) nodes.push(mk("p", { class: "ld-hint", text: "Výběrem jiného nepřítele začneš nové farmení." }));
+  else if (canEnterLocation(location)) nodes.push(mk("p", { class: "ld-hint", text: "Nepřítele si vybereš po vstupu do lokace." }));
+  if (!enemies.length) { nodes.push(mk("p", { class: "ld-hint", text: "V lokaci zatím nejsou žádní nepřátelé." })); return nodes; }
+  const list = mk("ul", { class: "ld-enemies" });
+  enemies.forEach((enemy) => {
+    const art = mk("span", { class: "ld-enemy-art", "aria-hidden": "true" });
+    if (enemy.image) art.append(mk("img", { src: enemy.image, alt: "", loading: "lazy" }));
+    else art.append(mk("span", { class: "goblin-figure" }));
+    const copy = mk("span", { class: "ld-enemy-copy" },
+      mk("strong", { text: enemy.name }),
+      mk("span", { text: `Úroveň ${enemy.level}` }));
+    const row = mk("li", { class: "ld-enemy-row" });
+    const inspect = mk("button", {
+      class: "ld-enemy", type: "button", "data-enemy-id": enemy.id, "data-focus-key": `enemy-${enemy.id}`,
+      "aria-pressed": String(ui.highlightEnemyId === enemy.id),
+    }, art, copy, enemy.type === "boss" ? mk("span", { class: "tag danger", text: "BOSS" }) : null);
+    row.append(inspect);
+    if (canPick) {
+      if (state.run.targetEnemyId === enemy.id) row.append(mk("span", { class: "tag ld-target-tag", text: "AKTIVNÍ CÍL" }));
+      else row.append(mk("button", { class: "btn btn-primary ld-pick", type: "button", "data-enemy-id": enemy.id, "data-focus-key": `pick-${enemy.id}`, text: "Vybrat cíl" }));
+    }
+    list.append(row);
+  });
+  nodes.push(list);
+  return nodes;
+}
+
+function renderLootPanel(location) {
+  const groups = getLocationLootGroups(location);
+  if (!groups.length) return [mk("p", { class: "ld-hint", text: "Zatím není evidovaná žádná kořist." })];
+  const nodes = [mk("p", { class: "ld-hint", text: "Možná kořist lokace. Přesné šance na drop zatím nejsou určené." })];
+  groups.forEach(([title, rows]) => {
+    nodes.push(mk("h3", { class: "ld-group", text: `${title} (${rows.length})` }));
+    const list = mk("ul", { class: "ld-loot" });
+    rows.forEach((row) => {
+      const rarity = row.rarity ? RARITIES[row.rarity] : null;
+      const icon = mk("span", { class: "map-loot-icon", "aria-hidden": "true" });
+      renderItemIcon(icon, row.icon);
+      const name = mk("strong", { text: row.name, class: row.rarity ? `rarity-text rarity-${row.rarity}` : "" });
+      const type = mk("span", { text: rarity ? `${rarity.label} · ${row.type}` : row.type });
+      list.append(mk("li", { class: `map-loot-row${row.rarity ? ` rarity-${row.rarity}` : ""}` }, icon, mk("span", { class: "map-loot-copy" }, name, type)));
+    });
+    nodes.push(list);
+  });
+  return nodes;
+}
+
+function renderLocationDetail() {
+  const root = elements.locDetail;
+  const focusKey = root.contains(document.activeElement) ? document.activeElement.dataset.focusKey : null;
+  const location = LOCATIONS[ui.selectedMapLocationId];
+  root.replaceChildren();
+  root.classList.toggle("has-selection", Boolean(location));
+  if (!location) {
+    root.append(mk("div", { class: "ld-empty" },
+      mk("p", { class: "eyebrow", text: "Náhled lokace" }),
+      mk("p", { text: "Vyber bod na mapě. Zobrazí se náhled lokace, její nepřátelé a možná kořist." }),
+      mk("p", { class: "muted", text: "Prohlížení mapy současný boj nezastaví." })));
+    syncLocationSheet();
     return;
   }
-  rows.forEach((row) => {
-    const rarity = row.rarity ? RARITIES[row.rarity] : null;
-    const li = document.createElement("li");
-    li.className = `map-loot-row${row.rarity ? ` rarity-${row.rarity}` : ""}`;
-    li.innerHTML = `<span class="map-loot-icon" aria-hidden="true"></span><span class="map-loot-copy"><strong></strong><span></span></span><span class="map-loot-tier"></span>`;
-    renderItemIcon(li.querySelector(".map-loot-icon"), row.icon);
-    const name = li.querySelector("strong");
-    name.textContent = row.name;
-    if (row.rarity) name.className = `rarity-text rarity-${row.rarity}`;
-    li.querySelector(".map-loot-copy > span").textContent = rarity ? `${rarity.label} · ${row.type}` : row.type;
-    const tier = li.querySelector(".map-loot-tier");
-    tier.textContent = DROP_TIER_LABELS[row.tier] ?? "";
-    tier.dataset.tier = row.tier;
-    list.append(li);
+  const isActive = state.activeLocationId === location.id;
+  const hero = mk("div", { class: "ld-hero" });
+  if (location.backgroundAsset) {
+    const image = mk("img", { class: "ld-hero-img", src: location.backgroundAsset, alt: "", decoding: "async" });
+    image.addEventListener("error", () => { image.remove(); hero.classList.add("missing"); });
+    hero.append(image);
+  } else hero.classList.add("missing");
+  hero.append(
+    mk("span", { class: "ld-hero-note", text: "Background lokace zatím není dodán" }),
+    mk("div", { class: "ld-hero-shade" }),
+    mk("h2", { class: "ld-title", id: "ldTitle", tabindex: "-1", text: location.name }),
+  );
+  root.append(
+    mk("div", { class: "ld-topbar" }, mk("button", { class: "btn ld-close", type: "button", "data-focus-key": "close", text: "✕ Zavřít" })),
+    hero,
+  );
+  const tabs = mk("div", { class: "ld-tabs", role: "tablist", "aria-label": "Detail lokace" });
+  LOC_TABS.forEach(([key, label]) => {
+    tabs.append(mk("button", {
+      class: "ld-tab", type: "button", role: "tab", id: `ld-tab-${key}`, "data-tab": key, "data-focus-key": `tab-${key}`,
+      "aria-selected": String(ui.locTab === key), "aria-controls": "ld-tabpanel", tabindex: ui.locTab === key ? "0" : "-1", text: label,
+    }));
+  });
+  const panelNodes = ui.locTab === "enemies" ? renderEnemiesPanel(location, isActive)
+    : ui.locTab === "loot" ? renderLootPanel(location) : renderInfoPanel(location, isActive);
+  const panel = mk("div", { class: "ld-tabpanel", role: "tabpanel", id: "ld-tabpanel", "aria-labelledby": `ld-tab-${ui.locTab}`, tabindex: "0" }, ...panelNodes);
+  const footer = mk("div", { class: "ld-footer" });
+  if (canEnterLocation(location)) {
+    footer.append(mk("button", {
+      class: "btn btn-primary btn-lg ld-enter", type: "button", "data-focus-key": "enter",
+      text: isActive ? "Vrátit se do lokace" : "Vstoupit do lokace",
+    }));
+  } else {
+    footer.append(
+      mk("p", { class: "ld-note", id: "ldNote", text: "PŘIPRAVUJE SE — do lokace zatím nelze vstoupit, chybí herní obsah." }),
+      mk("button", { class: "btn btn-lg ld-enter", type: "button", disabled: true, "aria-describedby": "ldNote", text: "Vstoupit do lokace" }),
+    );
+  }
+  root.append(tabs, panel, footer);
+  syncLocationSheet();
+  if (focusKey) $(`[data-focus-key="${focusKey}"]`, root)?.focus({ preventScroll: true });
+}
+
+function syncLocationSheet() {
+  const open = mqLocSheet.matches && Boolean(ui.selectedMapLocationId);
+  elements.locDetail.classList.toggle("sheet-open", open);
+  document.body.classList.toggle("loc-open", open);
+}
+
+function selectMapLocation(locationId, { moveFocus = true } = {}) {
+  if (!LOCATIONS[locationId]) return;
+  const changed = ui.selectedMapLocationId !== locationId;
+  ui.selectedMapLocationId = locationId;
+  if (changed) { ui.locTab = "info"; ui.highlightEnemyId = null; }
+  hideMapTooltip();
+  updateMapPins();
+  renderLocationDetail();
+  if (moveFocus) $("#ldTitle", elements.locDetail)?.focus({ preventScroll: true });
+}
+
+function closeLocationDetail({ restoreFocus = true } = {}) {
+  const previous = ui.selectedMapLocationId;
+  if (!previous) return;
+  ui.selectedMapLocationId = null;
+  ui.highlightEnemyId = null;
+  updateMapPins();
+  renderLocationDetail();
+  if (restoreFocus) $(`.map-pin[data-location-id="${previous}"]`, elements.mapPins)?.focus({ preventScroll: true });
+}
+
+function setLocationTab(tab, { focusTab = true } = {}) {
+  if (!LOC_TABS.some(([key]) => key === tab)) return;
+  ui.locTab = tab;
+  renderLocationDetail();
+  if (focusTab) $(`#ld-tab-${tab}`, elements.locDetail)?.focus({ preventScroll: true });
+}
+
+// Otevře výběr nepřítele v aktivní lokaci (např. tlačítko Boj bez cíle).
+function openEnemyPicker() {
+  ui.selectedMapLocationId = state.activeLocationId;
+  ui.locTab = "enemies";
+  navigate("mapa");
+  if (ui.page === "mapa") renderMapPage();
+}
+
+function requestEnterLocation(locationId) {
+  const location = LOCATIONS[locationId];
+  if (!location || !canEnterLocation(location)) return;
+  // Stejná lokace: nic se neresetuje, jen se vrátíme k boji (nebo k výběru cíle).
+  if (locationId === state.activeLocationId || !hasActiveFarming()) { enterLocation(locationId); return; }
+  pendingEnterId = locationId;
+  elements.enterDialogTarget.textContent = `Nová lokace: ${location.name}`;
+  elements.enterDialog.showModal();
+}
+
+function enterLocation(locationId) {
+  const location = LOCATIONS[locationId];
+  if (!location || !canEnterLocation(location)) return;
+  if (locationId === state.activeLocationId) {
+    if (state.run.targetEnemyId) { navigate("boj"); return; }
+    ui.locTab = "enemies";
+    renderLocationDetail();
+    $(".ld-pick", elements.locDetail)?.focus({ preventScroll: true });
+    return;
+  }
+  // Bezpečné ukončení současného cyklu: boj se zastaví dřív, než se změní cíl,
+  // takže starý nepřítel už nezaútočí a nic se dodatečně neodmění (tick i
+  // defeatEnemy se řídí running/phase). Nový boj začne až výběrem nepřítele.
+  state.running = false;
+  state.phase = "ready";
+  state.phaseEndsAt = 0;
+  state.activeLocationId = locationId;
+  const preview = ENEMIES[location.enemyIds[0]];
+  state.currentEnemyId = preview.id;
+  state.enemy = { hp: preview.maxHp, maxHp: preview.maxHp };
+  state.run = createRun(null, locationId);
+  elements.encounterMessage.textContent = "Vyber nepřítele v nové lokaci";
+  addLog(`Vstoupil jsi do lokace: ${location.name}. Předchozí farmení skončilo, vyber nepřítele.`, "system");
+  ui.selectedMapLocationId = locationId;
+  ui.locTab = "enemies";
+  ui.highlightEnemyId = null;
+  updateArenaHeader();
+  render();
+  saveState();
+  renderMapPage();
+  $(".ld-pick", elements.locDetail)?.focus({ preventScroll: true });
+}
+
+// Nastaví cíl farmení a začne NOVÝ run (jiný nepřítel = nové statistiky).
+function chooseTarget(enemyId) {
+  const enemyCfg = ENEMIES[enemyId];
+  if (!enemyCfg) return;
+  if (state.run.targetEnemyId === enemyId) { navigate("boj"); return; }
+  state.activeLocationId = enemyCfg.locationId;
+  state.currentEnemyId = enemyId;
+  state.enemy = { hp: enemyCfg.maxHp, maxHp: enemyCfg.maxHp };
+  state.run = createRun(enemyId);
+  state.running = true;
+  updateArenaHeader();
+  addLog(`Cíl farmení nastaven na: ${enemyCfg.name}.`, "system");
+  beginFight(performance.now()); // jediná smyčka běží dál, jen dostane nový cíl
+  saveState();
+  navigate("boj");
+}
+
+// --- Živý combat widget (sidebar + mobilní stavový pruh) ----------------
+//
+// Čistě zobrazení globálního stavu: nic tu boj neřídí. Tlačítko používá
+// stejné toggleFight() jako stránka Boj. Bez vybraného nepřítele nabízí mapu.
+
+function buildCombatWidget(root, variant) {
+  root.innerHTML = `
+    <div class="cw" data-variant="${variant}" data-mode="none">
+      <a class="cw-main" href="#/boj">
+        <span class="cw-status"><i class="status-dot"></i><b data-cw="status">ŽÁDNÝ AKTIVNÍ BOJ</b></span>
+        <span class="cw-none" data-cw-part="none">Vyber lokaci a nepřítele.</span>
+        <span class="cw-enemy" data-cw-part="live"><span class="cw-art" data-cw="art" aria-hidden="true"></span><span class="cw-enemy-name" data-cw="name"></span></span>
+        <span class="cw-hp" data-cw-part="live">
+          <span class="cw-hp-text" data-cw="hpText"></span>
+          <span class="bar enemy-bar cw-bar"><span class="bar-fill" data-cw="hpBar"></span></span>
+        </span>
+        <span class="cw-stats" data-cw-part="live">
+          <span><small>Poraženo</small><b data-cw="kills">0</b></span>
+          <span class="cw-xp"><small>XP</small><b data-cw="xp">+0</b></span>
+          <span class="cw-gold"><small>Gold</small><b data-cw="gold">+0</b></span>
+          <span><small>Čas</small><b data-cw="time">00:00</b></span>
+        </span>
+      </a>
+      <button class="btn cw-toggle" type="button" data-cw="toggle" data-cw-part="live">Pozastavit</button>
+      <a class="btn btn-primary cw-map" href="#/mapa" data-cw-part="none">Otevřít mapu</a>
+    </div>`;
+  $(".cw-toggle", root).addEventListener("click", toggleFight);
+}
+
+function combatWidgetView() {
+  const run = state.run;
+  const enemyCfg = run.targetEnemyId ? ENEMIES[run.targetEnemyId] : null;
+  if (!enemyCfg) return { mode: "none", status: "ŽÁDNÝ AKTIVNÍ BOJ", short: "ŽÁDNÝ AKTIVNÍ BOJ" };
+  const now = performance.now();
+  const searching = state.phase === "searching" || state.phase === "dead";
+  const total = state.phase === "dead" ? CONFIG.playerRespawnMs : CONFIG.enemyRespawnMs;
+  const reference = state.running ? now : (state.pausedAt ?? now);
+  const msLeft = Math.max(0, state.phaseEndsAt - reference);
+  const secondsLeft = Math.ceil(msLeft / 1000);
+  let mode; let status;
+  if (!state.running) {
+    const started = state.phase !== "ready" || run.elapsedSeconds > 0 || run.kills > 0;
+    mode = started ? "paused" : "ready";
+    status = started ? "BOJ POZASTAVEN" : "PŘIPRAVEN K BOJI";
+  } else if (state.phase === "fighting") { mode = "fighting"; status = "V BOJI"; }
+  else if (state.phase === "searching") { mode = "searching"; status = `DALŠÍ NEPŘÍTEL ZA ${formatTime(secondsLeft)}`; }
+  else { mode = "dead"; status = `POSTAVA PADLA · NÁVRAT ZA ${formatTime(secondsLeft)}`; }
+  const hp = Math.max(0, Math.ceil(state.enemy.hp));
+  const hpPercent = searching ? (state.running || state.phaseEndsAt ? 100 - clampPercent(msLeft, total) : 0) : clampPercent(state.enemy.hp, state.enemy.maxHp);
+  const hpText = searching ? (state.phase === "dead" ? "Poutník se zotavuje" : "Hledání nepřítele") : `${hp} / ${state.enemy.maxHp} HP`;
+  const short = mode === "fighting" ? `V BOJI · ${enemyCfg.name} · ${hp}/${state.enemy.maxHp} HP`
+    : mode === "searching" ? `${status} · ${enemyCfg.name}` : mode === "paused" ? `BOJ POZASTAVEN · ${enemyCfg.name}` : mode === "dead" ? status : `PŘIPRAVEN · ${enemyCfg.name}`;
+  return {
+    mode, status, short, enemyCfg, hpText, hpPercent, searching,
+    toggleLabel: state.running ? "Pozastavit" : mode === "ready" ? "Zahájit boj" : "Pokračovat",
+  };
+}
+
+function applyCombatWidget(root, view) {
+  const cw = $(".cw", root);
+  const setIf = (name, value) => { const node = $(`[data-cw="${name}"]`, cw); if (node && node.textContent !== value) node.textContent = value; };
+  cw.dataset.mode = view.mode;
+  $$("[data-cw-part]", cw).forEach((node) => { node.hidden = node.dataset.cwPart === "none" ? view.mode !== "none" : view.mode === "none"; });
+  setIf("status", view.status);
+  const dot = $(".status-dot", cw);
+  dot.classList.toggle("active", view.mode === "fighting" || view.mode === "searching");
+  dot.classList.toggle("danger", view.mode === "dead");
+  if (view.mode === "none") return;
+  const run = state.run;
+  if (cw.dataset.enemy !== view.enemyCfg.id) {
+    cw.dataset.enemy = view.enemyCfg.id;
+    const art = $('[data-cw="art"]', cw);
+    art.replaceChildren(view.enemyCfg.image ? mk("img", { src: view.enemyCfg.image, alt: "" }) : mk("span", { class: "goblin-figure" }));
+  }
+  setIf("name", view.enemyCfg.name);
+  setIf("hpText", view.hpText);
+  const bar = $('[data-cw="hpBar"]', cw);
+  const width = `${view.hpPercent}%`;
+  if (bar.style.width !== width) bar.style.width = width;
+  setIf("kills", String(run.kills));
+  setIf("xp", `+${run.xpEarned}`);
+  setIf("gold", `+${run.goldEarned}`);
+  setIf("time", formatTime(run.elapsedSeconds));
+  const toggle = $('[data-cw="toggle"]', cw);
+  if (toggle.textContent !== view.toggleLabel) toggle.textContent = view.toggleLabel;
+  toggle.classList.toggle("running", state.running);
+}
+
+const combatWidgetRoots = [];
+function renderCombatWidgets() {
+  if (!combatWidgetRoots.length) return;
+  const view = combatWidgetView();
+  combatWidgetRoots.forEach((root) => applyCombatWidget(root, view));
+  const text = elements.combatStripText;
+  if (text.textContent !== view.short) text.textContent = view.short;
+}
+
+function initCombatWidgets() {
+  buildCombatWidget(elements.combatWidgetSidebar, "sidebar");
+  buildCombatWidget(elements.combatStripPanel, "strip");
+  combatWidgetRoots.push(elements.combatWidgetSidebar, elements.combatStripPanel);
+  elements.combatStripToggle.addEventListener("click", () => {
+    const open = elements.combatStripToggle.getAttribute("aria-expanded") !== "true";
+    elements.combatStripToggle.setAttribute("aria-expanded", String(open));
+    elements.combatStripPanel.hidden = !open;
+  });
+  // Odkaz na Boj/Mapu ve widgetu sbalí panel (jinak by zůstal viset přes stránku).
+  elements.combatStripPanel.addEventListener("click", (event) => {
+    if (event.target.closest("a")) { elements.combatStripToggle.setAttribute("aria-expanded", "false"); elements.combatStripPanel.hidden = true; }
   });
 }
 
-// Sets a new farming target. Safe against duplicate combat timers: there is
-// only ever one global tick loop (started once in startLoops()), so
-// switching targets never spawns a second one -- it only resets what that
-// one loop is currently fighting against.
-function switchEnemy(enemyId) {
-  const enemyCfg = ENEMIES[enemyId];
-  if (!enemyCfg) return;
-  state.currentEnemyId = enemyId;
-  state.enemy = { hp: enemyCfg.maxHp, maxHp: enemyCfg.maxHp };
-  updateArenaHeader();
-  if (state.running) {
-    // End the current cycle and start exactly one new fight against the
-    // freshly selected enemy right away ("pokračovat v automatickém boji").
-    beginFight(performance.now());
-  } else {
-    state.phase = "ready";
-    elements.encounterMessage.textContent = "Připraven k boji";
-  }
-  addLog(`Cíl farmení nastaven na: ${enemyCfg.name}.`, "system");
-  render();
-  saveState();
-}
 
-function selectEnemyTarget(enemyId) {
-  switchEnemy(enemyId);
-  navigate("boj");
-}
 
 // --- Stránky, navigace a sidebar ---------------------------------------
 //
@@ -1368,6 +1715,7 @@ function showPage(page) {
   document.title = `${PAGE_TITLES[page]} — Idle RPG`;
   closeSidebar({ restoreFocus: false });
   closeSheet({ restoreFocus: false });
+  document.body.classList.toggle("loc-open", page === "mapa" && elements.locDetail.classList.contains("sheet-open"));
   if (page === "mapa") renderMapPage();
   else if (page === "inventar") renderInventoryView();
   else if (page === "postava") renderEquipmentOverview();
@@ -1425,16 +1773,58 @@ elements.invRarity.addEventListener("change", () => { ui.rarity = elements.invRa
 elements.invSort.addEventListener("change", () => { ui.sort = elements.invSort.value; renderInventory(); });
 
 // Mapa
-elements.mapLocations.addEventListener("click", (event) => {
-  const card = event.target.closest(".loc-card[data-location-id]");
-  if (!card) return;
-  ui.mapLocationId = card.dataset.locationId;
-  renderMapPage();
+elements.mapPins.addEventListener("click", (event) => {
+  const pin = event.target.closest(".map-pin[data-location-id]");
+  if (pin) selectMapLocation(pin.dataset.locationId);
 });
-elements.mapEnemyGrid.addEventListener("click", (event) => {
-  const button = event.target.closest(".map-select-button[data-enemy-id]");
-  if (button && !button.disabled) selectEnemyTarget(button.dataset.enemyId);
+elements.mapPins.addEventListener("pointerover", (event) => {
+  if (event.pointerType === "touch") return;
+  const pin = event.target.closest(".map-pin");
+  if (pin) showMapTooltip(pin);
 });
+elements.mapPins.addEventListener("pointerout", (event) => { if (event.target.closest(".map-pin")) hideMapTooltip(); });
+elements.mapPins.addEventListener("focusin", (event) => {
+  const pin = event.target.closest(".map-pin");
+  if (pin?.matches(":focus-visible")) showMapTooltip(pin);
+});
+elements.mapPins.addEventListener("focusout", hideMapTooltip);
+elements.locDetail.addEventListener("click", (event) => {
+  if (event.target.closest(".ld-close")) { closeLocationDetail(); return; }
+  const tab = event.target.closest("[role=tab][data-tab]");
+  if (tab) { setLocationTab(tab.dataset.tab); return; }
+  const pick = event.target.closest(".ld-pick[data-enemy-id]");
+  if (pick) { chooseTarget(pick.dataset.enemyId); return; }
+  const enemy = event.target.closest(".ld-enemy[data-enemy-id]");
+  if (enemy) {
+    ui.highlightEnemyId = ui.highlightEnemyId === enemy.dataset.enemyId ? null : enemy.dataset.enemyId;
+    renderLocationDetail();
+    return;
+  }
+  const enter = event.target.closest(".ld-enter");
+  if (enter && !enter.disabled) requestEnterLocation(ui.selectedMapLocationId);
+});
+elements.locDetail.addEventListener("keydown", (event) => {
+  const tab = event.target.closest("[role=tab]");
+  if (!tab) return;
+  const keys = LOC_TABS.map(([key]) => key);
+  const index = keys.indexOf(tab.dataset.tab);
+  const next = { ArrowRight: (index + 1) % keys.length, ArrowLeft: (index + keys.length - 1) % keys.length, Home: 0, End: keys.length - 1 }[event.key];
+  if (next === undefined) return;
+  event.preventDefault();
+  setLocationTab(keys[next]);
+});
+elements.locBackdrop.addEventListener("click", () => closeLocationDetail());
+mqLocSheet.addEventListener("change", syncLocationSheet);
+elements.enterCancel.addEventListener("click", () => { pendingEnterId = null; elements.enterDialog.close(); });
+elements.enterConfirm.addEventListener("click", () => {
+  const id = pendingEnterId;
+  pendingEnterId = null;
+  elements.enterDialog.close();
+  if (id) enterLocation(id);
+});
+elements.enterDialog.addEventListener("close", () => { pendingEnterId = null; });
+
+
 
 // Navigace
 elements.menuButton.addEventListener("click", () => (document.body.classList.contains("nav-open") ? closeSidebar() : openSidebar()));
@@ -1449,6 +1839,7 @@ document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   if (document.body.classList.contains("nav-open")) closeSidebar();
   else if (isSheetOpen()) closeSheet();
+  else if (ui.page === "mapa" && ui.selectedMapLocationId && !elements.enterDialog.open) closeLocationDetail();
   else if (deleteMode) setDeleteMode(false);
 });
 window.addEventListener("beforeunload", saveState);
@@ -1468,6 +1859,7 @@ function validateMaterialSources() {
 }
 validateMaterialSources();
 
+initCombatWidgets();
 applyCharacterPreview();
 populateTypeFilter();
 syncInventoryControls();

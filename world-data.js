@@ -31,18 +31,53 @@ const OKRAJ_STAREHO_LESA_DROP_POOL = [
   "greatsword-angels", "angel-armor", "angel-helmet", "angel-gloves", "angel-boots", "angel-charm",
 ];
 
-const LOCATIONS = Object.freeze({
-  "okraj-stareho-lesa": {
+// Dočasný mapový podklad. Finální mapu světa stačí uložit jako jeden obrázek
+// (PNG/WebP/SVG) a změnit `src` + rozměry -- body lokací se počítají z
+// procentuálních `mapPosition` a poměr stran se bere z width/height.
+const WORLD_MAP = Object.freeze({
+  src: "assets/map/world-map-temporary.svg", // DOČASNÝ asset, nahradit finální mapou
+  width: 1600,
+  height: 900,
+  temporary: true,
+  alt: "Mapa světa (dočasný podklad)",
+});
+
+// Stavy lokace: "available" = plně hratelná, "preview" = má background/data,
+// ale obsah je nekompletní, "comingSoon" = jen oznámená. Vstup je možný jen do
+// "available" lokace s aspoň jedním nepřítelem.
+const LOCATION_STATUS_LABELS = Object.freeze({
+  available: "DOSTUPNÁ", preview: "PŘIPRAVUJE SE", comingSoon: "PŘIPRAVUJE SE",
+});
+
+// `mapPosition` je v PROCENTECH vůči mapě (x zleva, y shora). `backgroundAsset`
+// je cesta k náhledu prostředí -- zatím žádné dodané backgrounds neexistují,
+// proto `null` (detail zobrazí označený zástupný blok). `itemIds` jsou icon
+// klíče ITEM_TEMPLATES, `materialIds`/`bossIds` se dopočítají z tabulek
+// nepřátel níže (finalizeLocations), aby nemohly rozejít.
+const LOCATION_DEFS = [
+  {
     id: "okraj-stareho-lesa",
     name: "Okraj starého lesa",
-    enemies: ["goblin"],
+    mapPosition: { x: 27, y: 64 },
+    recommendedLevel: 1,
+    backgroundAsset: null,
+    shortDescription: "Zarostlý okraj lesa, kde se potulují goblini.",
+    status: "available",
+    enemyIds: ["goblin"],
+    itemIds: OKRAJ_STAREHO_LESA_DROP_POOL,
   },
-  "pustina-ticha": {
+  {
     id: "pustina-ticha",
     name: "Pustina ticha",
-    enemies: ["e01", "e02", "e03", "e04", "e05", "e06"],
+    mapPosition: { x: 67, y: 35 },
+    recommendedLevel: 2,
+    backgroundAsset: null,
+    shortDescription: "Šedá pustina plná můr, po které se nese jen šepot křídel.",
+    status: "available",
+    enemyIds: ["e01", "e02", "e03", "e04", "e05", "e06"],
+    itemIds: PUSTINA_TICHA_DROP_POOL,
   },
-});
+];
 
 // Per-enemy combat + drop configuration. `image: null` keeps the existing
 // hand-drawn CSS/SVG figure (Goblin) instead of a raster portrait. `defense`
@@ -154,6 +189,25 @@ const ENEMIES = Object.freeze({
 });
 
 const DEFAULT_ENEMY_ID = "goblin";
+
+// Dopočítá materialIds a bossIds z tabulek nepřátel a zmrazí lokace.
+function finalizeLocations(defs) {
+  const result = {};
+  for (const def of defs) {
+    const enemies = def.enemyIds.map((id) => ENEMIES[id]).filter(Boolean);
+    const materialIds = [];
+    for (const enemy of enemies) {
+      for (const drop of enemy.materialDrops ?? []) if (!materialIds.includes(drop.id)) materialIds.push(drop.id);
+    }
+    result[def.id] = Object.freeze({
+      ...def,
+      materialIds,
+      bossIds: enemies.filter((enemy) => enemy.type === "boss").map((enemy) => enemy.id),
+    });
+  }
+  return Object.freeze(result);
+}
+const LOCATIONS = finalizeLocations(LOCATION_DEFS);
 
 function pluralizeNepritel(count) {
   if (count === 1) return "nepřítel";

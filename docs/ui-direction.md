@@ -102,6 +102,15 @@ Desktop ≥ 1440 px: `INVENTÁŘ | PAPER-DOLL | DETAIL` (detail sticky). Pod 144
 - **Detail:** velký asset, rarita, staty, porovnání s nasazeným kusem, zdroj a čas získání, obchodovatelnost a akce VYBAVIT / VYMĚNIT / SUNDAT. Jedno kliknutí pouze vybírá; vybavuje až tlačítko.
 - Klik na prázdný slot přefiltruje inventář na vhodné předměty (druhý klik filtr zruší). Výběr a filtry jsou stav UI a neukládají se do savu.
 
+### Stránka Mapa
+- **Mapa:** dominantní obrazový podklad (`WORLD_MAP` ve `world-data.js`, zatím dočasný `assets/map/world-map-temporary.svg`), poměr stran se drží z rozměrů assetu. Body lokací jsou skutečná tlačítka a jejich pozice jsou v `mapPosition` (x, y v %) v datech lokace, ne v CSS. Stavy bodu: výchozí / hover / focus-visible / vybraný / aktuální lokace (zlatý akcent a text AKTUÁLNÍ LOKACE, bez animace) / připravuje se. Hover nebo klávesový focus ukáže malý tooltip (název, doporučený level, stav).
+- **Detail lokace:** ≥ 1100 px vedle mapy (sticky), níže bottom sheet (≤ 760 px téměř celá obrazovka; Escape, ✕ a klik na pozadí zavírají). Nahoře background z `backgroundAsset` (`object-fit: cover`; chybí-li asset, je označený zástupný blok), pod ním záložky INFORMACE / NEPŘÁTELÉ / KOŘIST ovladatelné šipkami, dole hlavní akce.
+- **Výběr vs. vstup:** `ui.selectedMapLocationId` (jen náhled) je oddělené od uloženého `state.activeLocationId`. Vstup (`VSTOUPIT DO LOKACE` / `VRÁTIT SE DO LOKACE`) je jediná akce, která lokaci mění; při probíhajícím farmení se potvrzuje dialogem ZŮSTAT / VSTOUPIT. Po vstupu se otevře výběr nepřítele a boj začne až jeho výběrem.
+- **Stavy lokace:** `available` (hratelná), `preview`, `comingSoon` (obě se označují PŘIPRAVUJE SE, vstup je zakázaný s vysvětlením).
+
+### Combat widget
+Sidebar pod položkou BOJ (na mobilu stavový pruh v horní liště, po kliknutí rozbalí panel): V BOJI / DALŠÍ NEPŘÍTEL ZA / BOJ POZASTAVEN / PŘIPRAVEN K BOJI / ŽÁDNÝ AKTIVNÍ BOJ, asset a HP nepřítele, poražení, XP, gold a čas současného farmení (`state.run`), tlačítko pause/resume používá stejné `toggleFight()` jako stránka Boj.
+
 ### Typografické minimum
 Základ 14 px, pomocný text ≥ 12 px, popisky ≥ 11 px, nadpis stránky 28 px (24 px na mobilu), nadpis sekce 19 px, tlačítka ≥ 13 px s výškou ≥ 40 px.
 
