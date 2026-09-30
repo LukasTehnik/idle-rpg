@@ -1,6 +1,6 @@
-# Idle RPG — Prototype 0.4
+# Idle RPG — Prototype 0.5 (Loot, Economy & Collection)
 
-Čtvrtý hratelný prototyp prohlížečového idle RPG. Ověřuje otázku: **je výběr konkrétního nepřítele podle jeho materiálů a dropů dostatečně zajímavý, aby motivoval hráče střídat farmené cíle?** Podrobnosti: [`docs/prototype-0.4.md`](docs/prototype-0.4.md).
+Pátý hratelný prototyp prohlížečového idle RPG. Ověřuje otázku: **dává smysl smyčka boj → loot → porovnání → nasadit / nechat / prodat → zlato → farmení → sbírka?** Podrobnosti: [`docs/prototype-0.5.md`](docs/prototype-0.5.md). Historie: [`docs/prototype-0.4.md`](docs/prototype-0.4.md).
 
 ## Spuštění
 
@@ -15,7 +15,7 @@ Potom otevři `http://localhost:8080`.
 ## Co prototyp obsahuje
 
 - automatický souboj proti vybranému nepříteli,
-- mapu s lokacemi (Okraj starého lesa, Pustina ticha) a výběrem konkrétního nepřítele k farmení — viz `world-data.js`,
+- mapu s lokacemi (Okraj starého lesa, Pustina ticha, Magma a Elektrika hratelné; Odpadkové hory jako náhled `preview` bez kořisti) a výběrem konkrétního nepřítele k farmení — viz `world-data.js`,
 - zahájení a pozastavení výpravy,
 - rozdílnou rychlost útoku postavy a nepřítele, obranu nepřítele snižující příchozí poškození,
 - náhodné poškození a 10% šanci na kritický zásah,
@@ -26,7 +26,7 @@ Potom otevři `http://localhost:8080`.
 - **(UI shell)** aplikační shell: pevný levý sidebar, horní stavová lišta a samostatné stránky Postava / Inventář / Mapa / Boj (hash routing, boj běží na pozadí při přepínání),
 - **(UI shell)** inventář jako paper-doll: 8 slotů kolem náhledu postavy, inventářový grid vedle něj a persistentní detail itemu s porovnáním,
 - responzivní zobrazení pro desktop, tablet a telefon (na mobilu vysouvací menu a detail jako celoobrazovkový panel),
-- náhodné dropy z osmnácti typů předmětů (běžná sada, tematická „andělská" sada se září a „chitinová" sada z Pustiny ticha),
+- náhodné dropy z 31 typů předmětů (běžná sada, tematická „andělská" sada se září a „chitinová" sada z Pustiny ticha),
 - **(obsah)** lokace Okraj starého lesa, Pustina ticha, Magma, Elektrika (plně hratelné) a Odpadkové hory (náhled bez kořisti) s dodanými backgroundy, nepřáteli, itemy a materiály; statistiky nových lokací jsou pracovní,
 - **(mapa)** skutečná obrazová mapa světa s body lokací z dat (`mapPosition` v %), rychlým tooltipem, detailem lokace (background, záložky Informace / Nepřátelé / Kořist) a potvrzeným vstupem do lokace; prohlížení mapy boj nezastaví,
 - **(boj na pozadí)** živý combat widget v sidebaru (na mobilu stavový pruh) se statistikami současného farmení (poražení, XP, gold, čas) a pause/resume z jakékoli stránky,
@@ -35,7 +35,10 @@ Potom otevři `http://localhost:8080`.
 - **(0.4)** inventář rozdělený na záložky VYBAVENÍ (18 míst) a MATERIÁLY (stackuje se, nezabírá místa), detail materiálu se zdroji, přehled posledních dropů u boje,
 - běžnou, vzácnou a epickou raritu,
 - náhodné hodnoty poškození, HP a kritického zásahu,
-- inventář pro 18 předmětů,
+- **(0.5)** inventář s kapacitou 60, NOVÝ / oblíbené / zámek, filtry, řazení, hledání, hromadný výběr, nevyzvednutá kořist při plném inventáři,
+- **(0.5)** porovnání itemu se stejným slotem podle výsledných statů postavy,
+- **(0.5)** Obchodník (výkup, zpětný odkup 10 kusů, pravidla auto-prodeje, loot log), Banka a ztráta 5 % neseného zlata při smrti,
+- **(0.5)** Bestiář, Sbírka a dlouhodobé statistiky,
 - 8 slotů vybavení (zbraň, zbroj, helma, rukavice, boty, kalhoty, talisman, křídla),
 - katalog předmětů (`item-catalog.html`) pro statický přehled všech ikon a efektů,
 - detail předmětu na klik — výrazně zvětšená ikona (object-fit: contain, zachovaný poměr stran), plné staty, zdroj úlovku, čas získání a obchodovatelnost, dostupné z inventáře i z vybavených slotů,
@@ -44,9 +47,23 @@ Potom otevři `http://localhost:8080`.
 - lokální uložení postupu v prohlížeči (včetně vybrané lokace/nepřítele a goldu),
 - kompaktní černobílé systémové UI s barevným zvýrazněním vzácné kořisti a statickým, slabším glow efektem signature předmětů.
 
+## Struktura souborů
+
+```text
+index.html          shell, stránky (Postava, Inventář, Obchodník, Banka, Bestiář, Sbírka, Mapa, Boj)
+app.js              stav, boj, inventář, obchod, banka, bestiář, sbírka, router, uložení
+economy-data.js     (0.5) kapacita, síla itemu, prodejní vzorec, ztráta při smrti
+item-data.js        šablony vybavení (templateId), rarity, ikony
+material-data.js    materiály
+world-data.js       lokace a nepřátelé (zdroj pravdy i pro bestiář a sbírku)
+styles.css          styly
+docs/               prototype-0.2 … 0.5, navrh-hry.md, UI reference
+assets/             ikony, materiály, backgroundy, mapa, fonty
+```
+
 ## Pracovní balance
 
-Hodnoty jsou nastavení pro první pocitový test. Nejsou schválenými pravidly finální hry.
+Hodnoty jsou nastavení pro první pocitový test. Nejsou schválenými pravidly finální hry. **Tabulka je zděděná z 0.3** a nezahrnuje nové ekonomické hodnoty 0.5 (kapacita 60, ceny, 5% ztráta) — ty jsou v `economy-data.js` a [`docs/prototype-0.5.md`](docs/prototype-0.5.md).
 
 | Pravidlo | Prototyp 0.3 |
 | --- | ---: |
@@ -64,11 +81,11 @@ Hodnoty jsou nastavení pro první pocitový test. Nejsou schválenými pravidly
 | Růst při levelu | +15 HP, +2 min/max damage |
 | Šance na předmět (Goblin) | 42 % za vítězství |
 | Rarity | 74 % běžná, 22 % vzácná, 4 % epická |
-| Kapacita inventáře | 18 předmětů |
+| Kapacita inventáře (0.3, nyní 60) | 18 předmětů |
 
 ## Hranice této verze
 
-Prototype 0.4 zatím neobsahuje crafting, recepty, rozebírání předmětů, banku, market, offline postup, účty ani další lokace. Tyto systémy patří do dalších testovacích verzí. Drop rate je záměrně vysoký, aby šel materiálový systém během krátkého testu vyhodnotit. Staty nepřátel a drop tabulky jsou pracovní balance — vše je centrálně v `world-data.js` a `material-data.js` pro snadné pozdější doladění. Kompletní dosavadní návrh je v souboru [`docs/navrh-hry.md`](docs/navrh-hry.md).
+Prototype 0.5 zatím neobsahuje crafting, recepty, hráčský market, offline postup, účty, questy ani finální balanci dropů. Tyto systémy patří do dalších testovacích verzí. Drop rate je záměrně vysoký, aby šel materiálový systém během krátkého testu vyhodnotit. Staty nepřátel a drop tabulky jsou pracovní balance — vše je centrálně v `world-data.js` a `material-data.js` pro snadné pozdější doladění. Kompletní dosavadní návrh je v souboru [`docs/navrh-hry.md`](docs/navrh-hry.md).
 
 ## Grafika
 
