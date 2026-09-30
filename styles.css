@@ -1077,3 +1077,88 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
   .cw-strip-toggle[aria-expanded="true"] .cw-strip-caret { transform: rotate(180deg); }
   .cw-strip-panel { position: absolute; z-index: 30; top: calc(100% + 4px); right: 0; left: 0; }
 }
+
+/* ====================================================================
+   PROTOTYPE 0.5 — kořist, obchodník, banka, bestiář, sbírka
+   ==================================================================== */
+
+/* odznaky v navigaci */
+.nav-badge {
+  min-width: 22px; padding: 0 6px; border: 1px solid var(--color-accent-gold-dark); background: var(--color-bg-deep); color: var(--color-accent-gold-light);
+  font-family: var(--font-display); font-size: var(--fs-small); letter-spacing: 0; line-height: 20px; text-align: center; font-variant-numeric: tabular-nums;
+}
+.nav-badge[hidden] { display: none; }
+.nav-badge-warn { border-color: var(--color-danger); background: var(--color-danger-bg); color: var(--color-health-light); }
+.nav-link .nav-badge:first-of-type { margin-left: -2px; }
+
+/* kapacita plná */
+.capacity.full strong { color: var(--color-health-light); }
+
+/* značky na buňkách inventáře: NOVÉ / oblíbené / uzamčeno */
+.cell-flags { position: absolute; top: 3px; right: 3px; z-index: 3; display: flex; align-items: center; gap: 2px; pointer-events: none; }
+.flag {
+  display: inline-flex; min-width: 16px; height: 17px; align-items: center; justify-content: center; padding: 0 3px;
+  border: 1px solid var(--color-shadow); background: var(--color-bg-deep); color: var(--color-text-primary);
+  font-family: var(--font-display); font-size: 13px; line-height: 1;
+}
+.flag-new { border-color: var(--color-accent-gold-dark); background: var(--color-accent-gold); color: var(--rarity-ink); letter-spacing: .04em; font-weight: 700; }
+.flag-fav { color: var(--color-accent-gold-light); }
+.flag-lock .px-icon { width: 10px; height: 10px; color: var(--color-text-secondary); }
+.inv-cell.protected { opacity: .55; cursor: not-allowed; }
+.inv-grid.delete-mode .cell-flags { top: 3px; }
+
+/* aktivní filtry */
+.active-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: -4px 0 14px; }
+.active-filters-label { color: var(--color-text-secondary); font-family: var(--font-display); font-size: var(--fs-small); letter-spacing: .1em; text-transform: uppercase; }
+.chip {
+  min-height: 30px; padding: 0 10px; border: 1px solid var(--color-border-strong); border-radius: 0; background: var(--color-surface-3); color: var(--color-text-primary);
+  font-family: var(--font-display); font-size: var(--fs-small); letter-spacing: .04em; cursor: pointer;
+}
+.chip:hover { border-color: var(--color-border-highlight); background: var(--color-surface-hover); }
+.chip-clear { border-color: var(--color-danger); background: var(--color-danger-bg); color: var(--color-health-light); }
+.inv-toolbar { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.inv-toolbar .field-search { grid-column: 1 / -1; }
+
+/* nevyzvednutá kořist */
+.unclaimed { margin-bottom: 16px; padding: 12px; border: 1px solid var(--color-danger); background: var(--color-danger-bg); }
+.unclaimed-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.unclaimed-head .eyebrow { color: var(--color-health-light); }
+.unclaimed-title { font-size: var(--fs-item); letter-spacing: .04em; text-transform: uppercase; }
+.unclaimed-list { display: grid; gap: 6px; max-height: 300px; margin: 10px 0 0; padding: 0; overflow-y: auto; list-style: none; scrollbar-color: var(--color-border-strong) transparent; scrollbar-width: thin; }
+.unclaimed-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 6px 8px; border: 1px solid var(--rar-color); background: var(--color-cell); }
+.unclaimed-icon { display: grid; width: 44px; height: 44px; place-items: center; overflow: hidden; color: var(--rar-color); }
+.unclaimed-icon img { width: 100%; height: 100%; object-fit: contain; }
+.unclaimed-icon svg { width: 60%; height: 60%; }
+.unclaimed-copy { display: grid; min-width: 0; gap: 1px; }
+.unclaimed-copy strong { overflow: hidden; font-size: var(--fs-small); text-overflow: ellipsis; white-space: nowrap; }
+.unclaimed-copy span { color: var(--color-text-secondary); font-size: var(--fs-label); letter-spacing: .05em; text-transform: uppercase; }
+.unclaimed-more { padding: 4px 0; color: var(--color-text-secondary); font-size: var(--fs-small); }
+
+/* detail: sekundární tlačítka a porovnání */
+.detail-secondary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 8px; }
+.detail-actions .detail-secondary .btn { min-height: 40px; font-size: var(--fs-btn); }
+.detail-secondary .btn[aria-pressed="true"] { background: var(--color-surface-3); box-shadow: inset 0 0 0 2px var(--color-accent-gold); color: var(--color-accent-gold-light); }
+.cmp-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+.cmp-card { display: grid; align-content: start; justify-items: center; gap: 4px; padding: 10px; border: 2px solid var(--rar-color, var(--color-border)); background: var(--color-bg-deep); text-align: center; }
+.cmp-card.empty { border-style: dashed; color: var(--color-text-muted); }
+.cmp-card-label { color: var(--color-accent-gold); font-family: var(--font-display); font-size: var(--fs-label); letter-spacing: .12em; text-transform: uppercase; }
+.cmp-card-icon { display: grid; width: 72px; height: 72px; place-items: center; overflow: hidden; color: var(--rar-color); }
+.cmp-card-icon img { width: 100%; height: 100%; object-fit: contain; }
+.cmp-card-icon svg { width: 60%; height: 60%; }
+.cmp-card-name { font-size: var(--fs-small); line-height: 1.25; }
+.cmp-card-sub { color: var(--color-text-secondary); font-size: var(--fs-label); letter-spacing: .04em; text-transform: uppercase; }
+.cmp-stats { display: grid; gap: 2px; width: 100%; margin: 6px 0 0; padding: 0; list-style: none; text-align: left; }
+.cmp-stats li { display: flex; justify-content: space-between; gap: 6px; color: var(--color-text-secondary); font-size: var(--fs-label); }
+.cmp-stats b { color: var(--color-text-primary); font-weight: 400; white-space: nowrap; }
+.detail-compare .detail-compare-title:not(:first-child) { margin-top: 10px; }
+.cmp-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 0 8px; padding: 5px 0; border-bottom: 1px dashed var(--color-border); }
+.cmp-row:last-of-type { border-bottom: 0; }
+.cmp-values { grid-column: 1 / -1; grid-row: 2; color: var(--color-text-muted); font-size: var(--fs-label); font-variant-numeric: tabular-nums; }
+.cmp-delta { text-align: right; font-variant-numeric: tabular-nums; }
+.cmp-delta.up { color: var(--color-xp-light); font-weight: 700; }
+.cmp-delta.down { color: var(--color-health-light); font-weight: 700; }
+.cmp-delta.same { color: var(--color-text-muted); }
+.cmp-note { margin: 8px 0 0; color: var(--color-warning); font-size: var(--fs-label); }
+@media (max-width: 480px) {
+  .cmp-cards { grid-template-columns: minmax(0, 1fr); }
+}

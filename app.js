@@ -7,7 +7,7 @@ const CONFIG = Object.freeze({
   playerRespawnMs: 5000,
   betweenFightHealPercent: 0.1,
   dropChance: 0.42, // fallback only -- each enemy in ENEMIES sets its own dropChance
-  inventoryCapacity: 18,
+  inventoryCapacity: LOOT_CONFIG.inventoryCapacity, // Prototype 0.5: centrální konfigurace v economy-data.js
   maxLogEntries: 80,
   maxRecentDrops: 5,
   maxToasts: 3,
@@ -15,7 +15,7 @@ const CONFIG = Object.freeze({
 });
 
 // RARITIES, SLOT_META, ICONS, ITEM_TEMPLATES and renderItemIcon() live in
-// item-data.js; MATERIALS in material-data.js; LOCATIONS, ENEMIES and
+// item-data.js; LOOT_CONFIG, itemPower() and itemSellValue() in economy-data.js; MATERIALS in material-data.js; LOCATIONS, ENEMIES and
 // DEFAULT_ENEMY_ID in world-data.js (all loaded before this file in index.html).
 
 // Returns the data-config of whichever enemy is currently selected as the
@@ -56,6 +56,9 @@ const initialState = () => ({
   gold: 0,
   elapsedSeconds: 0,
   inventory: [], // equipment only (capacity CONFIG.inventoryCapacity)
+  // Prototype 0.5: kořist, která se nevešla do plného inventáře. Nikdy se tiše
+  // neztratí -- čeká zde, dokud hráč neuvolní místo (viz claimUnclaimed).
+  unclaimed: [],
   // Prototype 0.4: stackable materials/scrolls, stored by stable material id
   // -> quantity (e.g. { "wing-dust": 14 }). They do NOT count against the
   // equipment capacity.
@@ -110,6 +113,9 @@ const ELEMENT_IDS = [
   "recentDropsList", "dropToastStack", "equipmentOverview",
   "inventoryGrid", "inventoryEmpty", "inventoryEmptyTitle", "inventoryEmptyText", "inventoryCount", "inventoryCapacity", "equippedCount",
   "invTabs", "invSearch", "invType", "invTypeField", "invRarity", "invSort", "paperDoll",
+  "invFlag", "invFlagField", "invOrigin", "invOriginField", "invActiveFilters",
+  "unclaimedPanel", "unclaimedCount", "unclaimedList", "claimAllButton",
+  "detailSecondary", "detailFavButton", "detailLockButton",
   "deleteModeButton", "bulkDeleteBar", "selectedCount", "confirmDeleteButton", "cancelDeleteButton",
   "itemDetail", "detailEmpty", "detailBody", "detailRarity", "detailIcon", "detailTitle", "detailType",
   "detailStats", "detailCompare", "detailFlavor", "detailMeta", "detailActionButton", "detailNote", "detailCloseButton", "detailBackdrop",
@@ -139,7 +145,7 @@ const ui = {
   page: "boj",
   selection: null, // { kind: "item", id } | { kind: "equipped", slot } | { kind: "material", id }
   tab: "all", // all | equipment | materials | scrolls
-  search: "", type: "all", rarity: "all", sort: "newest",
+  search: "", type: "all", rarity: "all", flag: "all", origin: "all", sort: "newest",
   selectedMapLocationId: null, // jen náhled na mapě; aktivní lokace je state.activeLocationId
   locTab: "info", // info | enemies | loot
   highlightEnemyId: null,
@@ -154,7 +160,14 @@ const STAT_LABELS = Object.freeze({
   damageMin: "Minimální poškození", damageMax: "Maximální poškození", maxHp: "Maximální životy", critChance: "Kritický zásah",
 });
 function roundStat(value) { return Math.round(value * 10) / 10; }
-function formatStat(key, value) { return key === "critChance" ? `${Math.round(value * 10) / 10} %` : String(value); }
+// České formátování čísel (desetinná čárka): 1,5 místo 1.5.
+function fmtNum(value) { return (Math.round(value * 10) / 10).toLocaleString("cs-CZ", { maximumFractionDigits: 1 }); }
+function fmtSigned(value, unit = "") {
+  const rounded = Math.round(value * 10) / 10;
+  if (rounded === 0) return "beze změny";
+  return `${rounded > 0 ? "+" : "−"}${fmtNum(Math.abs(rounded))}${unit}`;
+}
+function formatStat(key, value) { return key === "critChance" ? `${fmtNum(value)} %` : fmtNum(value); }
 
 // Bulk-delete UI state. Transient/UI-only -- deliberately NOT part of
 // `state` (so it never gets persisted or saved), reset whenever delete mode
@@ -184,6 +197,8 @@ function setDeleteMode(nextValue) {
 }
 
 function toggleSelection(itemId) {
+  const found = findItemAnywhere(itemId);
+  if (!found || found.where !== "inventory" || found.item.isLocked) return; // uzamčené itemy nelze vybrat
   if (selectedForDeletion.has(itemId)) selectedForDeletion.delete(itemId);
   else selectedForDeletion.add(itemId);
   updateSelectedCount();
@@ -192,8 +207,9 @@ function toggleSelection(itemId) {
 
 function deleteSelectedItems() {
   if (selectedForDeletion.size === 0) return;
-  const removedCount = selectedForDeletion.size;
-  state.inventory = state.inventory.filter((item) => !selectedForDeletion.has(item.id));
+  const doomed = new Set(state.inventory.filter((item) => selectedForDeletion.has(item.id) && !item.isLocked).map((item) => item.id));
+  const removedCount = doomed.size;
+  state.inventory = state.inventory.filter((item) => !doomed.has(item.id));
   addLog(`Smazáno ${removedCount} ${pluralizePredmet(removedCount)} z inventáře.`, "system");
   setDeleteMode(false);
   render(); renderLoot(); saveState();
@@ -243,7 +259,7 @@ function loadState() {
   const fresh = initialState();
   try {
     const saved = JSON.parse(localStorage.getItem(CONFIG.saveKey));
-    if (!saved || saved.version !== 2) return fresh;
+    if (!saved || (saved.version !== 2 && saved.version !== 3)) return fresh;
     // currentEnemyId is new -- only trust it if it names a real, still-valid
     // enemy (protects against a corrupted save or a future removed enemy id
     // crashing the app on load).
@@ -259,6 +275,11 @@ function loadState() {
     // activeLocationId / run jsou nové -- starší savy je nemají, odvodí se
     // z uloženého nepřítele, takže postup ani cíl farmení se neztratí.
     const activeLocationId = LOCATIONS[saved.activeLocationId] ? saved.activeLocationId : ENEMIES[currentEnemyId].locationId;
+    // Prototype 0.5: staré instance vybavení dostanou nová pole (templateId, isNew, …).
+    const cleanInventory = inventory.map((item) => (SLOT_META[item?.slot] ? sanitizeItem(item) : item)).filter(Boolean);
+    const equipment = { ...fresh.equipment, ...(saved.equipment ?? {}) };
+    for (const slot of Object.keys(equipment)) equipment[slot] = equipment[slot] ? sanitizeItem(equipment[slot]) : null;
+    const unclaimed = Array.isArray(saved.unclaimed) ? saved.unclaimed.map(sanitizeItem).filter((item) => item && SLOT_META[item.slot]) : [];
     const run = sanitizeRun(saved.run, currentEnemyId, activeLocationId);
     return {
       ...fresh,
@@ -266,9 +287,9 @@ function loadState() {
       kills: saved.kills ?? fresh.kills, drops: saved.drops ?? fresh.drops,
       gold: saved.gold ?? fresh.gold,
       elapsedSeconds: saved.elapsedSeconds ?? fresh.elapsedSeconds,
-      inventory, materials,
+      inventory: cleanInventory, materials, unclaimed,
       recentDrops: sanitizeRecentDrops(saved.recentDrops),
-      equipment: { ...fresh.equipment, ...(saved.equipment ?? {}) },
+      equipment,
       player: { ...fresh.player, ...(saved.player ?? {}) },
       currentEnemyId, activeLocationId, run,
       enemy: { hp: ENEMIES[currentEnemyId].maxHp, maxHp: ENEMIES[currentEnemyId].maxHp },
@@ -278,11 +299,11 @@ function loadState() {
 
 function saveState() {
   const payload = {
-    version: 2, level: state.level, xp: state.xp, kills: state.kills, drops: state.drops,
+    version: 3, level: state.level, xp: state.xp, kills: state.kills, drops: state.drops,
     gold: state.gold, currentEnemyId: state.currentEnemyId,
     activeLocationId: state.activeLocationId, run: state.run,
     elapsedSeconds: state.elapsedSeconds, inventory: state.inventory, equipment: state.equipment,
-    materials: state.materials, recentDrops: state.recentDrops,
+    materials: state.materials, recentDrops: state.recentDrops, unclaimed: state.unclaimed,
     player: {
       hp: state.player.hp, baseMaxHp: state.player.baseMaxHp,
       baseMinDamage: state.player.baseMinDamage, baseMaxDamage: state.player.baseMaxDamage,
@@ -303,8 +324,42 @@ function formatTime(seconds) {
 }
 function getItemBonus(item, stat) { return item?.stats?.[stat] ?? 0; }
 
-function getPlayerStats() {
-  return Object.values(state.equipment).filter(Boolean).reduce(
+// --- Instance vybavení (Prototype 0.5) --------------------------------------
+// Každá instance nese: id, templateId, rarity, stats, obtainedAt, sourceEnemyId,
+// sourceLocationId, isNew, isFavorite, isLocked (+ původní pole 0.4: name, slot,
+// icon, image, source, acquiredAt, tradeable, flavorText).
+function inventoryFreeSlots() { return Math.max(0, CONFIG.inventoryCapacity - state.inventory.length); }
+
+// Doplní nová pole do itemu ze starého savu (0.4 → 0.5), nic nemaže.
+function sanitizeItem(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const template = findItemTemplate(raw);
+  const enemy = ENEMIES[raw.sourceEnemyId] ?? Object.values(ENEMIES).find((candidate) => candidate.name === raw.source) ?? null;
+  const time = Number.isFinite(raw.obtainedAt) ? raw.obtainedAt : (Number.isFinite(raw.acquiredAt) ? raw.acquiredAt : 0);
+  return {
+    ...raw,
+    templateId: typeof raw.templateId === "string" ? raw.templateId : (template?.templateId ?? raw.icon ?? null),
+    obtainedAt: time,
+    acquiredAt: Number.isFinite(raw.acquiredAt) ? raw.acquiredAt : time,
+    sourceEnemyId: enemy?.id ?? null,
+    sourceLocationId: LOCATIONS[raw.sourceLocationId] ? raw.sourceLocationId : (enemy?.locationId ?? null),
+    isNew: raw.isNew === true, isFavorite: raw.isFavorite === true, isLocked: raw.isLocked === true,
+  };
+}
+
+// Najde item v inventáři, na postavě nebo v nevyzvednuté kořisti.
+function findItemAnywhere(id) {
+  let item = state.inventory.find((entry) => entry.id === id);
+  if (item) return { item, where: "inventory" };
+  for (const [slot, equipped] of Object.entries(state.equipment)) if (equipped?.id === id) return { item: equipped, where: "equipped", slot };
+  item = state.unclaimed.find((entry) => entry.id === id);
+  return item ? { item, where: "unclaimed" } : null;
+}
+
+// `equipment` lze přepsat, aby šlo spočítat výsledné staty postavy PO výměně
+// itemu (porovnání v detailu) -- bez jakékoli změny skutečného stavu.
+function getPlayerStats(equipment = state.equipment) {
+  return Object.values(equipment).filter(Boolean).reduce(
     (stats, item) => ({
       maxHp: stats.maxHp + getItemBonus(item, "maxHp"),
       minDamage: stats.minDamage + getItemBonus(item, "damageMin"),
@@ -527,6 +582,12 @@ function createItem(enemyCfg) {
     // tradeable since there's no market yet to actually restrict).
     source: enemyCfg?.name ?? "Neznámo",
     acquiredAt: Date.now(),
+    // Prototype 0.5: stabilní odkaz na šablonu, původ a stav itemu.
+    templateId: template.templateId,
+    obtainedAt: Date.now(),
+    sourceEnemyId: enemyCfg?.id ?? null,
+    sourceLocationId: enemyCfg?.locationId ?? null,
+    isNew: true, isFavorite: false, isLocked: false,
     tradeable: template.tradeable ?? true,
     flavorText: template.flavorText ?? null,
   };
@@ -540,15 +601,19 @@ function createItem(enemyCfg) {
 // Equipment: every drop is its own inventory entry (capacity-limited).
 function generateDrop(enemyCfg = getCurrentEnemy()) {
   const item = createItem(enemyCfg);
+  const rarity = RARITIES[item.rarity];
+  state.drops += 1;
+  pushRecentDrop({ type: "item", key: item.icon, name: item.name, rarity: item.rarity, qty: 1 });
   if (state.inventory.length >= CONFIG.inventoryCapacity) {
-    addLog(`${enemyCfg.name} zanechal předmět, ale inventář je plný.`, "system");
+    // Plný inventář: item nikdy tiše nezmizí, uloží se do nevyzvednuté kořisti.
+    state.unclaimed.push(item);
+    addLog(`${rarity.label} předmět: ${item.name} — inventář je plný, kořist čeká na vyzvednutí (${state.unclaimed.length}).`, "level-up");
+    renderLoot();
+    showDropToast(item, "Inventář plný — čeká na vyzvednutí");
     return;
   }
   state.inventory.unshift(item);
-  state.drops += 1;
-  const rarity = RARITIES[item.rarity];
   addLog(`${rarity.label} předmět: ${item.name}.`, item.rarity === "common" ? "system" : "level-up");
-  pushRecentDrop({ type: "item", key: item.icon, name: item.name, rarity: item.rarity, qty: 1 });
   renderLoot();
   showDropToast(item);
 }
@@ -619,7 +684,7 @@ function statRows(item) {
   if (item.stats?.damageMin) rows.push(["Minimální poškození", `+${item.stats.damageMin}`]);
   if (item.stats?.damageMax) rows.push(["Maximální poškození", `+${item.stats.damageMax}`]);
   if (item.stats?.maxHp) rows.push(["Maximální životy", `+${item.stats.maxHp}`]);
-  if (item.stats?.critChance) rows.push(["Kritický zásah", `+${item.stats.critChance} %`]);
+  if (item.stats?.critChance) rows.push(["Kritický zásah", `+${fmtNum(item.stats.critChance)} %`]);
   return rows;
 }
 
@@ -628,7 +693,7 @@ function statSummary(item) { return statRows(item).map(([label, value]) => `${la
 // Non-blocking drop notification (Oprava 1). Stacks visually in the corner,
 // requires no click, auto-dismisses, and never overlaps the fight controls
 // or log panel (see .drop-toast-stack / .drop-toast in styles.css).
-function showDropToast(item) {
+function showDropToast(item, note = null) {
   const rarity = RARITIES[item.rarity];
   const toast = document.createElement("div");
   toast.className = `drop-toast rarity-${item.rarity}`;
@@ -638,7 +703,7 @@ function showDropToast(item) {
   const nameEl = toast.querySelector("strong");
   nameEl.textContent = item.name;
   nameEl.className = `rarity-text rarity-${item.rarity}`;
-  toast.querySelector(".drop-toast-copy span").textContent = `${rarity.label} · ${SLOT_META[item.slot]?.label ?? ""}`;
+  toast.querySelector(".drop-toast-copy span").textContent = note ?? `${rarity.label} · ${SLOT_META[item.slot]?.label ?? ""}`;
   presentToast(toast);
 }
 
@@ -678,6 +743,7 @@ function equipItem(itemId) {
   const replaced = state.equipment[item.slot];
   state.inventory.splice(index, 1);
   if (replaced) state.inventory.unshift(replaced);
+  item.isNew = false;
   state.equipment[item.slot] = item;
   const newMaxHp = getPlayerStats().maxHp;
   // Změna vybavení nikdy neléčí (jinak by šlo léčit přehazováním itemů) -- HP se jen ořízne na nové maximum.
@@ -719,7 +785,10 @@ function getOwnedMaterialIds() {
 function getInventoryEntries() {
   const entries = state.inventory.map((item, index) => ({
     kind: "item", key: `item:${item.id}`, id: item.id, name: item.name, rarity: item.rarity, slot: item.slot,
-    category: "equipment", qty: 1, order: index, iconSource: item,
+    category: "equipment", qty: 1, order: index, iconSource: item, item,
+    time: item.obtainedAt ?? 0, originLocationId: item.sourceLocationId ?? null,
+    value: itemSellValue(item), power: itemPower(item),
+    flags: { new: item.isNew === true, favorite: item.isFavorite === true, locked: item.isLocked === true },
   }));
   getOwnedMaterialIds().filter((id) => MATERIALS[id]).forEach((id, index) => {
     const material = MATERIALS[id];
@@ -727,6 +796,7 @@ function getInventoryEntries() {
       kind: "material", key: `mat:${id}`, id, name: material.name, rarity: material.rarity, slot: null,
       category: material.category === "scroll" ? "scrolls" : "materials",
       qty: state.materials[id], order: 1000 + index, iconSource: { image: material.asset },
+      time: -1, originLocationId: material.sourceLocationId ?? null, value: 0, power: 0, flags: {},
     });
   });
   return entries;
@@ -736,16 +806,23 @@ function entryAriaLabel(entry) {
   const rarity = RARITIES[entry.rarity]?.label ?? "";
   const slot = SLOT_META[entry.slot]?.label;
   const qty = entry.kind === "material" ? `, ${entry.qty} ks` : "";
-  return `${entry.name}, ${rarity}${slot ? `, ${slot}` : ""}${qty}`;
+  const flags = [entry.flags?.new ? "nové" : null, entry.flags?.favorite ? "oblíbené" : null, entry.flags?.locked ? "uzamčené" : null].filter(Boolean);
+  return `${entry.name}, ${rarity}${slot ? `, ${slot}` : ""}${qty}${flags.length ? `, ${flags.join(", ")}` : ""}`;
 }
+
+// Filtry typu slotu a stavu (nové / oblíbené / uzamčené) se týkají jen vybavení;
+// záložky Materiály a Svitky si drží vlastní členění.
+function gearFiltersApply() { return ui.tab === "all" || ui.tab === "equipment"; }
 
 function filterEntries(entries) {
   const query = ui.search.trim().toLowerCase();
-  const slotFilterApplies = ui.tab === "all" || ui.tab === "equipment";
+  const gear = gearFiltersApply();
   return entries.filter((entry) => {
     if (ui.tab !== "all" && entry.category !== ui.tab) return false;
     if (ui.rarity !== "all" && entry.rarity !== ui.rarity) return false;
-    if (slotFilterApplies && ui.type !== "all" && entry.slot !== ui.type) return false;
+    if (gear && ui.type !== "all" && entry.slot !== ui.type) return false;
+    if (gear && ui.flag !== "all" && !entry.flags?.[ui.flag]) return false;
+    if (ui.origin !== "all" && entry.originLocationId !== ui.origin) return false;
     if (query) {
       const haystack = `${entry.name} ${SLOT_META[entry.slot]?.label ?? ""} ${RARITIES[entry.rarity]?.label ?? ""}`.toLowerCase();
       if (!haystack.includes(query)) return false;
@@ -757,10 +834,15 @@ function filterEntries(entries) {
 function sortEntries(entries) {
   const byName = (a, b) => a.name.localeCompare(b.name, "cs");
   const rank = (list, value) => { const i = list.indexOf(value); return i < 0 ? list.length : i; };
+  // Materiály nemají čas získání ani prodejní hodnotu -- vždy se řadí za vybavení.
+  const itemsFirst = (a, b) => (a.kind === b.kind ? 0 : a.kind === "item" ? -1 : 1);
   const sorters = {
-    newest: (a, b) => a.order - b.order,
+    newest: (a, b) => itemsFirst(a, b) || (a.kind === "item" ? b.time - a.time || a.order - b.order : a.order - b.order),
+    oldest: (a, b) => itemsFirst(a, b) || (a.kind === "item" ? a.time - b.time || b.order - a.order : a.order - b.order),
     rarity: (a, b) => rank(RARITY_ORDER, a.rarity) - rank(RARITY_ORDER, b.rarity) || byName(a, b),
     name: byName,
+    value: (a, b) => itemsFirst(a, b) || b.value - a.value || byName(a, b),
+    power: (a, b) => itemsFirst(a, b) || b.power - a.power || byName(a, b),
     slot: (a, b) => rank(SLOT_ORDER, a.slot) - rank(SLOT_ORDER, b.slot) || byName(a, b),
   };
   return [...entries].sort(sorters[ui.sort] ?? sorters.newest);
@@ -794,6 +876,53 @@ function resolveSelection() {
   return resolved;
 }
 
+const LOCK_ICON = "<svg class='px-icon' viewBox='0 0 8 8' aria-hidden='true' focusable='false'><path fill-rule='evenodd' d='M2 0h4v1H2zM2 1h1v3H2zM5 1h1v3H5zM1 4h6v4H1zM3 5h2v2H3z'/></svg>";
+
+// Odznak s počtem neprohlédnutých itemů v navigaci (+ varování o nevyzvednuté kořisti).
+function updateNavBadges() {
+  const fresh = state.inventory.filter((item) => item.isNew).length;
+  const waiting = state.unclaimed.length;
+  $$("[data-nav-badge]").forEach((badge) => {
+    const value = badge.dataset.navBadge === "new" ? fresh : waiting;
+    badge.hidden = value === 0;
+    const text = badge.dataset.navBadge === "new" ? String(value) : `!${value}`;
+    if (badge.textContent !== text) badge.textContent = text;
+    badge.title = badge.dataset.navBadge === "new" ? `${value} neprohlédnutých předmětů` : `${value} předmětů čeká na vyzvednutí`;
+  });
+}
+
+function activeFilterList() {
+  const list = [];
+  const gear = gearFiltersApply();
+  if (ui.search.trim()) list.push(["search", `Hledání: „${ui.search.trim()}“`]);
+  if (gear && ui.type !== "all") list.push(["type", `Slot: ${SLOT_META[ui.type]?.label ?? ui.type}`]);
+  if (ui.rarity !== "all") list.push(["rarity", `Rarita: ${RARITIES[ui.rarity]?.label ?? ui.rarity}`]);
+  if (gear && ui.flag !== "all") list.push(["flag", `Stav: ${{ new: "Nové", favorite: "Oblíbené", locked: "Uzamčené" }[ui.flag] ?? ui.flag}`]);
+  if (ui.origin !== "all") list.push(["origin", `Lokace: ${LOCATIONS[ui.origin]?.name ?? ui.origin}`]);
+  return list;
+}
+
+function renderActiveFilters() {
+  const box = elements.invActiveFilters;
+  const list = activeFilterList();
+  box.classList.toggle("hidden", list.length === 0);
+  box.replaceChildren();
+  if (!list.length) return;
+  box.append(mk("span", { class: "active-filters-label", text: "Aktivní filtry:" }));
+  list.forEach(([key, label]) => box.append(mk("button", { class: "chip", type: "button", "data-clear-filter": key, "aria-label": `Zrušit filtr — ${label}`, text: `${label}  ✕` })));
+  if (list.length > 1) box.append(mk("button", { class: "chip chip-clear", type: "button", "data-clear-filter": "all", text: "Zrušit všechny filtry" }));
+}
+
+function clearFilter(key) {
+  if (key === "all" || key === "search") ui.search = "";
+  if (key === "all" || key === "type") ui.type = "all";
+  if (key === "all" || key === "rarity") ui.rarity = "all";
+  if (key === "all" || key === "flag") ui.flag = "all";
+  if (key === "all" || key === "origin") ui.origin = "all";
+  syncInventoryControls();
+  renderInventory();
+}
+
 function renderInventory() {
   const grid = elements.inventoryGrid;
   const focusKey = grid.contains(document.activeElement) ? document.activeElement.dataset?.key : null;
@@ -807,6 +936,7 @@ function renderInventory() {
   $$("[data-tab-count]").forEach((node) => { node.textContent = counts[node.dataset.tabCount] ?? 0; });
   elements.inventoryCapacity.textContent = CONFIG.inventoryCapacity;
   elements.inventoryCount.textContent = state.inventory.length;
+  elements.inventoryCount.closest(".capacity")?.classList.toggle("full", state.inventory.length >= CONFIG.inventoryCapacity);
 
   const visible = sortEntries(filterEntries(entries));
   const selectedKeyValue = selectionKey();
@@ -821,21 +951,30 @@ function renderInventory() {
     cell.dataset.key = entry.key;
     const marked = deleteMode && entry.kind === "item" && selectedForDeletion.has(entry.id);
     const selected = !deleteMode && entry.key === selectedKeyValue;
+    const locked = deleteMode && entry.flags?.locked;
     cell.classList.toggle("selected", selected);
     cell.classList.toggle("marked", marked);
+    cell.classList.toggle("protected", Boolean(locked));
     cell.setAttribute("aria-pressed", String(deleteMode ? marked : selected));
-    cell.setAttribute("aria-label", deleteMode ? `Vybrat ke smazání: ${entryAriaLabel(entry)}` : `${entryAriaLabel(entry)} — zobrazit detail`);
-    cell.title = `${entry.name} · ${rarity.label}`;
-    cell.innerHTML = `<span class="cell-check" aria-hidden="true"></span><span class="cell-icon" aria-hidden="true"></span>${entry.kind === "material" ? `<span class="cell-qty">×${entry.qty}</span>` : ""}<span class="cell-name"></span>`;
+    if (locked) cell.setAttribute("aria-disabled", "true");
+    cell.setAttribute("aria-label", deleteMode ? `${locked ? "Uzamčeno, nelze vybrat" : "Vybrat"}: ${entryAriaLabel(entry)}` : `${entryAriaLabel(entry)} — zobrazit detail`);
+    cell.title = entry.kind === "item" ? `${entry.name} · ${rarity.label} · ${entry.value} gold` : `${entry.name} · ${rarity.label}`;
+    const flags = [
+      entry.flags?.new ? "<span class='flag flag-new'>NOVÉ</span>" : "",
+      entry.flags?.favorite ? "<span class='flag flag-fav' title='Oblíbené'>★</span>" : "",
+      entry.flags?.locked ? `<span class='flag flag-lock' title='Uzamčeno'>${LOCK_ICON}</span>` : "",
+    ].join("");
+    cell.innerHTML = `<span class="cell-check" aria-hidden="true"></span><span class="cell-icon" aria-hidden="true"></span>${entry.kind === "material" ? `<span class="cell-qty">×${entry.qty}</span>` : (flags ? `<span class="cell-flags" aria-hidden="true">${flags}</span>` : "")}<span class="cell-name"></span>`;
     renderItemIcon(cell.querySelector(".cell-icon"), entry.iconSource);
     cell.querySelector(".cell-name").textContent = entry.name;
     grid.append(cell);
   });
 
-  // Prázdné buňky ukazují kapacitu vybavení (jen na záložce VYBAVENÍ bez filtrů).
-  const unfiltered = !ui.search.trim() && ui.rarity === "all" && ui.type === "all";
+  // Prázdné buňky ukazují volné místo (jen na záložce VYBAVENÍ bez filtrů; s kapacitou 60 jen ukázka).
+  const unfiltered = activeFilterList().length === 0;
   if (ui.tab === "equipment" && unfiltered) {
-    for (let i = counts.equipment; i < CONFIG.inventoryCapacity; i += 1) {
+    const preview = Math.min(inventoryFreeSlots(), 8);
+    for (let i = 0; i < preview; i += 1) {
       const empty = document.createElement("div");
       empty.className = "inv-cell empty";
       empty.setAttribute("aria-hidden", "true");
@@ -847,19 +986,61 @@ function renderInventory() {
   const nothing = visible.length === 0;
   elements.inventoryEmpty.classList.toggle("hidden", !nothing);
   if (nothing) {
-    const filtered = Boolean(ui.search.trim()) || ui.rarity !== "all" || (ui.type !== "all" && (ui.tab === "all" || ui.tab === "equipment"));
+    const filtered = activeFilterList().length > 0;
     const texts = {
       all: ["Inventář je prázdný", "Porážej nepřátele. Každý může zanechat vybavení nebo materiál."],
       equipment: ["Žádné vybavení", "Porážej nepřátele. Každý může zanechat vybavení s náhodnými vlastnostmi."],
       materials: ["Žádné materiály", "Materiály padají z nepřátel v Pustině ticha. Na mapě si u každého nepřítele otevři „Možná kořist“."],
       scrolls: ["Žádné svitky", "Svitky padají velmi vzácně z vybraných nepřátel — mrkni na „Možná kořist“ na mapě."],
     };
-    const [title, text] = filtered ? ["Nic neodpovídá filtru", "Zkus upravit hledání nebo vyčistit filtry."] : texts[ui.tab];
+    const [title, text] = filtered ? ["Nic neodpovídá filtru", "Zkus upravit hledání nebo zrušit filtry."] : texts[ui.tab];
     elements.inventoryEmptyTitle.textContent = title;
     elements.inventoryEmptyText.textContent = text;
   }
 
+  renderActiveFilters();
+  renderUnclaimed();
+  updateNavBadges();
   if (focusKey) grid.querySelector(`[data-key="${CSS.escape(focusKey)}"]`)?.focus({ preventScroll: true });
+}
+
+// --- Nevyzvednutá kořist (plný inventář) -------------------------------------
+function renderUnclaimed() {
+  const count = state.unclaimed.length;
+  elements.unclaimedPanel.classList.toggle("hidden", count === 0);
+  elements.unclaimedCount.textContent = count;
+  if (!count) { elements.unclaimedList.replaceChildren(); return; }
+  const full = inventoryFreeSlots() === 0;
+  elements.claimAllButton.disabled = full;
+  elements.claimAllButton.title = full ? "Inventář je plný — nejdřív uvolni místo." : "";
+  const focusId = elements.unclaimedList.contains(document.activeElement) ? document.activeElement.dataset.claimId : null;
+  const rows = state.unclaimed.slice(0, LOOT_CONFIG.unclaimedListPreview).map((item) => {
+    const icon = mk("span", { class: "unclaimed-icon", "aria-hidden": "true" });
+    renderItemIcon(icon, item);
+    const copy = mk("span", { class: "unclaimed-copy" },
+      mk("strong", { class: `rarity-text rarity-${item.rarity}`, text: item.name }),
+      mk("span", { text: `${RARITIES[item.rarity]?.label ?? ""} · ${SLOT_META[item.slot]?.label ?? ""} · síla ${fmtNum(itemPower(item))}` }));
+    return mk("li", { class: `unclaimed-row rarity-${item.rarity}` }, icon, copy,
+      mk("button", { class: "btn", type: "button", "data-claim-id": item.id, disabled: full, text: "Přesunout" }));
+  });
+  if (count > rows.length) rows.push(mk("li", { class: "unclaimed-more", text: `… a dalších ${count - rows.length} předmětů` }));
+  elements.unclaimedList.replaceChildren(...rows);
+  if (focusId) $(`[data-claim-id="${CSS.escape(focusId)}"]`, elements.unclaimedList)?.focus({ preventScroll: true });
+}
+
+// Přesune čekající kořist do inventáře, dokud je místo. `itemId = null` = vše, co se vejde.
+function claimUnclaimed(itemId = null) {
+  let moved = 0;
+  const remaining = [];
+  for (const item of state.unclaimed) {
+    const wanted = itemId === null || item.id === itemId;
+    if (wanted && state.inventory.length < CONFIG.inventoryCapacity) { state.inventory.unshift(item); moved += 1; }
+    else remaining.push(item);
+  }
+  state.unclaimed = remaining;
+  if (moved) addLog(`Z nevyzvednuté kořisti přesunuto do inventáře: ${moved} ${pluralizePredmet(moved)}.`, "system");
+  else addLog("Inventář je plný — nejdřív uvolni místo.", "system");
+  renderLoot(); saveState();
 }
 
 function renderPaperDoll() {
@@ -904,37 +1085,59 @@ function formatAcquiredAt(ms) {
   return new Date(ms).toLocaleString("cs-CZ", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-// Porovnání vybraného předmětu z inventáře s tím, co je nasazené ve stejném slotu.
+// Porovnání vybraného předmětu s předmětem nasazeným ve stejném slotu. Rozdíly se
+// počítají z VÝSLEDNÝCH statů postavy po výměně (getPlayerStats s přepsaným
+// vybavením), ne z textů na itemech. Nic se přitom nemění ani neléčí.
+const COMPARE_ROWS = Object.freeze([
+  ["Minimální poškození", "minDamage", 1, ""],
+  ["Maximální poškození", "maxDamage", 1, ""],
+  ["Maximální životy", "maxHp", 1, ""],
+  ["Kritický zásah", "critChance", 100, " %"],
+]);
+
+function compareCard(label, item) {
+  const card = mk("div", { class: `cmp-card${item ? ` rarity-${item.rarity}` : " empty"}` }, mk("span", { class: "cmp-card-label", text: label }));
+  if (!item) {
+    card.append(mk("strong", { class: "cmp-card-name", text: "Prázdný slot" }), mk("span", { class: "cmp-card-sub", text: "Nic není nasazeno" }));
+    return card;
+  }
+  const icon = mk("span", { class: "cmp-card-icon", "aria-hidden": "true" });
+  renderItemIcon(icon, item);
+  const stats = mk("ul", { class: "cmp-stats" });
+  statRows(item).forEach(([name, value]) => stats.append(mk("li", {}, mk("span", { text: name }), mk("b", { text: value }))));
+  card.append(
+    icon,
+    mk("strong", { class: `cmp-card-name rarity-text rarity-${item.rarity}`, text: item.name }),
+    mk("span", { class: "cmp-card-sub", text: `${RARITIES[item.rarity]?.label ?? ""} · síla ${fmtNum(itemPower(item))}` }),
+    stats,
+  );
+  return card;
+}
+
 function renderCompare(item) {
   const box = elements.detailCompare;
-  box.innerHTML = "";
-  const equipped = state.equipment[item.slot];
+  box.replaceChildren();
   if (!SLOT_META[item.slot]) { box.classList.add("hidden"); return; }
-  const title = document.createElement("p");
-  title.className = "detail-compare-title";
-  if (!equipped) {
-    title.textContent = `Slot ${SLOT_META[item.slot].label} je prázdný — předmět je čistý zisk.`;
-    box.append(title);
-    box.classList.remove("hidden");
-    return;
-  }
-  title.innerHTML = "Oproti vybavenému: <strong></strong>";
-  title.querySelector("strong").textContent = equipped.name;
-  box.append(title);
-  STAT_KEYS.forEach((key) => {
-    const next = item.stats?.[key] ?? 0;
-    const prev = equipped.stats?.[key] ?? 0;
-    if (!next && !prev) return;
-    const diff = Math.round((next - prev) * 10) / 10;
-    const row = document.createElement("div");
-    row.className = "cmp-row";
-    const label = document.createElement("span"); label.textContent = STAT_LABELS[key];
-    const value = document.createElement("span");
-    value.className = diff > 0 ? "up" : diff < 0 ? "down" : "same";
-    value.textContent = diff === 0 ? "beze změny" : `${diff > 0 ? "+" : "−"}${formatStat(key, Math.abs(diff))}`;
-    row.append(label, value);
-    box.append(row);
+  const equipped = state.equipment[item.slot];
+  const now = getPlayerStats();
+  const next = getPlayerStats({ ...state.equipment, [item.slot]: item });
+  box.append(
+    mk("p", { class: "detail-compare-title", text: `Porovnání · slot ${SLOT_META[item.slot].label}` }),
+    mk("div", { class: "cmp-cards" }, compareCard("Vybraný předmět", item), compareCard("Nasazeno", equipped)),
+    mk("p", { class: "detail-compare-title", text: "Změna statů postavy po nasazení" }),
+  );
+  COMPARE_ROWS.forEach(([label, key, scale, unit]) => {
+    const before = roundStat(now[key] * scale);
+    const after = roundStat(next[key] * scale);
+    const diff = Math.round((after - before) * 10) / 10;
+    box.append(mk("div", { class: "cmp-row" },
+      mk("span", { class: "cmp-label", text: label }),
+      mk("span", { class: "cmp-values", text: `${fmtNum(before)}${unit} → ${fmtNum(after)}${unit}` }),
+      mk("span", { class: `cmp-delta ${diff > 0 ? "up" : diff < 0 ? "down" : "same"}`, text: fmtSigned(diff, unit) })));
   });
+  if (next.maxHp < now.maxHp && state.player.hp > next.maxHp) {
+    box.append(mk("p", { class: "cmp-note", text: `Aktuální životy se ořežou na nové maximum (${fmtNum(next.maxHp)}). Změna vybavení nikdy neléčí.` }));
+  }
   box.classList.remove("hidden");
 }
 
@@ -956,6 +1159,7 @@ function renderDetail() {
   elements.detailStats.innerHTML = "";
   elements.detailMeta.innerHTML = "";
   elements.detailCompare.classList.add("hidden");
+  elements.detailSecondary.classList.add("hidden");
   const action = elements.detailActionButton;
   const note = elements.detailNote;
   note.classList.add("hidden");
@@ -998,13 +1202,21 @@ function renderDetail() {
   const acquiredAt = formatAcquiredAt(item.acquiredAt);
   const metaRows = [
     ["Slot", SLOT_META[item.slot]?.label ?? "—"],
+    ["Síla itemu", fmtNum(itemPower(item))],
+    ["Prodejní hodnota", `${itemSellValue(item)} gold`],
     ["Zdroj", item.source ?? "Neznámo (starší nález)"],
+    ["Lokace původu", LOCATIONS[item.sourceLocationId]?.name ?? "Neznámo"],
     ["Obchodovatelné", tradeable ? "Ano" : "Ne · jedinečný nález"],
   ];
   if (item.quantity > 1) metaRows.push(["Počet kusů", `${item.quantity}×`]);
   if (acquiredAt) metaRows.push(["Získáno", acquiredAt]);
   metaRows.forEach(([label, value]) => elements.detailMeta.append(kvRow(label, value)));
 
+  elements.detailSecondary.classList.remove("hidden");
+  elements.detailFavButton.textContent = item.isFavorite ? "ODEBRAT Z OBLÍBENÝCH" : "PŘIDAT K OBLÍBENÝM";
+  elements.detailFavButton.setAttribute("aria-pressed", String(Boolean(item.isFavorite)));
+  elements.detailLockButton.textContent = item.isLocked ? "ODEMKNOUT" : "ZAMKNOUT";
+  elements.detailLockButton.setAttribute("aria-pressed", String(Boolean(item.isLocked)));
   action.classList.remove("hidden");
   if (equippedNow) {
     action.textContent = "SUNDAT";
@@ -1014,7 +1226,7 @@ function renderDetail() {
       note.classList.remove("hidden");
     }
   } else if (SLOT_META[item.slot]) {
-    action.textContent = state.equipment[item.slot] ? "VYMĚNIT" : "VYBAVIT";
+    action.textContent = "NASADIT";
   } else {
     action.classList.add("hidden");
   }
@@ -1094,6 +1306,11 @@ function onInventoryCell(key) {
   const kind = key.slice(0, separator);
   const id = key.slice(separator + 1);
   if (deleteMode) { if (kind === "item") toggleSelection(id); return; }
+  if (kind === "item") {
+    // Otevření detailu = item je prohlédnutý (zmizí značka NOVÉ).
+    const item = state.inventory.find((entry) => entry.id === id);
+    if (item?.isNew) { item.isNew = false; saveState(); }
+  }
   selectEntity(kind === "item" ? { kind: "item", id } : { kind: "material", id });
 }
 
@@ -1107,6 +1324,13 @@ function onDollSlot(slot) {
   renderInventory();
 }
 
+function toggleItemFlag(flag) {
+  const resolved = resolveSelection();
+  if (!resolved || resolved.kind === "material") return;
+  resolved.item[flag] = !resolved.item[flag];
+  renderLoot(); saveState();
+}
+
 function runDetailAction() {
   const resolved = resolveSelection();
   if (!resolved) return;
@@ -1117,6 +1341,11 @@ function runDetailAction() {
 }
 
 // --- Filtry a záložky -------------------------------------------------
+function populateOriginFilter() {
+  const origins = Object.values(LOCATIONS).filter((location) => location.itemIds.length > 0 || location.materialIds.length > 0);
+  elements.invOrigin.innerHTML = `<option value="all">Všechny lokace</option>${origins.map((location) => `<option value="${location.id}">${location.name}</option>`).join("")}`;
+}
+
 function populateTypeFilter() {
   elements.invType.innerHTML = `<option value="all">Všechny sloty</option>${SLOT_ORDER.map((slot) => `<option value="${slot}">${SLOT_META[slot].label}</option>`).join("")}`;
 }
@@ -1130,8 +1359,11 @@ function syncInventoryControls() {
   elements.invSearch.value = ui.search;
   elements.invType.value = ui.type;
   elements.invRarity.value = ui.rarity;
+  elements.invFlag.value = ui.flag;
+  elements.invOrigin.value = ui.origin;
   elements.invSort.value = ui.sort;
-  elements.invTypeField.classList.toggle("hidden", ui.tab === "materials" || ui.tab === "scrolls");
+  elements.invTypeField.classList.toggle("hidden", !gearFiltersApply());
+  elements.invFlagField.classList.toggle("hidden", !gearFiltersApply());
 }
 
 function setInventoryTab(tab) {
@@ -1201,7 +1433,7 @@ function resetGame() {
   elements.combatLog.innerHTML = "";
   ui.selection = null;
   ui.selectedMapLocationId = null; ui.locTab = "info"; ui.highlightEnemyId = null;
-  ui.tab = "all"; ui.search = ""; ui.type = "all"; ui.rarity = "all"; ui.sort = "newest";
+  ui.tab = "all"; ui.search = ""; ui.type = "all"; ui.rarity = "all"; ui.flag = "all"; ui.origin = "all"; ui.sort = "newest";
   closeSheet({ restoreFocus: false });
   deleteMode = false;
   selectedForDeletion.clear();
@@ -1770,7 +2002,20 @@ elements.invTabs.addEventListener("click", (event) => {
 elements.invSearch.addEventListener("input", () => { ui.search = elements.invSearch.value; renderInventory(); });
 elements.invType.addEventListener("change", () => { ui.type = elements.invType.value; renderInventory(); });
 elements.invRarity.addEventListener("change", () => { ui.rarity = elements.invRarity.value; renderInventory(); });
+elements.invFlag.addEventListener("change", () => { ui.flag = elements.invFlag.value; renderInventory(); });
+elements.invOrigin.addEventListener("change", () => { ui.origin = elements.invOrigin.value; renderInventory(); });
 elements.invSort.addEventListener("change", () => { ui.sort = elements.invSort.value; renderInventory(); });
+elements.invActiveFilters.addEventListener("click", (event) => {
+  const chip = event.target.closest("[data-clear-filter]");
+  if (chip) clearFilter(chip.dataset.clearFilter);
+});
+elements.detailFavButton.addEventListener("click", () => toggleItemFlag("isFavorite"));
+elements.detailLockButton.addEventListener("click", () => toggleItemFlag("isLocked"));
+elements.claimAllButton.addEventListener("click", () => claimUnclaimed());
+elements.unclaimedList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-claim-id]");
+  if (button && !button.disabled) claimUnclaimed(button.dataset.claimId);
+});
 
 // Mapa
 elements.mapPins.addEventListener("click", (event) => {
@@ -1862,6 +2107,7 @@ validateMaterialSources();
 initCombatWidgets();
 applyCharacterPreview();
 populateTypeFilter();
+populateOriginFilter();
 syncInventoryControls();
 startLoops();
 updateArenaHeader();

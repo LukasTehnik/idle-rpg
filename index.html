@@ -8,7 +8,7 @@
       name="description"
       content="Prohlížečový idle RPG prototyp s aplikačním shellem, samostatnými stránkami a paper-doll inventářem."
     />
-    <title>Idle RPG — Prototype 0.4</title>
+    <title>Idle RPG — Prototype 0.5</title>
     <link rel="preload" href="assets/fonts/jersey-10-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -31,7 +31,7 @@
           <nav class="nav" aria-label="Stránky hry">
             <p class="nav-heading">Hra</p>
             <a class="nav-link" href="#/postava" data-page-link="postava"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M3 0h2v2H3zM2 3h4v3H2zM1 3h1v2H1zM6 3h1v2H6zM2 6h1v2H2zM5 6h1v2H5z"/></svg><span>Postava</span></a>
-            <a class="nav-link" href="#/inventar" data-page-link="inventar"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M3 0h2v1H3zM2 1h4v1H2zM1 2h6v6H1zM3 4h2v2H3z"/></svg><span>Inventář</span></a>
+            <a class="nav-link" href="#/inventar" data-page-link="inventar"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M3 0h2v1H3zM2 1h4v1H2zM1 2h6v6H1zM3 4h2v2H3z"/></svg><span>Inventář</span><span class="nav-badge" data-nav-badge="new" hidden></span><span class="nav-badge nav-badge-warn" data-nav-badge="unclaimed" hidden></span></a>
             <a class="nav-link" href="#/mapa" data-page-link="mapa"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M2 0h4v1H2zM1 1h6v3H1zM2 4h4v1H2zM3 5h2v1H3zM3 6h2v2H3zM3 2h2v1H3z"/></svg><span>Mapa</span></a>
             <a class="nav-link" href="#/boj" data-page-link="boj"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M6 0h2v1H6zM5 1h3v1H5zM4 2h3v1H4zM3 3h3v1H3zM1 4h4v1H1zM2 5h2v1H2zM1 6h2v2H1z"/></svg><span>Boj</span></a>
             <div id="combatWidgetSidebar" class="cw-slot"></div>
@@ -39,7 +39,7 @@
             <a class="nav-link nav-link-external" href="item-catalog.html">Katalog předmětů <span aria-hidden="true">↗</span></a>
           </nav>
 
-          <p class="sidebar-note">Prototype 0.4<br />UI shell · boj běží na pozadí při přepínání stránek</p>
+          <p class="sidebar-note">Prototype 0.5<br />Kořist, ekonomika a sbírka · boj běží na pozadí při přepínání stránek</p>
         </div>
       </aside>
       <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
@@ -158,16 +158,45 @@
                       <option value="epic">Epický</option>
                     </select>
                   </label>
+                  <label class="field" id="invFlagField">
+                    <span class="field-label">Stav</span>
+                    <select id="invFlag">
+                      <option value="all">Všechny</option>
+                      <option value="new">Nové</option>
+                      <option value="favorite">Oblíbené</option>
+                      <option value="locked">Uzamčené</option>
+                    </select>
+                  </label>
+                  <label class="field" id="invOriginField">
+                    <span class="field-label">Lokace původu</span>
+                    <select id="invOrigin"></select>
+                  </label>
                   <label class="field">
                     <span class="field-label">Řazení</span>
                     <select id="invSort">
                       <option value="newest">Nejnovější</option>
+                      <option value="oldest">Nejstarší</option>
                       <option value="rarity">Rarita</option>
                       <option value="name">Název</option>
+                      <option value="value">Prodejní hodnota</option>
+                      <option value="power">Síla itemu</option>
                       <option value="slot">Slot</option>
                     </select>
                   </label>
                 </div>
+                <div id="invActiveFilters" class="active-filters hidden" aria-label="Aktivní filtry"></div>
+
+                <section id="unclaimedPanel" class="unclaimed hidden" aria-labelledby="unclaimedTitle">
+                  <div class="unclaimed-head">
+                    <div>
+                      <p class="eyebrow">Inventář je plný</p>
+                      <h3 id="unclaimedTitle" class="unclaimed-title">Nevyzvednutá kořist (<span id="unclaimedCount">0</span>)</h3>
+                    </div>
+                    <button id="claimAllButton" class="btn btn-primary" type="button">Přesunout, co se vejde</button>
+                  </div>
+                  <p class="muted">Tyto předměty nezmizely — čekají, až uvolníš místo (prodej, smazání nebo sundání vybavení).</p>
+                  <ul id="unclaimedList" class="unclaimed-list"></ul>
+                </section>
 
                 <div id="bulkDeleteBar" class="bulk-bar hidden">
                   <span><strong id="selectedCount">0</strong> vybráno ke smazání</span>
@@ -248,6 +277,10 @@
                     <p id="detailType" class="detail-type"></p>
                     <div class="detail-actions">
                       <button id="detailActionButton" class="btn btn-primary" type="button">VYBAVIT</button>
+                      <div id="detailSecondary" class="detail-secondary">
+                        <button id="detailFavButton" class="btn" type="button">PŘIDAT K OBLÍBENÝM</button>
+                        <button id="detailLockButton" class="btn" type="button">ZAMKNOUT</button>
+                      </div>
                       <p id="detailNote" class="detail-note hidden"></p>
                     </div>
                     <div id="detailStats" class="kv-list"></div>
@@ -391,6 +424,7 @@
     <div id="dropToastStack" class="drop-toast-stack" aria-live="polite" aria-atomic="false"></div>
 
     <script src="item-data.js"></script>
+    <script src="economy-data.js"></script>
     <script src="material-data.js"></script>
     <script src="world-data.js"></script>
     <script src="app.js"></script>
