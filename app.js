@@ -79,6 +79,7 @@ const initialState = () => ({
   stats: emptyStats(),
   // Sbírka šablon itemů: { [templateId]: { count, firstAt, firstEnemyId, firstLocationId, best } }.
   collection: {},
+  bestiary: {},
   // Prototype 0.4: stackable materials/scrolls, stored by stable material id
   // -> quantity (e.g. { "wing-dust": 14 }). They do NOT count against the
   // equipment capacity.
@@ -140,6 +141,7 @@ const ELEMENT_IDS = [
   "merchantCount", "merchantBreakdown", "merchantTotal", "merchantSell", "buybackCount", "buybackList",
   "ruleAutoSell", "ruleSlots", "autoSellState", "lootLogList",
   "bankAmount", "bankDeposit", "bankWithdraw", "bankDepositAll", "bankWithdrawAll", "bankMessage",
+  "bestiaryLocation", "bestiaryProgress", "bestiaryList", "collectionLocation", "collectionProgress", "collectionOverview", "collectionList",
   "sellDialog", "sellDialogEyebrow", "sellDialogTitle", "sellDialogSummary", "sellDialogTotal", "sellDialogWarnings", "sellCancel", "sellConfirm",
   "deleteModeButton", "bulkDeleteBar", "selectedCount", "confirmDeleteButton", "cancelDeleteButton",
   "itemDetail", "detailEmpty", "detailBody", "detailRarity", "detailIcon", "detailTitle", "detailType",
@@ -380,6 +382,51 @@ function backfillCollection(items) {
   return collection;
 }
 
+// Bestiář: záznam existuje = nepřítel je objevený (první souboj už začal).
+function sanitizeBestiary(raw) {
+  const result = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return result;
+  const ids = (list, valid) => [...new Set((Array.isArray(list) ? list : []).filter((id) => typeof id === "string" && valid(id)))];
+  for (const [enemyId, entry] of Object.entries(raw)) {
+    if (!ENEMIES[enemyId] || !entry || typeof entry !== "object") continue;
+    result[enemyId] = {
+      firstSeenAt: Number(entry.firstSeenAt) || 0, kills: goldInt(entry.kills), deaths: goldInt(entry.deaths),
+      items: ids(entry.items, (id) => Boolean(findTemplateById(id))), materials: ids(entry.materials, (id) => Boolean(MATERIALS[id])),
+    };
+  }
+  return result;
+}
+
+function findTemplateById(templateId) { return ITEM_TEMPLATES.find((template) => template.templateId === templateId) ?? null; }
+
+function discoverEnemy(enemyId, bestiary = state.bestiary) {
+  if (!ENEMIES[enemyId]) return null;
+  return bestiary[enemyId] ?? (bestiary[enemyId] = { firstSeenAt: Date.now(), kills: 0, deaths: 0, items: [], materials: [] });
+}
+
+function noteEnemyDrop(enemyId, kind, id, bestiary = state.bestiary) {
+  const entry = discoverEnemy(enemyId, bestiary);
+  if (!entry || !id) return;
+  const list = kind === "item" ? entry.items : entry.materials;
+  if (!list.includes(id)) list.push(id);
+}
+
+// Starý save (0.4) nemá per-enemy historii: odvodí se z toho, co jde spolehlivě zjistit
+// (aktuální nepřítel s výhrami, původ vlastněných itemů, jednozdrojové materiály).
+function backfillBestiary(saved, owned, materials, currentEnemyId, run) {
+  const bestiary = {};
+  if ((saved.kills ?? 0) > 0 || (run?.kills ?? 0) > 0) {
+    const entry = discoverEnemy(currentEnemyId, bestiary);
+    if (run?.targetEnemyId === currentEnemyId) entry.kills = goldInt(run.kills);
+  }
+  owned.forEach((item) => { if (item.sourceEnemyId) noteEnemyDrop(item.sourceEnemyId, "item", item.templateId, bestiary); });
+  for (const id of Object.keys(materials)) {
+    const sources = MATERIALS[id]?.sourceEnemyIds ?? [];
+    if (sources.length === 1) noteEnemyDrop(sources[0], "material", id, bestiary);
+  }
+  return bestiary;
+}
+
 function loadState() {
   const fresh = initialState();
   try {
@@ -419,6 +466,7 @@ function loadState() {
       carriedGold, bankGold: goldInt(saved.bankGold),
       buyback: sanitizeBuyback(saved.buyback), lootRules: sanitizeLootRules(saved.lootRules), lootLog: sanitizeLootLog(saved.lootLog),
       stats, collection: saved.collection ? sanitizeCollection(saved.collection) : backfillCollection(owned),
+      bestiary: saved.bestiary ? sanitizeBestiary(saved.bestiary) : backfillBestiary(saved, owned, materials, currentEnemyId, run),
       elapsedSeconds: saved.elapsedSeconds ?? fresh.elapsedSeconds,
       inventory: cleanInventory, materials, unclaimed,
       recentDrops: sanitizeRecentDrops(saved.recentDrops),
@@ -434,7 +482,7 @@ function saveState() {
   const payload = {
     version: 3, level: state.level, xp: state.xp, kills: state.kills, drops: state.drops,
     carriedGold: state.carriedGold, bankGold: state.bankGold, currentEnemyId: state.currentEnemyId,
-    buyback: state.buyback, lootRules: state.lootRules, lootLog: state.lootLog, stats: state.stats, collection: state.collection,
+    buyback: state.buyback, lootRules: state.lootRules, lootLog: state.lootLog, stats: state.stats, collection: state.collection, bestiary: state.bestiary,
     activeLocationId: state.activeLocationId, run: state.run,
     elapsedSeconds: state.elapsedSeconds, inventory: state.inventory, equipment: state.equipment,
     materials: state.materials, recentDrops: state.recentDrops, unclaimed: state.unclaimed,
@@ -519,6 +567,15 @@ function render() {
   setText("totalGold", fmtGold(state.carriedGold + state.bankGold));
   setText("deathLoss", fmtGold(deathGoldLoss()));
   setText("runTime", formatTime(state.elapsedSeconds));
+  setText("ltItemsFound", fmtNum(state.stats.itemsFound));
+  setText("ltMaterialsFound", fmtNum(state.stats.materialsFound));
+  setText("ltGoldEarned", fmtGold(state.stats.goldEarned));
+  setText("ltGoldFromSales", fmtGold(state.stats.goldFromSales));
+  setText("ltGoldLost", fmtGold(state.stats.goldLostToDeath));
+  setText("ltDeaths", fmtNum(state.stats.deaths));
+  setText("ltEnemiesDiscovered", `${Object.keys(state.bestiary).length} / ${Object.keys(ENEMIES).length}`);
+  setText("ltItemsDiscovered", `${Object.keys(state.collection).length} / ${collectionTemplates().length}`);
+  setText("ltHighestCrit", fmtNum(state.stats.highestCrit));
   setText("playerHp", Math.ceil(state.player.hp));
   setText("playerMaxHp", roundStat(stats.maxHp));
   setBar("playerHp", clampPercent(state.player.hp, stats.maxHp));
@@ -597,6 +654,7 @@ function updateArenaHeader() {
 
 function beginFight(now = performance.now()) {
   const enemyCfg = getCurrentEnemy();
+  if (!state.bestiary[enemyCfg.id]) { discoverEnemy(enemyCfg.id); addLog(`Bestiář: objeven nový nepřítel — ${enemyCfg.name}.`, "system"); }
   state.phase = "fighting";
   state.enemy.maxHp = enemyCfg.maxHp;
   state.enemy.hp = enemyCfg.maxHp;
@@ -636,6 +694,7 @@ function defeatEnemy() {
   if (state.phase !== "fighting") return;
   const enemyCfg = getCurrentEnemy();
   state.kills += 1;
+  discoverEnemy(enemyCfg.id).kills += 1;
   state.xp += enemyCfg.xp;
   addCarriedGold(enemyCfg.gold ?? 0);
   state.run.kills += 1;
@@ -654,6 +713,7 @@ function defeatEnemy() {
   if (Math.random() < (enemyCfg.dropChance ?? CONFIG.dropChance)) generateDrop(enemyCfg);
   rollMaterialDrops(enemyCfg);
   if (ui.page === "obchodnik") renderMerchant(); // dostupnost zpětného odkupu závisí na zlatě
+  if (ui.page === "bestiar") renderBestiary();
   saveState();
 }
 
@@ -675,6 +735,7 @@ function defeatPlayer() {
   state.phaseEndsAt = performance.now() + CONFIG.playerRespawnMs;
   elements.encounterMessage.textContent = "Návrat k výpravě za 5 s";
   state.stats.deaths += 1;
+  discoverEnemy(state.currentEnemyId).deaths += 1;
   // Prototype 0.5: smrt stojí 5 % ZLATA U SEBE. Zlato v bance je chráněné.
   const lostGold = deathGoldLoss();
   if (lostGold > 0) {
@@ -782,16 +843,17 @@ function rollMaterialDrops(enemyCfg) {
     // source of it (guards e.g. "Oko Matky" = Matka děr only).
     if (!material.sourceEnemyIds.includes(enemyCfg.id)) continue;
     if (Math.random() >= drop.chance) continue;
-    addMaterial(drop.id, randomInt(drop.min ?? 1, drop.max ?? drop.min ?? 1));
+    addMaterial(drop.id, randomInt(drop.min ?? 1, drop.max ?? drop.min ?? 1), enemyCfg.id);
   }
 }
 
-function addMaterial(materialId, quantity) {
+function addMaterial(materialId, quantity, enemyId = null) {
   const material = MATERIALS[materialId];
   if (!material || !(quantity > 0)) return;
   state.materials[materialId] = (state.materials[materialId] ?? 0) + quantity;
   state.drops += 1;
   state.stats.materialsFound += quantity;
+  if (enemyId) noteEnemyDrop(enemyId, "material", materialId);
   const total = state.materials[materialId];
   addLog(`Získáno: ${material.name} ×${quantity} (celkem ${total}).`, material.rarity === "common" ? "system" : "level-up");
   pushRecentDrop({ type: "material", key: materialId, name: material.name, rarity: material.rarity, qty: quantity });
@@ -1432,6 +1494,8 @@ function renderLoot() {
   renderEquipmentOverview();
   renderRecentDrops();
   if (ui.page === "obchodnik") renderMerchant();
+  if (ui.page === "sbirka") renderCollection();
+  if (ui.page === "bestiar") renderBestiary();
 }
 
 // --- Výběr ------------------------------------------------------------
@@ -1634,6 +1698,7 @@ function deathGoldLoss() { return Math.floor(state.carriedGold * LOOT_CONFIG.dea
 
 function recordItemAcquired(item) {
   state.stats.itemsFound += 1;
+  if (item.sourceEnemyId) noteEnemyDrop(item.sourceEnemyId, "item", item.templateId);
   return registerInCollection(state.collection, item);
 }
 
@@ -1652,6 +1717,160 @@ function showNoticeToast(title, text, tone = "gold") {
   toast.querySelector("strong").textContent = title;
   toast.querySelector(".drop-toast-copy span").textContent = text;
   presentToast(toast);
+}
+
+// ---------------------------------------------------------------------
+// Prototype 0.5: bestiář a sbírka (čistě přehled, nic se tu neodměňuje)
+// ---------------------------------------------------------------------
+
+function enemyArt(enemy, known) {
+  const art = mk("span", { class: `bestiary-art${known ? "" : " unknown"}`, "aria-hidden": "true" });
+  if (enemy.image) art.append(mk("img", { src: enemy.image, alt: "", loading: "lazy" }));
+  else art.append(mk("span", { class: "goblin-figure" }));
+  return art;
+}
+
+// Možná kořist nepřítele se bere z world-data (materialDrops + dropPool lokace), žádný druhý seznam.
+function enemyLootSlots(enemy) {
+  const materials = (enemy.materialDrops ?? []).filter((drop) => MATERIALS[drop.id]);
+  const items = enemy.dropChance > 0 ? [...new Set(enemy.dropPool ?? [])].map(findTemplateById).filter(Boolean) : [];
+  return { materials, items };
+}
+
+function lootChip(known, label, { icon = null, image = null, tier = null } = {}) {
+  const chip = mk("li", { class: `loot-chip${known ? "" : " unknown"}` });
+  if (known) {
+    const slot = mk("span", { class: "loot-chip-icon", "aria-hidden": "true" });
+    renderItemIcon(slot, image ? { image } : icon);
+    chip.append(slot, mk("span", { class: "loot-chip-name", text: label }));
+    if (tier) chip.append(mk("span", { class: "loot-chip-tier", text: DROP_TIER_LABELS[tier] ?? "" }));
+  } else {
+    chip.append(mk("span", { class: "loot-chip-icon", "aria-hidden": "true", text: "?" }), mk("span", { class: "loot-chip-name", text: "???" }));
+  }
+  return chip;
+}
+
+function bestiaryCard(enemy) {
+  const entry = state.bestiary[enemy.id];
+  const known = Boolean(entry);
+  const location = LOCATIONS[enemy.locationId];
+  const card = mk("li", { class: `bestiary-card${known ? "" : " unknown"}`, "data-enemy-id": enemy.id });
+  const head = mk("div", { class: "bestiary-head" }, enemyArt(enemy, known),
+    mk("div", { class: "bestiary-title" },
+      mk("strong", { text: known ? enemy.name : "???" }),
+      mk("span", { text: known ? `${location?.name ?? ""} · úroveň ${enemy.level}` : `${location?.name ?? "Neznámá lokace"} · nepřítel zatím neobjeven` })));
+  if (known) head.append(mk("span", { class: `tag${enemy.type === "boss" ? " danger" : ""}`, text: ENEMY_TYPE_LABELS[enemy.type] ?? "" }));
+  card.append(head);
+  if (!known) { card.append(mk("p", { class: "bestiary-hint", text: "Začni s tímto nepřítelem souboj a bestiář se doplní." })); return card; }
+
+  const dl = mk("dl", { class: "bestiary-stats" });
+  [["Životy", enemy.maxHp], ["Poškození", `${enemy.minDamage}–${enemy.maxDamage}`], ["Obrana", enemy.defense],
+   ["Poražen", `${fmtNum(entry.kills)}×`], ["Smrtí s ním", `${fmtNum(entry.deaths)}×`]]
+    .forEach(([label, value]) => dl.append(mk("div", {}, mk("dt", { text: label }), mk("dd", { text: String(value) }))));
+  card.append(dl);
+
+  if (location?.status === "preview") {
+    card.append(mk("p", { class: "bestiary-hint", text: "Kořist z této lokace zatím není k dispozici (lokace je jen ukázka)." }));
+    return card;
+  }
+  const { materials, items } = enemyLootSlots(enemy);
+  const chips = mk("ul", { class: "loot-chips" });
+  materials.forEach((drop) => {
+    const material = MATERIALS[drop.id];
+    const found = entry.materials.includes(drop.id);
+    chips.append(lootChip(found, material.name, { image: material.asset, tier: drop.tier }));
+  });
+  items.forEach((template) => {
+    const found = entry.items.includes(template.templateId);
+    chips.append(lootChip(found, template.name, { icon: template }));
+  });
+  if (chips.children.length) {
+    const total = materials.length + items.length;
+    const foundCount = materials.filter((d) => entry.materials.includes(d.id)).length + items.filter((t) => entry.items.includes(t.templateId)).length;
+    card.append(mk("p", { class: "bestiary-loot-title", text: `Kořist · objeveno ${foundCount} / ${total}` }), chips);
+  } else card.append(mk("p", { class: "bestiary-hint", text: "Tento nepřítel nenese žádnou kořist." }));
+  return card;
+}
+
+function populateLocationSelect(select) {
+  if (select.dataset.ready) return;
+  Object.values(LOCATIONS).forEach((location) => select.append(mk("option", { value: location.id, text: location.name })));
+  select.dataset.ready = "1";
+}
+
+function renderBestiary() {
+  populateLocationSelect(elements.bestiaryLocation);
+  const filter = elements.bestiaryLocation.value;
+  const all = Object.values(ENEMIES);
+  const shown = all.filter((enemy) => !filter || enemy.locationId === filter);
+  const discovered = shown.filter((enemy) => state.bestiary[enemy.id]).length;
+  elements.bestiaryProgress.textContent = `Objeveno ${discovered} / ${shown.length} nepřátel${filter ? "" : ` (celkem ${Object.keys(state.bestiary).length} / ${all.length})`}`;
+  const order = Object.keys(LOCATIONS);
+  shown.sort((a, b) => order.indexOf(a.locationId) - order.indexOf(b.locationId));
+  elements.bestiaryList.replaceChildren(...shown.map(bestiaryCard));
+}
+
+// Šablony sbírky se berou z itemIds lokací (žádný druhý seznam); zbylé šablony patří do „Ostatní“.
+function collectionTemplates() {
+  const seen = new Set();
+  const list = [];
+  Object.values(LOCATIONS).forEach((location) => (location.itemIds ?? []).forEach((id) => {
+    const template = findTemplateById(id);
+    if (template && !seen.has(id)) { seen.add(id); list.push({ template, locationId: location.id }); }
+  }));
+  ITEM_TEMPLATES.forEach((template) => { if (!seen.has(template.templateId)) list.push({ template, locationId: null }); });
+  return list;
+}
+
+function progressBar(label, done, total) {
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  const bar = mk("span", { class: "collect-bar-track", "aria-hidden": "true" }, mk("span", { class: "collect-bar-fill", style: `width:${pct}%` }));
+  return mk("div", { class: "collect-bar", role: "group", "aria-label": `${label}: ${done} z ${total}` },
+    mk("span", { class: "collect-bar-label", text: label }), bar, mk("span", { class: "collect-bar-value", text: `${done} / ${total}` }));
+}
+
+function collectionCard({ template, locationId }) {
+  const entry = state.collection[template.templateId];
+  const card = mk("li", { class: `collection-card${entry ? "" : " unknown"}` });
+  const iconBox = mk("span", { class: "collection-icon", "aria-hidden": "true" });
+  if (entry) renderItemIcon(iconBox, template); else iconBox.append(mk("span", { class: "collection-q", text: "?" }));
+  const rows = mk("dl", { class: "collection-meta" });
+  const add = (label, value) => rows.append(mk("div", {}, mk("dt", { text: label }), mk("dd", { text: value })));
+  if (entry) {
+    add("Získáno", `${fmtNum(entry.count)}×`);
+    if (entry.best) add("Nejlepší kus", `${RARITIES[entry.best.rarity]?.label ?? ""} · síla ${fmtNum(entry.best.power)}`);
+    add("Poprvé", `${LOCATIONS[entry.firstLocationId]?.name ?? "Neznámo"} · ${ENEMIES[entry.firstEnemyId]?.name ?? "Neznámý nepřítel"}`);
+    const when = formatAcquiredAt(entry.firstAt);
+    if (when) add("Kdy", when);
+  } else add("Stav", "Zatím nezískáno");
+  card.append(iconBox, mk("div", { class: "collection-copy" },
+    mk("strong", { text: entry ? template.name : "???" }),
+    mk("span", { text: `${SLOT_META[template.slot]?.label ?? ""} · ${locationId ? LOCATIONS[locationId].name : "Ostatní"}` }), rows));
+  return card;
+}
+
+function renderCollection() {
+  populateLocationSelect(elements.collectionLocation);
+  const all = collectionTemplates();
+  const owned = (entry) => Boolean(state.collection[entry.template.templateId]);
+  const overview = [progressBar("Předměty celkem", all.filter(owned).length, all.length),
+    progressBar("Nepřátelé objeveni", Object.keys(state.bestiary).length, Object.keys(ENEMIES).length)];
+  Object.values(LOCATIONS).forEach((location) => {
+    const items = all.filter((entry) => entry.locationId === location.id);
+    const enemies = location.enemyIds.filter((id) => ENEMIES[id]);
+    overview.push(mk("div", { class: "collect-loc" }, mk("h3", { text: location.name }),
+      progressBar("Předměty", items.filter(owned).length, items.length),
+      progressBar("Nepřátelé", enemies.filter((id) => state.bestiary[id]).length, enemies.length)));
+  });
+  const other = all.filter((entry) => !entry.locationId);
+  if (other.length) overview.push(mk("div", { class: "collect-loc" }, mk("h3", { text: "Ostatní" }), progressBar("Předměty", other.filter(owned).length, other.length)));
+  elements.collectionOverview.replaceChildren(...overview);
+
+  const filter = elements.collectionLocation.value;
+  const shown = all.filter((entry) => !filter || entry.locationId === filter);
+  elements.collectionProgress.textContent = `Získáno ${shown.filter(owned).length} / ${shown.length} druhů předmětů`;
+  elements.collectionList.replaceChildren(...(shown.length ? shown.map(collectionCard)
+    : [mk("li", { class: "bestiary-hint", text: "V této lokaci zatím žádná kořist neexistuje." })]));
 }
 
 // --- Prodej ---------------------------------------------------------------
@@ -2382,7 +2601,7 @@ function initCombatWidgets() {
 // Všechny stránky zůstávají v DOM (jen se přepíná atribut hidden) a herní
 // smyčka běží mimo ně — přepnutí stránky proto boj nikdy nerestartuje.
 
-const PAGE_TITLES = Object.freeze({ postava: "Postava", inventar: "Inventář", obchodnik: "Obchodník", banka: "Banka", mapa: "Mapa", boj: "Boj" });
+const PAGE_TITLES = Object.freeze({ postava: "Postava", inventar: "Inventář", obchodnik: "Obchodník", banka: "Banka", bestiar: "Bestiář", sbirka: "Sbírka", mapa: "Mapa", boj: "Boj" });
 
 function pageFromHash() {
   const match = /^#\/?([a-z]+)/.exec(location.hash);
@@ -2409,6 +2628,8 @@ function showPage(page) {
   if (page === "mapa") renderMapPage();
   else if (page === "inventar") renderInventoryView();
   else if (page === "obchodnik") renderMerchant();
+  else if (page === "bestiar") renderBestiary();
+  else if (page === "sbirka") renderCollection();
   else if (page === "postava") renderEquipmentOverview();
   window.scrollTo(0, 0);
 }
@@ -2468,6 +2689,8 @@ elements.invActiveFilters.addEventListener("click", (event) => {
   const chip = event.target.closest("[data-clear-filter]");
   if (chip) clearFilter(chip.dataset.clearFilter);
 });
+elements.bestiaryLocation.addEventListener("change", renderBestiary);
+elements.collectionLocation.addEventListener("change", renderCollection);
 elements.detailSellButton.addEventListener("click", () => {
   const resolved = resolveSelection();
   if (resolved?.kind === "item") requestSale([resolved.item.id]);

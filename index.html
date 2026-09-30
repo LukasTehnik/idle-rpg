@@ -34,6 +34,8 @@
             <a class="nav-link" href="#/inventar" data-page-link="inventar"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M3 0h2v1H3zM2 1h4v1H2zM1 2h6v6H1zM3 4h2v2H3z"/></svg><span>Inventář</span><span class="nav-badge" data-nav-badge="new" hidden></span><span class="nav-badge nav-badge-warn" data-nav-badge="unclaimed" hidden></span></a>
             <a class="nav-link" href="#/obchodnik" data-page-link="obchodnik"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path fill-rule="evenodd" d="M3 0h2v1H3zM2 1h1v1H2zM5 1h1v1H5zM1 2h6v6H1zM3 4h2v2H3z"/></svg><span>Obchodník</span></a>
             <a class="nav-link" href="#/banka" data-page-link="banka"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M3 0h2v1H3zM2 1h4v1H2zM0 2h8v1H0zM1 3h1v4H1zM3 3h2v4H3zM6 3h1v4H6zM0 7h8v1H0z"/></svg><span>Banka</span></a>
+            <a class="nav-link" href="#/bestiar" data-page-link="bestiar"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M1 0h6v1H1zM0 1h1v6H0zM7 1h1v6H7zM2 2h4v1H2zM2 4h4v1H2zM1 7h6v1H1z"/></svg><span>Bestiář</span></a>
+            <a class="nav-link" href="#/sbirka" data-page-link="sbirka"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M0 0h3v3H0zM5 0h3v3H5zM0 5h3v3H0zM5 5h3v3H5z"/></svg><span>Sbírka</span></a>
             <a class="nav-link" href="#/mapa" data-page-link="mapa"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M2 0h4v1H2zM1 1h6v3H1zM2 4h4v1H2zM3 5h2v1H3zM3 6h2v2H3zM3 2h2v1H3z"/></svg><span>Mapa</span></a>
             <a class="nav-link" href="#/boj" data-page-link="boj"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M6 0h2v1H6zM5 1h3v1H5zM4 2h3v1H4zM3 3h3v1H3zM1 4h4v1H1zM2 5h2v1H2zM1 6h2v2H1z"/></svg><span>Boj</span></a>
             <div id="combatWidgetSidebar" class="cw-slot"></div>
@@ -107,6 +109,23 @@
                   <div><dt>Nesené zlato</dt><dd data-bind="gold">0</dd></div>
                   <div><dt>Zlato v bance</dt><dd data-bind="bankGold">0</dd></div>
                   <div><dt>Čas výpravy</dt><dd data-bind="runTime">00:00</dd></div>
+                </dl>
+              </article>
+
+              <article class="panel">
+                <h2 class="section-title">Dlouhodobé statistiky</h2>
+                <p class="muted stat-note">Přežijí restart, změnu lokace i konec farmení. Statistiky aktuálního farmení jsou zvlášť na stránce Boj.</p>
+                <dl class="stat-table">
+                  <div><dt>Poražení nepřátelé</dt><dd data-bind="kills">0</dd></div>
+                  <div><dt>Nalezené předměty</dt><dd data-bind="ltItemsFound">0</dd></div>
+                  <div><dt>Nalezené materiály</dt><dd data-bind="ltMaterialsFound">0</dd></div>
+                  <div><dt>Zlato získáno celkem</dt><dd data-bind="ltGoldEarned">0</dd></div>
+                  <div><dt>Zlato z prodeje</dt><dd data-bind="ltGoldFromSales">0</dd></div>
+                  <div><dt>Zlato ztracené smrtí</dt><dd data-bind="ltGoldLost">0</dd></div>
+                  <div><dt>Smrti</dt><dd data-bind="ltDeaths">0</dd></div>
+                  <div><dt>Objevení nepřátelé</dt><dd data-bind="ltEnemiesDiscovered">0</dd></div>
+                  <div><dt>Objevené předměty</dt><dd data-bind="ltItemsDiscovered">0</dd></div>
+                  <div><dt>Nejvyšší kritický zásah</dt><dd data-bind="ltHighestCrit">0</dd></div>
                 </dl>
               </article>
 
@@ -471,6 +490,32 @@
               </div>
             </div>
           </dialog>
+
+          <!-- ============ STRÁNKA: BESTIÁŘ ============ -->
+          <section id="page-bestiar" class="page" data-page="bestiar" aria-labelledby="pageTitle" hidden>
+            <p class="page-lead">Nepřítel se objeví v bestiáři, jakmile s ním poprvé začneš souboj. Kořist se odhaluje postupně, jak ti padá. Přesné šance na drop se tu záměrně neukazují.</p>
+            <div class="collect-toolbar">
+              <label class="field"><span class="field-label">Lokace</span>
+                <select id="bestiaryLocation"><option value="">Všechny lokace</option></select></label>
+              <p id="bestiaryProgress" class="collect-progress" aria-live="polite"></p>
+            </div>
+            <ul id="bestiaryList" class="bestiary-grid"></ul>
+          </section>
+
+          <!-- ============ STRÁNKA: SBÍRKA ============ -->
+          <section id="page-sbirka" class="page" data-page="sbirka" aria-labelledby="pageTitle" hidden>
+            <p class="page-lead">Sbírka eviduje každý druh předmětu, který jsi kdy získal. Prodané nebo smazané kusy v historii zůstávají. Jde jen o přehled — bez odměn.</p>
+            <section class="panel collect-overview" aria-labelledby="collectOverviewTitle">
+              <h2 id="collectOverviewTitle" class="section-title">Postup</h2>
+              <div id="collectionOverview" class="collect-bars"></div>
+            </section>
+            <div class="collect-toolbar">
+              <label class="field"><span class="field-label">Lokace</span>
+                <select id="collectionLocation"><option value="">Všechny lokace</option></select></label>
+              <p id="collectionProgress" class="collect-progress" aria-live="polite"></p>
+            </div>
+            <ul id="collectionList" class="collection-grid"></ul>
+          </section>
 
           <!-- ============ STRÁNKA: BOJ ============ -->
           <section id="page-boj" class="page" data-page="boj" aria-labelledby="pageTitle" hidden>

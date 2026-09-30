@@ -1246,3 +1246,63 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
   .merchant-tools .btn { flex: 1 1 140px; }
   .bank-actions .btn { flex: 1 1 45%; }
 }
+
+/* ======================================================================
+   PROTOTYPE 0.5 — bestiář, sbírka, dlouhodobé statistiky
+   ====================================================================== */
+.stat-note { margin: 0 0 8px; font-size: var(--fs-small); }
+.collect-toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 12px 20px; margin-bottom: 14px; }
+.collect-toolbar select { min-height: 40px; min-width: 200px; padding: 6px 10px; border: 1px solid var(--color-border-strong); background: var(--color-bg-deep); color: var(--color-text-primary); font: inherit; }
+.collect-progress { margin: 0; color: var(--color-accent-gold-light); }
+
+.bestiary-grid, .collection-grid { display: grid; margin: 0; padding: 0; gap: 12px; list-style: none; }
+.bestiary-grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.collection-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.bestiary-card, .collection-card { display: grid; align-content: start; gap: 10px; padding: 12px; border: 2px solid var(--color-border-strong); background: var(--color-surface-1); box-shadow: var(--shadow-hard); }
+.bestiary-card.unknown, .collection-card.unknown { border-color: var(--color-border); color: var(--color-text-muted); }
+.bestiary-head { display: flex; align-items: center; gap: 12px; }
+.bestiary-title { display: grid; flex: 1; min-width: 0; }
+.bestiary-title span { color: var(--color-text-muted); font-size: var(--fs-small); }
+.bestiary-art { display: grid; width: 72px; height: 72px; flex: none; place-items: center; overflow: hidden; border: 1px solid var(--color-border-strong); background: var(--color-bg-deep); }
+.bestiary-art img { width: 100%; height: 100%; object-fit: contain; }
+.bestiary-art .goblin-figure { width: 64px; height: 64px; }
+.bestiary-art.unknown img, .bestiary-art.unknown .goblin-figure { filter: brightness(0) opacity(.55); }
+.bestiary-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 6px; margin: 0; }
+.bestiary-stats div { padding: 4px 6px; border: 1px solid var(--color-border); background: var(--color-surface-2); }
+.bestiary-stats dt { color: var(--color-text-muted); font-size: var(--fs-label); text-transform: uppercase; }
+.bestiary-stats dd { margin: 0; }
+.bestiary-hint { margin: 0; color: var(--color-text-muted); font-size: var(--fs-small); }
+.bestiary-loot-title { margin: 0; color: var(--color-text-secondary); font-size: var(--fs-small); text-transform: uppercase; }
+.loot-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.loot-chip { display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 3px; border: 1px solid var(--color-border-strong); background: var(--color-surface-2); font-size: var(--fs-small); }
+.loot-chip.unknown { border-style: dashed; color: var(--color-text-muted); }
+.loot-chip-icon { display: grid; width: 26px; height: 26px; place-items: center; overflow: hidden; background: var(--color-bg-deep); }
+.loot-chip-icon img { width: 100%; height: 100%; object-fit: contain; }
+.loot-chip-icon svg { width: 18px; height: 18px; }
+.loot-chip-tier { color: var(--color-text-muted); font-size: var(--fs-label); }
+
+.collection-card { grid-template-columns: 56px minmax(0, 1fr); align-items: start; }
+.collection-icon { display: grid; width: 56px; height: 56px; place-items: center; overflow: hidden; border: 1px solid var(--color-border-strong); background: var(--color-bg-deep); }
+.collection-icon img { width: 100%; height: 100%; object-fit: contain; }
+.collection-icon svg { width: 36px; height: 36px; }
+.collection-q { color: var(--color-text-muted); font-size: var(--fs-h1); }
+.collection-card.unknown .collection-icon { filter: brightness(.5); }
+.collection-copy { display: grid; gap: 2px; min-width: 0; }
+.collection-copy > span { color: var(--color-text-muted); font-size: var(--fs-small); }
+.collection-meta { display: grid; gap: 2px; margin: 6px 0 0; font-size: var(--fs-small); }
+.collection-meta div { display: flex; gap: 8px; }
+.collection-meta dt { flex: none; min-width: 84px; color: var(--color-text-muted); }
+.collection-meta dd { margin: 0; min-width: 0; }
+
+.collect-overview { margin-bottom: 14px; }
+.collect-bars { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px 20px; }
+.collect-loc { display: grid; gap: 4px; padding: 8px 10px; border: 1px solid var(--color-border); background: var(--color-surface-2); }
+.collect-loc h3 { margin: 0; font-size: var(--fs-base); color: var(--color-accent-gold-light); }
+.collect-bar { display: grid; grid-template-columns: 130px minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: var(--fs-small); }
+.collect-bar-track { display: block; height: 10px; border: 1px solid var(--color-border-strong); background: var(--color-bg-deep); }
+.collect-bar-fill { display: block; height: 100%; background: var(--color-accent-gold); }
+@media (max-width: 599px) {
+  .bestiary-grid, .collection-grid { grid-template-columns: minmax(0, 1fr); }
+  .collect-bar { grid-template-columns: 96px minmax(0, 1fr) auto; }
+  .collect-toolbar select { width: 100%; }
+}
