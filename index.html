@@ -32,6 +32,8 @@
             <p class="nav-heading">Hra</p>
             <a class="nav-link" href="#/postava" data-page-link="postava"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M3 0h2v2H3zM2 3h4v3H2zM1 3h1v2H1zM6 3h1v2H6zM2 6h1v2H2zM5 6h1v2H5z"/></svg><span>Postava</span></a>
             <a class="nav-link" href="#/inventar" data-page-link="inventar"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M3 0h2v1H3zM2 1h4v1H2zM1 2h6v6H1zM3 4h2v2H3z"/></svg><span>Inventář</span><span class="nav-badge" data-nav-badge="new" hidden></span><span class="nav-badge nav-badge-warn" data-nav-badge="unclaimed" hidden></span></a>
+            <a class="nav-link" href="#/obchodnik" data-page-link="obchodnik"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path fill-rule="evenodd" d="M3 0h2v1H3zM2 1h1v1H2zM5 1h1v1H5zM1 2h6v6H1zM3 4h2v2H3z"/></svg><span>Obchodník</span></a>
+            <a class="nav-link" href="#/banka" data-page-link="banka"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M3 0h2v1H3zM2 1h4v1H2zM0 2h8v1H0zM1 3h1v4H1zM3 3h2v4H3zM6 3h1v4H6zM0 7h8v1H0z"/></svg><span>Banka</span></a>
             <a class="nav-link" href="#/mapa" data-page-link="mapa"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M2 0h4v1H2zM1 1h6v3H1zM2 4h4v1H2zM3 5h2v1H3zM3 6h2v2H3zM3 2h2v1H3z"/></svg><span>Mapa</span></a>
             <a class="nav-link" href="#/boj" data-page-link="boj"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M6 0h2v1H6zM5 1h3v1H5zM4 2h3v1H4zM3 3h3v1H3zM1 4h4v1H1zM2 5h2v1H2zM1 6h2v2H1z"/></svg><span>Boj</span></a>
             <div id="combatWidgetSidebar" class="cw-slot"></div>
@@ -58,7 +60,8 @@
                 <div class="bar xp-bar" role="presentation"><div class="bar-fill" data-bar="xp"></div></div>
               </div>
             </li>
-            <li class="status-item status-gold"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M2 0h4v1H2zM1 1h6v6H1zM2 7h4v1H2zM3 2h2v4H3z"/></svg><span>Gold</span><strong data-bind="gold">0</strong></li>
+            <li class="status-item status-gold" title="Zlato u postavy — při smrti ztratíš 5 %"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M2 0h4v1H2zM1 1h6v6H1zM2 7h4v1H2zM3 2h2v4H3z"/></svg><span>Nesené</span><strong data-bind="gold">0</strong></li>
+            <li class="status-item status-bank" title="Zlato v bance je v bezpečí"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M3 0h2v1H3zM2 1h4v1H2zM0 2h8v1H0zM1 3h1v4H1zM3 3h2v4H3zM6 3h1v4H6zM0 7h8v1H0z"/></svg><span>Banka</span><strong data-bind="bankGold">0</strong></li>
             <li class="status-item status-state"><i class="status-dot" data-bind-dot></i><strong data-bind="status" aria-live="polite">Připraveno</strong></li>
             <li class="status-item status-target"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M3 0h2v2H3zM0 3h2v2H0zM6 3h2v2H6zM3 6h2v2H3z"/></svg><span>Cíl</span><strong data-bind="enemyName">Goblin</strong></li>
           </ul>
@@ -101,7 +104,8 @@
                   <div><dt>Rychlost útoku</dt><dd>1,6 s</dd></div>
                   <div><dt>Vítězství</dt><dd data-bind="kills">0</dd></div>
                   <div><dt>Nalezené předměty</dt><dd data-bind="drops">0</dd></div>
-                  <div><dt>Gold</dt><dd data-bind="gold">0</dd></div>
+                  <div><dt>Nesené zlato</dt><dd data-bind="gold">0</dd></div>
+                  <div><dt>Zlato v bance</dt><dd data-bind="bankGold">0</dd></div>
                   <div><dt>Čas výpravy</dt><dd data-bind="runTime">00:00</dd></div>
                 </dl>
               </article>
@@ -128,7 +132,7 @@
                   </div>
                   <div class="inv-head-actions">
                     <div class="capacity" title="Využité místo pro vybavení"><strong id="inventoryCount">0</strong> / <span id="inventoryCapacity">18</span></div>
-                    <button id="deleteModeButton" class="btn" type="button" aria-pressed="false" title="Vybrat předměty ke smazání">Smazat…</button>
+                    <button id="deleteModeButton" class="btn" type="button" aria-pressed="false" title="Vybrat více předmětů — hromadný prodej nebo smazání">Vybrat…</button>
                   </div>
                 </div>
 
@@ -199,10 +203,12 @@
                 </section>
 
                 <div id="bulkDeleteBar" class="bulk-bar hidden">
-                  <span><strong id="selectedCount">0</strong> vybráno ke smazání</span>
+                  <span class="bulk-info"><strong id="selectedCount">0</strong> vybráno · výkup <strong id="selectedValue">0</strong> gold</span>
                   <div class="bulk-actions">
+                    <button id="selectSellableButton" class="btn" type="button" title="Vybere všechny zobrazené předměty kromě uzamčených a oblíbených">Vybrat prodejné</button>
+                    <button id="sellSelectedButton" class="btn btn-primary" type="button" disabled>Prodat vybrané</button>
                     <button id="confirmDeleteButton" class="btn btn-danger" type="button" disabled>Smazat vybrané</button>
-                    <button id="cancelDeleteButton" class="btn" type="button">Zrušit</button>
+                    <button id="cancelDeleteButton" class="btn" type="button">Hotovo</button>
                   </div>
                 </div>
 
@@ -280,6 +286,7 @@
                       <div id="detailSecondary" class="detail-secondary">
                         <button id="detailFavButton" class="btn" type="button">PŘIDAT K OBLÍBENÝM</button>
                         <button id="detailLockButton" class="btn" type="button">ZAMKNOUT</button>
+                        <button id="detailSellButton" class="btn btn-sell" type="button">PRODAT</button>
                       </div>
                       <p id="detailNote" class="detail-note hidden"></p>
                     </div>
@@ -322,6 +329,145 @@
               <div class="confirm-actions">
                 <button id="enterCancel" class="btn" type="button">Zůstat</button>
                 <button id="enterConfirm" class="btn btn-primary" type="button">Vstoupit</button>
+              </div>
+            </div>
+          </dialog>
+
+          <!-- ============ STRÁNKA: OBCHODNÍK ============ -->
+          <section id="page-obchodnik" class="page" data-page="obchodnik" aria-labelledby="pageTitle" hidden>
+            <p class="page-lead">Obchodník vykupuje kořist za pevné ceny. Nabídka zboží zatím není. Boj běží dál, i když obchoduješ.</p>
+            <div class="merchant-grid">
+              <section class="panel merchant-sell" aria-labelledby="sellTitle">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">VÝKUP</p>
+                    <h2 id="sellTitle" class="section-title">Prodej kořisti</h2>
+                  </div>
+                  <div class="capacity" title="Zlato, které máš u sebe"><strong data-bind="gold">0</strong> gold</div>
+                </div>
+                <div class="merchant-tools">
+                  <button id="merchantSelectCommon" class="btn" type="button">Vybrat všechno běžné</button>
+                  <label class="field merchant-slot-field">
+                    <span class="field-label">Běžné podle slotu</span>
+                    <select id="merchantSlot"></select>
+                  </label>
+                  <button id="merchantSelectAll" class="btn" type="button">Vybrat vše prodejné</button>
+                  <button id="merchantClear" class="btn" type="button">Zrušit výběr</button>
+                </div>
+                <p id="merchantProtected" class="muted merchant-protected"></p>
+                <ul id="merchantList" class="merchant-list"></ul>
+                <div id="merchantEmpty" class="inv-empty hidden">
+                  <span class="empty-rune" aria-hidden="true">◇</span>
+                  <strong>Není co prodat</strong>
+                  <p>Porážej nepřátele — vybavení, které nenosíš, můžeš vyměnit za zlato.</p>
+                </div>
+                <div class="merchant-summary">
+                  <div>
+                    <strong id="merchantCount">0</strong> vybráno · <span id="merchantBreakdown">—</span>
+                    <div class="merchant-total">Výkup celkem: <strong id="merchantTotal">0</strong> gold</div>
+                  </div>
+                  <button id="merchantSell" class="btn btn-primary btn-lg" type="button" disabled>Prodat označené</button>
+                </div>
+              </section>
+
+              <section class="panel merchant-buyback" aria-labelledby="buybackTitle">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">ZPĚTNÝ ODKUP</p>
+                    <h2 id="buybackTitle" class="section-title">Naposledy prodáno</h2>
+                  </div>
+                  <span class="tag"><span id="buybackCount">0</span> / 10</span>
+                </div>
+                <p class="muted">Posledních 10 ručně prodaných předmětů. Odkoupíš je za stejnou částku, za kterou jsi je prodal.</p>
+                <ul id="buybackList" class="buyback-list"></ul>
+              </section>
+
+              <section class="panel loot-rules" aria-labelledby="rulesTitle">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">AUTOMATIZACE</p>
+                    <h2 id="rulesTitle" class="section-title">Pravidla kořisti</h2>
+                  </div>
+                  <span id="autoSellState" class="tag">VYPNUTO</span>
+                </div>
+                <label class="switch-row">
+                  <input id="ruleAutoSell" type="checkbox" />
+                  <span><strong>Automaticky prodávat běžné vybavení</strong><small>Ve výchozím stavu vypnuto. Prodej se zapíše do loot logu a zlato jde k nesenému.</small></span>
+                </label>
+                <fieldset id="ruleSlots" class="rule-slots">
+                  <legend>Sloty, které se smí automaticky prodávat</legend>
+                </fieldset>
+                <ul class="rule-safety">
+                  <li>Vzácné a epické předměty se nikdy automaticky neprodávají.</li>
+                  <li>První získání každé šablony se neprodá — nejdřív se zapíše do sbírky.</li>
+                  <li>Oblíbené, uzamčené a nasazené předměty se nikdy neprodávají.</li>
+                </ul>
+              </section>
+
+              <section class="panel loot-log" aria-labelledby="lootLogTitle">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">ZÁZNAM</p>
+                    <h2 id="lootLogTitle" class="section-title">Loot log</h2>
+                  </div>
+                </div>
+                <ol id="lootLogList" class="loot-log-list"></ol>
+              </section>
+            </div>
+          </section>
+
+          <!-- ============ STRÁNKA: BANKA ============ -->
+          <section id="page-banka" class="page" data-page="banka" aria-labelledby="pageTitle" hidden>
+            <p class="page-lead">Zlato v bance je v bezpečí. Bankovnictví je zdarma, bez poplatků a bez čekání, a nezastaví probíhající boj.</p>
+            <div class="bank-grid">
+              <article class="panel panel-framed bank-balances">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">STAV ÚČTU</p>
+                    <h2 class="section-title">Zlato</h2>
+                  </div>
+                </div>
+                <dl class="bank-cards">
+                  <div class="bank-card"><dt>U sebe</dt><dd data-bind="gold">0</dd></div>
+                  <div class="bank-card bank-card-safe"><dt>V bance</dt><dd data-bind="bankGold">0</dd></div>
+                  <div class="bank-card"><dt>Celkem</dt><dd data-bind="totalGold">0</dd></div>
+                </dl>
+                <p class="bank-warning">Při smrti ztratíš 5 % zlata, které máš u sebe. Zlato uložené v bance je v bezpečí.</p>
+                <p class="muted">Při smrti bys nyní ztratil: <strong data-bind="deathLoss">0</strong> gold.</p>
+              </article>
+              <article class="panel bank-form">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">TRANSAKCE</p>
+                    <h2 class="section-title">Vklad a výběr</h2>
+                  </div>
+                </div>
+                <label class="field">
+                  <span class="field-label">Částka (celé číslo)</span>
+                  <input id="bankAmount" type="text" inputmode="numeric" autocomplete="off" placeholder="např. 100" />
+                </label>
+                <div class="bank-actions">
+                  <button id="bankDeposit" class="btn btn-primary" type="button">Vložit</button>
+                  <button id="bankWithdraw" class="btn" type="button">Vybrat</button>
+                  <button id="bankDepositAll" class="btn" type="button">Vložit vše</button>
+                  <button id="bankWithdrawAll" class="btn" type="button">Vybrat vše</button>
+                </div>
+                <p id="bankMessage" class="bank-message" role="status" aria-live="polite"></p>
+              </article>
+            </div>
+          </section>
+
+          <!-- Potvrzení hromadného prodeje / smazání -->
+          <dialog id="sellDialog" class="confirm-dialog" aria-labelledby="sellDialogTitle">
+            <div class="confirm-box">
+              <p class="eyebrow" id="sellDialogEyebrow">Potvrzení prodeje</p>
+              <h2 id="sellDialogTitle" class="section-title">Prodat předměty?</h2>
+              <p id="sellDialogSummary" class="confirm-text"></p>
+              <p id="sellDialogTotal" class="sell-total"></p>
+              <ul id="sellDialogWarnings" class="sell-warnings"></ul>
+              <div class="confirm-actions">
+                <button id="sellCancel" class="btn" type="button">Zrušit</button>
+                <button id="sellConfirm" class="btn btn-primary" type="button">Prodat</button>
               </div>
             </div>
           </dialog>

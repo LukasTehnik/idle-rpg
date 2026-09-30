@@ -46,6 +46,13 @@ function sanitizeRun(raw, fallbackEnemyId, activeLocationId) {
   };
 }
 
+function defaultLootRules() {
+  return { autoSellCommon: false, slots: Object.fromEntries(Object.keys(SLOT_META).map((slot) => [slot, true])) };
+}
+function emptyStats() {
+  return { itemsFound: 0, materialsFound: 0, goldEarned: 0, goldFromSales: 0, goldLostToDeath: 0, deaths: 0, highestCrit: 0 };
+}
+
 const initialState = () => ({
   running: false,
   phase: "ready",
@@ -53,12 +60,25 @@ const initialState = () => ({
   xp: 0,
   kills: 0,
   drops: 0,
-  gold: 0,
+  // Prototype 0.5: zlato je rozdělené. `carriedGold` má postava u sebe (5 % se
+  // ztrácí při smrti), `bankGold` je bezpečně uložené v bance. Dřívější jediné `gold` se
+  // při migraci savu převádí do `carriedGold`.
+  carriedGold: 0,
+  bankGold: 0,
   elapsedSeconds: 0,
   inventory: [], // equipment only (capacity CONFIG.inventoryCapacity)
   // Prototype 0.5: kořist, která se nevešla do plného inventáře. Nikdy se tiše
   // neztratí -- čeká zde, dokud hráč neuvolní místo (viz claimUnclaimed).
   unclaimed: [],
+  // Posledních N ručně prodaných itemů k odkoupení zpět: [{ item, price, soldAt }].
+  buyback: [],
+  // Pravidla kořisti (automatický prodej je ve výchozím stavu VYPNUTÝ).
+  lootRules: defaultLootRules(),
+  lootLog: [], // perzistentní záznam prodejů, auto-prodejů a zpětných odkupů
+  // Dlouhodobé statistiky hráče (nikdy se neresetují změnou lokace/nepřítele ani reloadem).
+  stats: emptyStats(),
+  // Sbírka šablon itemů: { [templateId]: { count, firstAt, firstEnemyId, firstLocationId, best } }.
+  collection: {},
   // Prototype 0.4: stackable materials/scrolls, stored by stable material id
   // -> quantity (e.g. { "wing-dust": 14 }). They do NOT count against the
   // equipment capacity.
@@ -115,7 +135,12 @@ const ELEMENT_IDS = [
   "invTabs", "invSearch", "invType", "invTypeField", "invRarity", "invSort", "paperDoll",
   "invFlag", "invFlagField", "invOrigin", "invOriginField", "invActiveFilters",
   "unclaimedPanel", "unclaimedCount", "unclaimedList", "claimAllButton",
-  "detailSecondary", "detailFavButton", "detailLockButton",
+  "detailSecondary", "detailFavButton", "detailLockButton", "detailSellButton", "selectedValue", "sellSelectedButton", "selectSellableButton",
+  "merchantSelectCommon", "merchantSlot", "merchantSelectAll", "merchantClear", "merchantProtected", "merchantList", "merchantEmpty",
+  "merchantCount", "merchantBreakdown", "merchantTotal", "merchantSell", "buybackCount", "buybackList",
+  "ruleAutoSell", "ruleSlots", "autoSellState", "lootLogList",
+  "bankAmount", "bankDeposit", "bankWithdraw", "bankDepositAll", "bankWithdrawAll", "bankMessage",
+  "sellDialog", "sellDialogEyebrow", "sellDialogTitle", "sellDialogSummary", "sellDialogTotal", "sellDialogWarnings", "sellCancel", "sellConfirm",
   "deleteModeButton", "bulkDeleteBar", "selectedCount", "confirmDeleteButton", "cancelDeleteButton",
   "itemDetail", "detailEmpty", "detailBody", "detailRarity", "detailIcon", "detailTitle", "detailType",
   "detailStats", "detailCompare", "detailFlavor", "detailMeta", "detailActionButton", "detailNote", "detailCloseButton", "detailBackdrop",
@@ -149,6 +174,7 @@ const ui = {
   selectedMapLocationId: null, // jen náhled na mapě; aktivní lokace je state.activeLocationId
   locTab: "info", // info | enemies | loot
   highlightEnemyId: null,
+  merchantSelected: new Set(), // výběr na stránce Obchodník (jen UI, neukládá se)
 };
 // Pod 1440 px se detail itemu otevírá jako výsuvný panel (na mobilu přes celou obrazovku).
 const mqSheet = window.matchMedia("(max-width: 1439px)");
@@ -181,9 +207,25 @@ function pluralizePredmet(count) {
   return "předmětů";
 }
 
+// Hromadný výběr v inventáři: stejný výběr slouží k prodeji i ke smazání.
+function selectedInventoryItems() {
+  return state.inventory.filter((item) => selectedForDeletion.has(item.id) && !item.isLocked);
+}
+
 function updateSelectedCount() {
-  elements.selectedCount.textContent = selectedForDeletion.size;
-  elements.confirmDeleteButton.disabled = selectedForDeletion.size === 0;
+  const items = selectedInventoryItems();
+  elements.selectedCount.textContent = items.length;
+  elements.selectedValue.textContent = items.reduce((sum, item) => sum + itemSellValue(item), 0);
+  elements.confirmDeleteButton.disabled = items.length === 0;
+  elements.sellSelectedButton.disabled = items.length === 0;
+}
+
+// „Vybrat prodejné“: zobrazené předměty kromě uzamčených a oblíbených (ty se nikdy nevybírají automaticky).
+function selectSellableInView() {
+  const visible = sortEntries(filterEntries(getInventoryEntries())).filter((entry) => entry.kind === "item" && !entry.flags.locked && !entry.flags.favorite);
+  visible.forEach((entry) => selectedForDeletion.add(entry.id));
+  updateSelectedCount();
+  renderInventory();
 }
 
 function setDeleteMode(nextValue) {
@@ -206,12 +248,17 @@ function toggleSelection(itemId) {
 }
 
 function deleteSelectedItems() {
-  if (selectedForDeletion.size === 0) return;
-  const doomed = new Set(state.inventory.filter((item) => selectedForDeletion.has(item.id) && !item.isLocked).map((item) => item.id));
-  const removedCount = doomed.size;
+  const ids = selectedInventoryItems().map((item) => item.id);
+  if (ids.length) openBulkDialog("delete", ids);
+}
+
+// Smazání natrvalo (bez zlata, bez zpětného odkupu). Item zůstává v historii sbírky.
+function performDelete(ids) {
+  const doomed = new Set(state.inventory.filter((item) => ids.includes(item.id) && !item.isLocked).map((item) => item.id));
+  if (!doomed.size) return;
   state.inventory = state.inventory.filter((item) => !doomed.has(item.id));
-  addLog(`Smazáno ${removedCount} ${pluralizePredmet(removedCount)} z inventáře.`, "system");
-  setDeleteMode(false);
+  addLog(`Smazáno ${doomed.size} ${pluralizePredmet(doomed.size)} z inventáře.`, "system");
+  if (deleteMode) setDeleteMode(false);
   render(); renderLoot(); saveState();
 }
 
@@ -255,6 +302,84 @@ function migrateLegacyInventory(inventory, materials) {
   return { inventory: kept, materials: merged };
 }
 
+// --- Prototype 0.5: sanitizace nových částí savu --------------------------------
+function goldInt(value) { const n = Math.floor(Number(value)); return Number.isFinite(n) && n > 0 ? n : 0; }
+function fmtGold(value) { return goldInt(value).toLocaleString("cs-CZ"); }
+
+function sanitizeBuyback(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((entry) => {
+    const item = sanitizeItem(entry?.item);
+    if (!item || !SLOT_META[item.slot]) return null;
+    return { item, price: goldInt(entry.price) || itemSellValue(item), soldAt: Number(entry.soldAt) || 0 };
+  }).filter(Boolean).slice(0, LOOT_CONFIG.buybackLimit);
+}
+
+function sanitizeLootRules(raw) {
+  const rules = defaultLootRules();
+  if (!raw || typeof raw !== "object") return rules;
+  rules.autoSellCommon = raw.autoSellCommon === true;
+  if (raw.slots && typeof raw.slots === "object") for (const slot of Object.keys(rules.slots)) if (raw.slots[slot] === false) rules.slots[slot] = false;
+  return rules;
+}
+
+function sanitizeLootLog(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((entry) => entry && typeof entry.text === "string")
+    .map((entry) => ({ at: Number(entry.at) || 0, type: ["sale", "auto", "buyback"].includes(entry.type) ? entry.type : "sale", text: entry.text, gold: Number.isFinite(entry.gold) ? Math.trunc(entry.gold) : 0 }))
+    .slice(0, LOOT_CONFIG.lootLogLimit);
+}
+
+function sanitizeStats(raw) {
+  const stats = emptyStats();
+  if (!raw || typeof raw !== "object") return stats;
+  for (const key of Object.keys(stats)) stats[key] = goldInt(raw[key]);
+  return stats;
+}
+
+// Zapíše získání itemu do sbírky. Vrací true, pokud šlo o PRVNÍ získání šablony.
+// (Sbírka je jen informační -- nemění drop-rate ani staty a prodaný/smazaný item z ní nemizí.)
+function registerInCollection(collection, item) {
+  const id = item?.templateId;
+  if (!id) return false;
+  const first = !collection[id];
+  const entry = collection[id] ?? (collection[id] = {
+    count: 0, firstAt: item.obtainedAt ?? Date.now(), firstEnemyId: item.sourceEnemyId ?? null, firstLocationId: item.sourceLocationId ?? null, best: null,
+  });
+  entry.count += 1;
+  const power = itemPower(item);
+  const rank = (rarity) => RARITY_ORDER.length - RARITY_ORDER.indexOf(rarity);
+  if (!entry.best || power > entry.best.power || (power === entry.best.power && rank(item.rarity) > rank(entry.best.rarity))) {
+    entry.best = { power, rarity: item.rarity, stats: { ...(item.stats ?? {}) }, at: item.obtainedAt ?? Date.now() };
+  }
+  return first;
+}
+
+function sanitizeCollection(raw) {
+  const result = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return result;
+  for (const [id, entry] of Object.entries(raw)) {
+    if (!entry || typeof entry !== "object") continue;
+    const best = entry.best && typeof entry.best === "object" && Number.isFinite(entry.best.power)
+      ? { power: entry.best.power, rarity: RARITIES[entry.best.rarity] ? entry.best.rarity : "common", stats: entry.best.stats && typeof entry.best.stats === "object" ? { ...entry.best.stats } : {}, at: Number(entry.best.at) || 0 }
+      : null;
+    result[id] = {
+      count: Math.max(1, goldInt(entry.count)), firstAt: Number(entry.firstAt) || 0,
+      firstEnemyId: typeof entry.firstEnemyId === "string" ? entry.firstEnemyId : null,
+      firstLocationId: typeof entry.firstLocationId === "string" ? entry.firstLocationId : null, best,
+    };
+  }
+  return result;
+}
+
+// Starý save (0.4) nemá sbírku -- zpětně se sestaví z toho, co hráč právě vlastní.
+function backfillCollection(items) {
+  const collection = {};
+  [...items].sort((a, b) => (a.obtainedAt ?? 0) - (b.obtainedAt ?? 0)).forEach((item) => registerInCollection(collection, item));
+  return collection;
+}
+
 function loadState() {
   const fresh = initialState();
   try {
@@ -280,12 +405,20 @@ function loadState() {
     const equipment = { ...fresh.equipment, ...(saved.equipment ?? {}) };
     for (const slot of Object.keys(equipment)) equipment[slot] = equipment[slot] ? sanitizeItem(equipment[slot]) : null;
     const unclaimed = Array.isArray(saved.unclaimed) ? saved.unclaimed.map(sanitizeItem).filter((item) => item && SLOT_META[item.slot]) : [];
+    // Vlastněné vybavení slouží ke zpětnému doplnění sbírky/statistik ze savu 0.4.
+    const owned = [...cleanInventory.filter((item) => SLOT_META[item?.slot]), ...Object.values(equipment).filter(Boolean), ...unclaimed];
+    const carriedGold = goldInt(saved.carriedGold ?? saved.gold); // 0.4 ukládalo jediné `gold` -> nesené zlato, nic se neztrácí
+    const stats = saved.stats
+      ? sanitizeStats(saved.stats)
+      : { ...emptyStats(), itemsFound: owned.length, materialsFound: Object.values(materials).reduce((sum, qty) => sum + qty, 0), goldEarned: carriedGold };
     const run = sanitizeRun(saved.run, currentEnemyId, activeLocationId);
     return {
       ...fresh,
       level: saved.level ?? fresh.level, xp: saved.xp ?? fresh.xp,
       kills: saved.kills ?? fresh.kills, drops: saved.drops ?? fresh.drops,
-      gold: saved.gold ?? fresh.gold,
+      carriedGold, bankGold: goldInt(saved.bankGold),
+      buyback: sanitizeBuyback(saved.buyback), lootRules: sanitizeLootRules(saved.lootRules), lootLog: sanitizeLootLog(saved.lootLog),
+      stats, collection: saved.collection ? sanitizeCollection(saved.collection) : backfillCollection(owned),
       elapsedSeconds: saved.elapsedSeconds ?? fresh.elapsedSeconds,
       inventory: cleanInventory, materials, unclaimed,
       recentDrops: sanitizeRecentDrops(saved.recentDrops),
@@ -300,7 +433,8 @@ function loadState() {
 function saveState() {
   const payload = {
     version: 3, level: state.level, xp: state.xp, kills: state.kills, drops: state.drops,
-    gold: state.gold, currentEnemyId: state.currentEnemyId,
+    carriedGold: state.carriedGold, bankGold: state.bankGold, currentEnemyId: state.currentEnemyId,
+    buyback: state.buyback, lootRules: state.lootRules, lootLog: state.lootLog, stats: state.stats, collection: state.collection,
     activeLocationId: state.activeLocationId, run: state.run,
     elapsedSeconds: state.elapsedSeconds, inventory: state.inventory, equipment: state.equipment,
     materials: state.materials, recentDrops: state.recentDrops, unclaimed: state.unclaimed,
@@ -380,7 +514,10 @@ function render() {
   setBar("xp", clampPercent(state.xp, goal));
   setText("kills", state.kills);
   setText("drops", state.drops);
-  setText("gold", state.gold);
+  setText("gold", fmtGold(state.carriedGold));
+  setText("bankGold", fmtGold(state.bankGold));
+  setText("totalGold", fmtGold(state.carriedGold + state.bankGold));
+  setText("deathLoss", fmtGold(deathGoldLoss()));
   setText("runTime", formatTime(state.elapsedSeconds));
   setText("playerHp", Math.ceil(state.player.hp));
   setText("playerMaxHp", roundStat(stats.maxHp));
@@ -477,6 +614,7 @@ function playerAttack() {
   let damage = randomInt(stats.minDamage, stats.maxDamage);
   if (critical) damage *= 2;
   damage = Math.max(1, damage - (enemyCfg.defense ?? 0));
+  if (critical) state.stats.highestCrit = Math.max(state.stats.highestCrit, damage);
   state.enemy.hp = Math.max(0, state.enemy.hp - damage);
   addLog(critical ? `Kritický zásah! Poutník zasáhl nepřítele (${enemyCfg.name}) za ${damage}.` : `Poutník zasáhl nepřítele (${enemyCfg.name}) za ${damage}.`, critical ? "critical" : "player");
   animateHit("enemy");
@@ -499,7 +637,7 @@ function defeatEnemy() {
   const enemyCfg = getCurrentEnemy();
   state.kills += 1;
   state.xp += enemyCfg.xp;
-  state.gold += enemyCfg.gold ?? 0;
+  addCarriedGold(enemyCfg.gold ?? 0);
   state.run.kills += 1;
   state.run.xpEarned += enemyCfg.xp;
   state.run.goldEarned += enemyCfg.gold ?? 0;
@@ -515,6 +653,7 @@ function defeatEnemy() {
   if (state.player.hp > before) addLog(`Krátký oddech obnovil ${state.player.hp - before} životů.`, "system");
   if (Math.random() < (enemyCfg.dropChance ?? CONFIG.dropChance)) generateDrop(enemyCfg);
   rollMaterialDrops(enemyCfg);
+  if (ui.page === "obchodnik") renderMerchant(); // dostupnost zpětného odkupu závisí na zlatě
   saveState();
 }
 
@@ -531,10 +670,21 @@ function applyLevelUps() {
 }
 
 function defeatPlayer() {
+  if (state.phase === "dead") return;
   state.phase = "dead";
   state.phaseEndsAt = performance.now() + CONFIG.playerRespawnMs;
   elements.encounterMessage.textContent = "Návrat k výpravě za 5 s";
-  addLog("Poutník padl. Za 5 sekund se vrátí do boje.", "enemy");
+  state.stats.deaths += 1;
+  // Prototype 0.5: smrt stojí 5 % ZLATA U SEBE. Zlato v bance je chráněné.
+  const lostGold = deathGoldLoss();
+  if (lostGold > 0) {
+    state.carriedGold -= lostGold;
+    state.stats.goldLostToDeath += lostGold;
+    addLog(`Poutník padl a ztrácí ${fmtGold(lostGold)} gold (5 % neseného zlata). Za 5 sekund se vrátí do boje.`, "enemy");
+    showNoticeToast("Ztráta zlata", `−${fmtGold(lostGold)} gold · v bance je bezpečně ${fmtGold(state.bankGold)}`, "danger");
+  } else {
+    addLog("Poutník padl. Za 5 sekund se vrátí do boje.", "enemy");
+  }
   saveState();
 }
 
@@ -603,7 +753,10 @@ function generateDrop(enemyCfg = getCurrentEnemy()) {
   const item = createItem(enemyCfg);
   const rarity = RARITIES[item.rarity];
   state.drops += 1;
+  // Nejdřív se item zapíše do sbírky (ať se pak prodá nebo ne) -- první získání šablony se nikdy neprodá automaticky.
+  const firstOfTemplate = recordItemAcquired(item);
   pushRecentDrop({ type: "item", key: item.icon, name: item.name, rarity: item.rarity, qty: 1 });
+  if (ruleAllowsAutoSell(item, firstOfTemplate)) { autoSellDrop(item); return; }
   if (state.inventory.length >= CONFIG.inventoryCapacity) {
     // Plný inventář: item nikdy tiše nezmizí, uloží se do nevyzvednuté kořisti.
     state.unclaimed.push(item);
@@ -638,6 +791,7 @@ function addMaterial(materialId, quantity) {
   if (!material || !(quantity > 0)) return;
   state.materials[materialId] = (state.materials[materialId] ?? 0) + quantity;
   state.drops += 1;
+  state.stats.materialsFound += quantity;
   const total = state.materials[materialId];
   addLog(`Získáno: ${material.name} ×${quantity} (celkem ${total}).`, material.rarity === "common" ? "system" : "level-up");
   pushRecentDrop({ type: "material", key: materialId, name: material.name, rarity: material.rarity, qty: quantity });
@@ -1230,6 +1384,15 @@ function renderDetail() {
   } else {
     action.classList.add("hidden");
   }
+
+  // Prodej: nasazené a uzamčené předměty jsou vždy chráněné.
+  const sell = elements.detailSellButton;
+  const notes = note.classList.contains("hidden") ? [] : [note.textContent];
+  sell.disabled = false;
+  sell.textContent = `PRODAT · ${itemSellValue(item)} gold`;
+  if (equippedNow) { sell.disabled = true; sell.textContent = "PRODAT"; notes.push("Nasazený předmět nelze prodat — nejdřív ho sundej."); }
+  else if (item.isLocked) { sell.disabled = true; sell.textContent = "PRODAT"; notes.push("Uzamčený předmět nelze prodat — nejdřív ho odemkni."); }
+  if (notes.length) { note.textContent = notes.join(" "); note.classList.remove("hidden"); }
 }
 
 function renderEquipmentOverview() {
@@ -1268,6 +1431,7 @@ function renderLoot() {
   renderInventoryView();
   renderEquipmentOverview();
   renderRecentDrops();
+  if (ui.page === "obchodnik") renderMerchant();
 }
 
 // --- Výběr ------------------------------------------------------------
@@ -1435,6 +1599,8 @@ function resetGame() {
   ui.selectedMapLocationId = null; ui.locTab = "info"; ui.highlightEnemyId = null;
   ui.tab = "all"; ui.search = ""; ui.type = "all"; ui.rarity = "all"; ui.flag = "all"; ui.origin = "all"; ui.sort = "newest";
   closeSheet({ restoreFocus: false });
+  ui.merchantSelected.clear();
+  setBankMessage("", "");
   deleteMode = false;
   selectedForDeletion.clear();
   elements.bulkDeleteBar.classList.add("hidden");
@@ -1448,6 +1614,298 @@ function resetGame() {
   renderLoot();
   if (ui.page === "mapa") renderMapPage();
   else updateMapPins();
+}
+
+// ---------------------------------------------------------------------
+// Prototype 0.5: zlato, prodej, obchodník, banka, pravidla kořisti
+// ---------------------------------------------------------------------
+
+function addCarriedGold(amount, { sale = false } = {}) {
+  const gain = goldInt(amount);
+  if (!gain) return 0;
+  state.carriedGold += gain;
+  state.stats.goldEarned += gain;
+  if (sale) state.stats.goldFromSales += gain;
+  return gain;
+}
+
+// Ztráta při smrti: floor(nesené zlato × 5 %). Banka se nedotýká.
+function deathGoldLoss() { return Math.floor(state.carriedGold * LOOT_CONFIG.deathGoldLossRate); }
+
+function recordItemAcquired(item) {
+  state.stats.itemsFound += 1;
+  return registerInCollection(state.collection, item);
+}
+
+function pushLootLog(type, text, gold = 0) {
+  state.lootLog.unshift({ at: Date.now(), type, text, gold });
+  state.lootLog.length = Math.min(state.lootLog.length, LOOT_CONFIG.lootLogLimit);
+}
+
+const COIN_ICON = "<svg class='px-icon' viewBox='0 0 8 8' aria-hidden='true' focusable='false'><path d='M2 0h4v1H2zM1 1h6v6H1zM2 7h4v1H2zM3 2h2v4H3z'/></svg>";
+
+// Neblokující oznámení bez itemu (prodej, ztráta zlata…).
+function showNoticeToast(title, text, tone = "gold") {
+  const toast = document.createElement("div");
+  toast.className = `drop-toast notice notice-${tone}`;
+  toast.innerHTML = `<span class="drop-toast-icon notice-icon" aria-hidden="true">${COIN_ICON}</span><div class="drop-toast-copy"><strong></strong><span></span></div>`;
+  toast.querySelector("strong").textContent = title;
+  toast.querySelector(".drop-toast-copy span").textContent = text;
+  presentToast(toast);
+}
+
+// --- Prodej ---------------------------------------------------------------
+function saleSummary(ids) {
+  const wanted = new Set(ids);
+  const items = state.inventory.filter((item) => wanted.has(item.id) && !item.isLocked);
+  const byRarity = {};
+  let total = 0;
+  items.forEach((item) => { byRarity[item.rarity] = (byRarity[item.rarity] ?? 0) + 1; total += itemSellValue(item); });
+  return {
+    items, count: items.length, total, byRarity,
+    hasFavorite: items.some((item) => item.isFavorite),
+    hasRareOrEpic: items.some((item) => item.rarity === "rare" || item.rarity === "epic"),
+  };
+}
+
+function rarityBreakdown(byRarity) {
+  const parts = RARITY_ORDER.filter((key) => byRarity[key]).map((key) => `${RARITIES[key].label} ×${byRarity[key]}`);
+  return parts.length ? parts.join(" · ") : "—";
+}
+
+// Ruční prodej. Uzamčené a nenalezené itemy se tiše přeskočí; nasazené v inventáři vůbec nejsou.
+function performSale(ids) {
+  const summary = saleSummary(ids);
+  if (!summary.count) return null;
+  const doomed = new Set(summary.items.map((item) => item.id));
+  state.inventory = state.inventory.filter((item) => !doomed.has(item.id));
+  addCarriedGold(summary.total, { sale: true });
+  const now = Date.now();
+  summary.items.forEach((item) => state.buyback.unshift({ item, price: itemSellValue(item), soldAt: now }));
+  state.buyback.length = Math.min(state.buyback.length, LOOT_CONFIG.buybackLimit);
+  const text = summary.count === 1
+    ? `Prodáno: ${summary.items[0].name} za ${fmtGold(summary.total)} gold.`
+    : `Prodáno ${summary.count} ${pluralizePredmet(summary.count)} za ${fmtGold(summary.total)} gold.`;
+  addLog(text, "victory");
+  pushLootLog("sale", text, summary.total);
+  showNoticeToast(summary.count === 1 ? `Prodáno: ${summary.items[0].name}` : `Prodáno ${summary.count} ${pluralizePredmet(summary.count)}`, `+${fmtGold(summary.total)} gold`, "gold");
+  doomed.forEach((id) => { selectedForDeletion.delete(id); ui.merchantSelected.delete(id); });
+  if (deleteMode) setDeleteMode(false);
+  render(); renderLoot(); saveState();
+  return summary;
+}
+
+// Jeden běžný předmět se prodá hned (jde ho odkoupit zpět); víc kusů, vzácný/epický
+// nebo oblíbený item vždy projde potvrzením s celkovou cenou.
+function requestSale(ids) {
+  const summary = saleSummary(ids);
+  if (!summary.count) return;
+  if (summary.count === 1 && !summary.hasFavorite && !summary.hasRareOrEpic) { performSale(ids); return; }
+  openBulkDialog("sell", ids);
+}
+
+let pendingBulk = null;
+function openBulkDialog(mode, ids) {
+  const summary = saleSummary(ids);
+  if (!summary.count) return;
+  const isSell = mode === "sell";
+  pendingBulk = { mode, ids: summary.items.map((item) => item.id) };
+  elements.sellDialogEyebrow.textContent = isSell ? "Potvrzení prodeje" : "Potvrzení smazání";
+  elements.sellDialogTitle.textContent = `${isSell ? "Prodat" : "Smazat"} ${summary.count} ${pluralizePredmet(summary.count)}?`;
+  elements.sellDialogSummary.textContent = rarityBreakdown(summary.byRarity);
+  elements.sellDialogTotal.textContent = isSell
+    ? `Výkup celkem: ${fmtGold(summary.total)} gold`
+    : "Za smazané předměty nedostaneš zlato a nelze je odkoupit zpět.";
+  const warnings = [];
+  if (summary.hasRareOrEpic) warnings.push(`Výběr obsahuje vzácný nebo epický předmět (${summary.items.filter((item) => item.rarity === "rare" || item.rarity === "epic").length}×).`);
+  if (summary.hasFavorite) warnings.push(`Výběr obsahuje oblíbený předmět (${summary.items.filter((item) => item.isFavorite).length}×).`);
+  elements.sellDialogWarnings.replaceChildren(...warnings.map((text) => mk("li", { text })));
+  elements.sellConfirm.textContent = isSell ? "Prodat" : "Smazat";
+  elements.sellConfirm.className = `btn ${isSell ? "btn-primary" : "btn-danger"}`;
+  elements.sellDialog.showModal();
+}
+
+function confirmBulkDialog() {
+  const pending = pendingBulk;
+  pendingBulk = null;
+  elements.sellDialog.close();
+  if (!pending) return;
+  if (pending.mode === "sell") { performSale(pending.ids); if (mqSheet.matches) closeSheet(); }
+  else performDelete(pending.ids);
+}
+
+// --- Automatický prodej -------------------------------------------------------
+// Bezpečnostní pravidla: jen BĚŽNÉ vybavení, nikdy první získání šablony, nikdy
+// oblíbené/uzamčené. Nasazené itemy se do tohoto toku nikdy nedostanou (jde o čerstvý drop).
+function ruleAllowsAutoSell(item, firstOfTemplate) {
+  const rules = state.lootRules;
+  return rules.autoSellCommon && item.rarity === "common" && rules.slots[item.slot] !== false
+    && !firstOfTemplate && !item.isFavorite && !item.isLocked;
+}
+
+function autoSellDrop(item) {
+  const price = itemSellValue(item);
+  addCarriedGold(price, { sale: true });
+  const text = `Automaticky prodáno: ${item.name} za ${fmtGold(price)} gold.`;
+  addLog(text, "system");
+  pushLootLog("auto", text, price);
+  showNoticeToast("Automatický prodej", `${item.name} · +${fmtGold(price)} gold`, "gold");
+  if (ui.page === "obchodnik") renderMerchant();
+}
+
+// --- Zpětný odkup ----------------------------------------------------------
+function buyBack(itemId) {
+  const index = state.buyback.findIndex((entry) => entry.item.id === itemId);
+  if (index < 0) return;
+  const entry = state.buyback[index];
+  if (inventoryFreeSlots() === 0) { addLog("Inventář je plný — na zpětný odkup není místo.", "system"); renderMerchant(); return; }
+  if (state.carriedGold < entry.price) { addLog(`Na zpětný odkup chybí zlato (potřebuješ ${fmtGold(entry.price)}).`, "system"); renderMerchant(); return; }
+  state.carriedGold -= entry.price;
+  state.buyback.splice(index, 1);
+  entry.item.isNew = false;
+  state.inventory.unshift(entry.item);
+  const text = `Odkoupeno zpět: ${entry.item.name} za ${fmtGold(entry.price)} gold.`;
+  addLog(text, "system");
+  pushLootLog("buyback", text, -entry.price);
+  showNoticeToast(`Odkoupeno: ${entry.item.name}`, `−${fmtGold(entry.price)} gold`, "gold");
+  render(); renderLoot(); saveState();
+}
+
+// --- Stránka Obchodník --------------------------------------------------------
+function merchantSellable() {
+  const rank = (item) => RARITY_ORDER.indexOf(item.rarity);
+  return state.inventory.filter((item) => !item.isLocked).sort((a, b) =>
+    rank(a) - rank(b) || SLOT_ORDER.indexOf(a.slot) - SLOT_ORDER.indexOf(b.slot) || a.name.localeCompare(b.name, "cs") || (b.obtainedAt ?? 0) - (a.obtainedAt ?? 0));
+}
+
+function updateMerchantSummary() {
+  const summary = saleSummary([...ui.merchantSelected]);
+  elements.merchantCount.textContent = summary.count;
+  elements.merchantBreakdown.textContent = rarityBreakdown(summary.byRarity);
+  elements.merchantTotal.textContent = fmtGold(summary.total);
+  elements.merchantSell.disabled = summary.count === 0;
+  $$(".merchant-row", elements.merchantList).forEach((row) => row.classList.toggle("selected", ui.merchantSelected.has(row.dataset.id)));
+}
+
+function renderMerchantSell() {
+  const sellable = merchantSellable();
+  const valid = new Set(sellable.map((item) => item.id));
+  [...ui.merchantSelected].forEach((id) => { if (!valid.has(id)) ui.merchantSelected.delete(id); });
+  const list = elements.merchantList;
+  const focusId = list.contains(document.activeElement) ? document.activeElement.dataset.sellId : null;
+  list.replaceChildren(...sellable.map((item) => {
+    const icon = mk("span", { class: "merchant-icon", "aria-hidden": "true" });
+    renderItemIcon(icon, item);
+    const flags = [item.isNew ? "NOVÉ" : null, item.isFavorite ? "★ oblíbené" : null].filter(Boolean).join(" · ");
+    const box = mk("input", { type: "checkbox", "data-sell-id": item.id, "aria-label": `Označit k prodeji: ${item.name}, ${itemSellValue(item)} gold` });
+    box.checked = ui.merchantSelected.has(item.id);
+    return mk("li", { class: `merchant-row rarity-${item.rarity}`, "data-id": item.id },
+      mk("label", {}, box, icon,
+        mk("span", { class: "merchant-copy" },
+          mk("strong", { class: `rarity-text rarity-${item.rarity}`, text: item.name }),
+          mk("span", { text: `${RARITIES[item.rarity]?.label ?? ""} · ${SLOT_META[item.slot]?.label ?? ""} · síla ${fmtNum(itemPower(item))}${flags ? ` · ${flags}` : ""}` })),
+        mk("span", { class: "merchant-price", text: `${fmtGold(itemSellValue(item))} gold` })));
+  }));
+  if (focusId) $(`[data-sell-id="${CSS.escape(focusId)}"]`, list)?.focus({ preventScroll: true });
+  elements.merchantEmpty.classList.toggle("hidden", sellable.length > 0);
+  const locked = state.inventory.filter((item) => item.isLocked).length;
+  const favorites = sellable.filter((item) => item.isFavorite).length;
+  const equipped = Object.values(state.equipment).filter(Boolean).length;
+  elements.merchantProtected.textContent = `Chráněno před prodejem: ${equipped} nasazených, ${locked} uzamčených. Oblíbené (${favorites}) se nikdy nevybírají automaticky.`;
+  updateMerchantSummary();
+}
+
+function renderBuyback() {
+  const list = elements.buybackList;
+  elements.buybackCount.textContent = state.buyback.length;
+  if (!state.buyback.length) { list.replaceChildren(mk("li", { class: "buyback-empty", text: "Zatím jsi nic neprodal." })); return; }
+  const full = inventoryFreeSlots() === 0;
+  list.replaceChildren(...state.buyback.map((entry) => {
+    const icon = mk("span", { class: "merchant-icon", "aria-hidden": "true" });
+    renderItemIcon(icon, entry.item);
+    const poor = state.carriedGold < entry.price;
+    const reason = full ? "Inventář je plný" : poor ? "Nedostatek zlata" : "";
+    return mk("li", { class: `merchant-row buyback-row rarity-${entry.item.rarity}` }, icon,
+      mk("span", { class: "merchant-copy" },
+        mk("strong", { class: `rarity-text rarity-${entry.item.rarity}`, text: entry.item.name }),
+        mk("span", { text: `${RARITIES[entry.item.rarity]?.label ?? ""} · ${SLOT_META[entry.item.slot]?.label ?? ""}${reason ? ` · ${reason}` : ""}` })),
+      mk("button", { class: "btn", type: "button", "data-buyback-id": entry.item.id, disabled: full || poor, title: reason, text: `Odkoupit · ${fmtGold(entry.price)}` }));
+  }));
+}
+
+function buildRuleSlots() {
+  const fieldset = elements.ruleSlots;
+  SLOT_ORDER.forEach((slot) => {
+    const box = mk("input", { type: "checkbox", "data-rule-slot": slot });
+    fieldset.append(mk("label", { class: "rule-slot" }, box, mk("span", { text: SLOT_META[slot].label })));
+  });
+  elements.merchantSlot.innerHTML = `<option value="">Vyber slot…</option>${SLOT_ORDER.map((slot) => `<option value="${slot}">${SLOT_META[slot].label}</option>`).join("")}`;
+}
+
+function renderRules() {
+  const rules = state.lootRules;
+  elements.ruleAutoSell.checked = rules.autoSellCommon;
+  elements.autoSellState.textContent = rules.autoSellCommon ? "ZAPNUTO" : "VYPNUTO";
+  elements.autoSellState.classList.toggle("on", rules.autoSellCommon);
+  elements.ruleSlots.disabled = !rules.autoSellCommon;
+  $$("[data-rule-slot]", elements.ruleSlots).forEach((box) => { box.checked = rules.slots[box.dataset.ruleSlot] !== false; });
+}
+
+function renderLootLog() {
+  const list = elements.lootLogList;
+  if (!state.lootLog.length) { list.replaceChildren(mk("li", { class: "loot-log-empty", text: "Zatím žádné prodeje ani odkupy." })); return; }
+  list.replaceChildren(...state.lootLog.map((entry) => {
+    const time = mk("time", { text: new Date(entry.at).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) });
+    const gold = entry.gold ? mk("b", { class: entry.gold > 0 ? "up" : "down", text: `${entry.gold > 0 ? "+" : "−"}${fmtGold(Math.abs(entry.gold))}` }) : null;
+    return mk("li", { class: `loot-log-entry ${entry.type}` }, time, mk("span", { text: entry.text }), gold);
+  }));
+}
+
+function renderMerchant() {
+  renderMerchantSell();
+  renderBuyback();
+  renderRules();
+  renderLootLog();
+}
+
+// --- Banka ---------------------------------------------------------------------
+function parseGoldAmount(text) {
+  const raw = String(text ?? "").trim().replace(/\s+/g, "");
+  if (!raw) return { ok: false, message: "Zadej částku." };
+  if (/^-/.test(raw)) return { ok: false, message: "Částka nemůže být záporná." };
+  if (/^\d*[.,]\d*$/.test(raw) && /\d/.test(raw)) return { ok: false, message: "Zadej celé číslo — desetinné částky nejsou povolené." };
+  if (!/^\d+$/.test(raw)) return { ok: false, message: "Zadej celé kladné číslo." };
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value)) return { ok: false, message: "Částka je příliš vysoká." };
+  if (value === 0) return { ok: false, message: "Částka musí být větší než nula." };
+  return { ok: true, value };
+}
+
+function setBankMessage(text, kind) {
+  elements.bankMessage.textContent = text;
+  elements.bankMessage.dataset.kind = kind;
+}
+
+function bankTransfer(direction, all = false) {
+  const deposit = direction === "deposit";
+  const source = deposit ? state.carriedGold : state.bankGold;
+  let amount;
+  if (all) {
+    if (source <= 0) { setBankMessage(deposit ? "Nemáš u sebe žádné zlato." : "V bance nemáš žádné zlato.", "error"); return; }
+    amount = source;
+  } else {
+    const parsed = parseGoldAmount(elements.bankAmount.value);
+    if (!parsed.ok) { setBankMessage(parsed.message, "error"); return; }
+    if (parsed.value > source) { setBankMessage(deposit ? `U sebe máš jen ${fmtGold(source)} gold.` : `V bance je jen ${fmtGold(source)} gold.`, "error"); return; }
+    amount = parsed.value;
+  }
+  if (deposit) { state.carriedGold -= amount; state.bankGold += amount; }
+  else { state.bankGold -= amount; state.carriedGold += amount; }
+  const text = deposit ? `Do banky uloženo ${fmtGold(amount)} gold.` : `Z banky vybráno ${fmtGold(amount)} gold.`;
+  setBankMessage(text, "ok");
+  addLog(text, "system");
+  elements.bankAmount.value = "";
+  render(); saveState(); // boj se tím nezastavuje ani nerestartuje
 }
 
 // --- Mapa světa, detail lokace a vstup do lokace -----------------------
@@ -1924,7 +2382,7 @@ function initCombatWidgets() {
 // Všechny stránky zůstávají v DOM (jen se přepíná atribut hidden) a herní
 // smyčka běží mimo ně — přepnutí stránky proto boj nikdy nerestartuje.
 
-const PAGE_TITLES = Object.freeze({ postava: "Postava", inventar: "Inventář", mapa: "Mapa", boj: "Boj" });
+const PAGE_TITLES = Object.freeze({ postava: "Postava", inventar: "Inventář", obchodnik: "Obchodník", banka: "Banka", mapa: "Mapa", boj: "Boj" });
 
 function pageFromHash() {
   const match = /^#\/?([a-z]+)/.exec(location.hash);
@@ -1950,6 +2408,7 @@ function showPage(page) {
   document.body.classList.toggle("loc-open", page === "mapa" && elements.locDetail.classList.contains("sheet-open"));
   if (page === "mapa") renderMapPage();
   else if (page === "inventar") renderInventoryView();
+  else if (page === "obchodnik") renderMerchant();
   else if (page === "postava") renderEquipmentOverview();
   window.scrollTo(0, 0);
 }
@@ -2009,6 +2468,57 @@ elements.invActiveFilters.addEventListener("click", (event) => {
   const chip = event.target.closest("[data-clear-filter]");
   if (chip) clearFilter(chip.dataset.clearFilter);
 });
+elements.detailSellButton.addEventListener("click", () => {
+  const resolved = resolveSelection();
+  if (resolved?.kind === "item") requestSale([resolved.item.id]);
+});
+elements.sellSelectedButton.addEventListener("click", () => {
+  const ids = selectedInventoryItems().map((item) => item.id);
+  if (ids.length) openBulkDialog("sell", ids);
+});
+elements.selectSellableButton.addEventListener("click", selectSellableInView);
+elements.sellConfirm.addEventListener("click", confirmBulkDialog);
+elements.sellCancel.addEventListener("click", () => { pendingBulk = null; elements.sellDialog.close(); });
+elements.sellDialog.addEventListener("close", () => { pendingBulk = null; });
+
+// Obchodník
+elements.merchantList.addEventListener("change", (event) => {
+  const box = event.target.closest("[data-sell-id]");
+  if (!box) return;
+  if (box.checked) ui.merchantSelected.add(box.dataset.sellId); else ui.merchantSelected.delete(box.dataset.sellId);
+  updateMerchantSummary();
+});
+function merchantSelectWhere(predicate) {
+  merchantSellable().filter((item) => !item.isFavorite && predicate(item)).forEach((item) => ui.merchantSelected.add(item.id));
+  renderMerchantSell();
+}
+elements.merchantSelectCommon.addEventListener("click", () => merchantSelectWhere((item) => item.rarity === "common"));
+elements.merchantSelectAll.addEventListener("click", () => merchantSelectWhere(() => true));
+elements.merchantClear.addEventListener("click", () => { ui.merchantSelected.clear(); renderMerchantSell(); });
+elements.merchantSlot.addEventListener("change", () => {
+  const slot = elements.merchantSlot.value;
+  elements.merchantSlot.value = "";
+  if (slot) merchantSelectWhere((item) => item.rarity === "common" && item.slot === slot);
+});
+elements.merchantSell.addEventListener("click", () => requestSale([...ui.merchantSelected]));
+elements.buybackList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-buyback-id]");
+  if (button && !button.disabled) buyBack(button.dataset.buybackId);
+});
+elements.ruleAutoSell.addEventListener("change", () => { state.lootRules.autoSellCommon = elements.ruleAutoSell.checked; renderRules(); saveState(); });
+elements.ruleSlots.addEventListener("change", (event) => {
+  const box = event.target.closest("[data-rule-slot]");
+  if (!box) return;
+  state.lootRules.slots[box.dataset.ruleSlot] = box.checked;
+  saveState();
+});
+
+// Banka
+elements.bankDeposit.addEventListener("click", () => bankTransfer("deposit"));
+elements.bankWithdraw.addEventListener("click", () => bankTransfer("withdraw"));
+elements.bankDepositAll.addEventListener("click", () => bankTransfer("deposit", true));
+elements.bankWithdrawAll.addEventListener("click", () => bankTransfer("withdraw", true));
+elements.bankAmount.addEventListener("input", () => setBankMessage("", ""));
 elements.detailFavButton.addEventListener("click", () => toggleItemFlag("isFavorite"));
 elements.detailLockButton.addEventListener("click", () => toggleItemFlag("isLocked"));
 elements.claimAllButton.addEventListener("click", () => claimUnclaimed());
@@ -2108,6 +2618,7 @@ initCombatWidgets();
 applyCharacterPreview();
 populateTypeFilter();
 populateOriginFilter();
+buildRuleSlots();
 syncInventoryControls();
 startLoops();
 updateArenaHeader();

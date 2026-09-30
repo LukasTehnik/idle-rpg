@@ -1162,3 +1162,87 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 @media (max-width: 480px) {
   .cmp-cards { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ======================================================================
+   PROTOTYPE 0.5 — obchodník, banka, pravidla kořisti
+   ====================================================================== */
+.bulk-bar { border-color: var(--color-accent-gold-dark, var(--color-border-strong)); background: var(--color-surface-2); }
+.bulk-info { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
+.btn-sell { color: var(--color-accent-gold-light); box-shadow: inset 0 0 0 1px var(--color-accent-gold), var(--shadow-hard); }
+.btn-sell:disabled { color: var(--color-text-muted); box-shadow: inset 0 0 0 1px var(--color-border); }
+.page-lead { margin: 0 0 16px; color: var(--color-text-secondary); }
+
+.merchant-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.merchant-side { display: grid; gap: 16px; }
+.merchant-sell { display: grid; gap: 12px; }
+.merchant-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+.merchant-slot-field { min-width: 150px; }
+.merchant-list, .buyback-list, #lootLogList { margin: 0; padding: 0; list-style: none; }
+.merchant-list { display: grid; max-height: 460px; gap: 4px; overflow-y: auto; }
+.merchant-row { display: flex; align-items: center; gap: 10px; border: 1px solid var(--color-border); border-left: 4px solid var(--rar-color, var(--color-border)); background: var(--color-surface-2); }
+.merchant-row.selected { background: var(--color-surface-3); box-shadow: inset 0 0 0 1px var(--color-accent-gold); }
+.merchant-row > label { display: flex; flex: 1; min-width: 0; align-items: center; gap: 10px; padding: 6px 8px; cursor: pointer; }
+.merchant-row.buyback-row { padding: 6px 8px; }
+.merchant-row input[type="checkbox"] { width: 18px; height: 18px; flex: none; accent-color: var(--color-accent-gold); }
+.merchant-icon { display: grid; width: 36px; height: 36px; flex: none; place-items: center; overflow: hidden; border: 1px solid var(--color-border-strong); background: var(--color-bg-deep); }
+.merchant-icon img { width: 100%; height: 100%; object-fit: contain; }
+.merchant-icon svg { width: 22px; height: 22px; }
+.merchant-copy { display: grid; flex: 1; min-width: 0; gap: 0; }
+.merchant-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.merchant-copy span { color: var(--color-text-muted); font-size: var(--fs-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.merchant-price { color: var(--color-accent-gold-light); white-space: nowrap; }
+.merchant-summary { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--color-accent-gold); background: var(--color-surface-2); }
+.merchant-total { color: var(--color-accent-gold-light); font-size: var(--fs-h1); }
+.merchant-protected, .buyback-empty, .loot-log-empty { color: var(--color-text-muted); font-size: var(--fs-small); }
+.buyback-list { display: grid; gap: 4px; }
+
+.loot-rules { display: grid; gap: 10px; }
+.switch-row { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.switch-row input { width: 20px; height: 20px; accent-color: var(--color-accent-gold); }
+.rule-slots { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; padding: 8px; border: 1px solid var(--color-border); }
+.rule-slots:disabled { opacity: .45; }
+.rule-slot { display: flex; align-items: center; gap: 6px; }
+.rule-slot input { accent-color: var(--color-accent-gold); }
+.rule-safety { margin: 0; padding-left: 18px; color: var(--color-text-muted); font-size: var(--fs-small); }
+#autoSellState { color: var(--color-text-muted); }
+#autoSellState.on { color: var(--color-accent-gold-light); }
+
+#lootLogList { display: grid; max-height: 260px; gap: 2px; overflow-y: auto; }
+.loot-log-entry { display: flex; gap: 8px; align-items: baseline; padding: 4px 6px; border-left: 3px solid var(--color-border); background: var(--color-surface-2); font-size: var(--fs-small); }
+.loot-log-entry.auto { border-left-color: var(--color-accent-gold); }
+.loot-log-entry time { color: var(--color-text-muted); }
+.loot-log-entry span { flex: 1; min-width: 0; }
+.loot-log-entry b.up { color: var(--color-accent-gold-light); }
+.loot-log-entry b.down { color: var(--color-health-light); }
+
+.bank-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.bank-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 0 12px; }
+.bank-card { padding: 10px; border: 1px solid var(--color-border); background: var(--color-surface-2); }
+.bank-card dt { color: var(--color-text-muted); font-size: var(--fs-small); text-transform: uppercase; }
+.bank-card dd { margin: 0; color: var(--color-accent-gold-light); font-size: var(--fs-h1); }
+.bank-card-safe { border-color: var(--color-accent-gold); }
+.bank-warning { margin: 0 0 8px; padding: 8px 10px; border: 1px solid var(--color-danger); background: var(--color-danger-bg); color: var(--color-health-light); }
+.bank-form { display: grid; gap: 12px; }
+.bank-form input { width: 100%; min-height: 44px; padding: 8px 10px; border: 1px solid var(--color-border-strong); background: var(--color-bg-deep); color: var(--color-text-primary); font: inherit; }
+.bank-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.bank-message { min-height: 1.5em; margin: 0; }
+.bank-message[data-kind="error"] { color: var(--color-health-light); }
+.bank-message[data-kind="ok"] { color: var(--color-accent-gold-light); }
+
+.sell-total { margin: 0; color: var(--color-accent-gold-light); font-size: var(--fs-item); }
+.sell-warnings { margin: 0; padding-left: 18px; color: var(--color-health-light); }
+.sell-warnings:empty { display: none; }
+.notice-icon { color: var(--color-accent-gold-light); }
+.notice-danger { border-color: var(--color-danger); }
+.notice-danger .notice-icon { color: var(--color-health-light); }
+.px-icon { width: 24px; height: 24px; fill: currentColor; }
+
+@media (max-width: 1099px) {
+  .merchant-grid, .bank-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 599px) {
+  .bank-cards { grid-template-columns: minmax(0, 1fr); }
+  .merchant-list { max-height: 380px; }
+  .merchant-tools .btn { flex: 1 1 140px; }
+  .bank-actions .btn { flex: 1 1 45%; }
+}
