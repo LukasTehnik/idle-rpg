@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Vývojové nástroje — Idle RPG</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar"><div><p class="eyebrow">IDLE RPG / DEV</p><h1>Vývojové nástroje</h1></div>
+        <nav class="catalog-nav"><a href="index.html" class="catalog-link">← Zpět do hry</a></nav></header>
+      <p class="catalog-intro">Rozcestník pro vývoj. Nic z toho není určeno hráčům. Spuštění: <code>python3 -m http.server 8080</code>.</p>
+      <h2 class="catalog-section-title">KATALOGY</h2>
+      <ul class="catalog-intro" style="line-height:2.2">
+        <li><a class="catalog-link" href="item-catalog.html">item-catalog.html</a> — všechny předměty, quality preview</li>
+        <li><a class="catalog-link" href="material-catalog.html">material-catalog.html</a> — materiály, quality preview</li>
+        <li><a class="catalog-link" href="affix-catalog.html">affix-catalog.html</a> — 64 affixů, registr statů, sandbox itemu, konflikty, capy, drop fixture, test migrace</li>
+      </ul>
+      <h2 class="catalog-section-title">TESTOVACÍ ODKAZY DO HRY</h2>
+      <ul class="catalog-intro" style="line-height:2.2">
+        <li><a class="catalog-link" href="index.html?testitems#/inventar">index.html?testitems#/inventar</a> — přidá itemy všech kvalit</li>
+        <li><a class="catalog-link" href="index.html?testscrolls#/inventar">index.html?testscrolls#/inventar</a> — přidá 64 svitků a 3 itemy s affixy</li>
+      </ul>
+      <h2 class="catalog-section-title">TESTY (příkazová řádka)</h2>
+      <p class="catalog-intro"><code>node tests/affix-tests.js</code> — logické testy affixů<br /><code>node tests/ui-tests.js</code> — UI testy (potřebuje běžící server na portu 8765 a Playwright)</p>
+    </main>
+  </body>
+</html>

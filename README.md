@@ -12,6 +12,10 @@ python3 -m http.server 8080
 
 Potom otevři `http://localhost:8080`.
 
+## Vývojové nástroje
+
+Rozcestník: otevři `dev-tools.html`. Obsahuje katalogy (`item-catalog.html`, `material-catalog.html`, `affix-catalog.html`), testovací odkazy do hry (`?testitems`, `?testscrolls`) a příkazy pro testy (`node tests/affix-tests.js`, `node tests/ui-tests.js`). Podrobnosti: [`docs/dev-tools.md`](docs/dev-tools.md).
+
 ## Co prototyp obsahuje
 
 - automatický souboj proti vybranému nepříteli,
