@@ -8,7 +8,7 @@
       name="description"
       content="Prohlížečový idle RPG prototyp s aplikačním shellem, samostatnými stránkami a paper-doll inventářem."
     />
-    <title>Idle RPG — Prototype 0.5</title>
+    <title>Idle RPG — Prototype 0.5.1</title>
     <link rel="preload" href="assets/fonts/jersey-10-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -43,7 +43,7 @@
             <a class="nav-link nav-link-external" href="item-catalog.html">Katalog předmětů <span aria-hidden="true">↗</span></a>
           </nav>
 
-          <p class="sidebar-note">Prototype 0.5<br />Kořist, ekonomika a sbírka · boj běží na pozadí při přepínání stránek</p>
+          <p class="sidebar-note">Prototype 0.5.1<br />Kořist, ekonomika a sbírka · boj běží na pozadí při přepínání stránek</p>
         </div>
       </aside>
       <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
@@ -173,13 +173,15 @@
                     <select id="invType"></select>
                   </label>
                   <label class="field">
-                    <span class="field-label">Rarita</span>
-                    <select id="invRarity">
+                    <span class="field-label">Quality</span>
+                    <select id="invQuality">
                       <option value="all">Všechny</option>
-                      <option value="common">Běžný</option>
-                      <option value="uncommon">Neobvyklý</option>
-                      <option value="rare">Vzácný</option>
-                      <option value="epic">Epický</option>
+                      <option value="common">Common</option>
+                      <option value="rare">Rare</option>
+                      <option value="epic">Epic</option>
+                      <option value="legendary">Legendary</option>
+                      <option value="mythic">Mythic</option>
+                      <option value="god">God</option>
                     </select>
                   </label>
                   <label class="field" id="invFlagField">
@@ -200,7 +202,7 @@
                     <select id="invSort">
                       <option value="newest">Nejnovější</option>
                       <option value="oldest">Nejstarší</option>
-                      <option value="rarity">Rarita</option>
+                      <option value="quality">Quality</option>
                       <option value="name">Název</option>
                       <option value="value">Prodejní hodnota</option>
                       <option value="power">Síla itemu</option>
@@ -239,11 +241,14 @@
                   <p id="inventoryEmptyText">Porážej nepřátele. Každý může zanechat vybavení nebo materiál.</p>
                 </div>
 
-                <div class="rarity-legend" aria-label="Vzácnosti">
-                  <span><i class="rarity-dot common"></i>Běžný</span>
-                  <span><i class="rarity-dot uncommon"></i>Neobvyklý</span>
-                  <span><i class="rarity-dot rare"></i>Vzácný</span>
-                  <span><i class="rarity-dot epic"></i>Epický</span>
+                <div class="quality-legend" aria-label="Kvality">
+                  <span><i class="q-dot q-common"></i>COMMON</span>
+                  <span><i class="q-dot q-rare"></i>RARE</span>
+                  <span><i class="q-dot q-epic"></i>EPIC</span>
+                  <span><i class="q-dot q-legendary"></i>LEGENDARY</span>
+                  <span><i class="q-dot q-mythic"></i>MYTHIC</span>
+                  <span><i class="q-dot q-god"></i>GOD</span>
+                  <span><i class="q-dot q-wings"></i>WINGS (zlatá)</span>
                 </div>
               </section>
 
@@ -295,7 +300,7 @@
 
                 <div id="detailBody" class="detail-body hidden">
                   <div class="detail-visual">
-                    <div id="detailRarity" class="detail-rarity">Běžný</div>
+                    <div id="detailQuality" class="detail-quality">Běžný</div>
                     <div id="detailIcon" class="detail-icon" aria-hidden="true"></div>
                   </div>
                   <div class="detail-info">
@@ -618,6 +623,7 @@
     <div id="detailBackdrop" class="detail-backdrop" aria-hidden="true"></div>
     <div id="dropToastStack" class="drop-toast-stack" aria-live="polite" aria-atomic="false"></div>
 
+    <script src="quality-data.js"></script>
     <script src="item-data.js"></script>
     <script src="economy-data.js"></script>
     <script src="material-data.js"></script>

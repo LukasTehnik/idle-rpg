@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#12100d" />
+    <meta
+      name="description"
+      content="Statický katalog všech materiálů v prototypu."
+    />
+    <title>Katalog materiálů — Idle RPG</title>
+    <link rel="preload" href="assets/fonts/jersey-10-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">IDLE RPG / PROTOTYPE 0.5.1</p>
+          <h1>Katalog materiálů</h1>
+        </div>
+        <nav class="catalog-nav" aria-label="Katalogy"><a href="item-catalog.html" class="catalog-link">ITEMS</a><a href="material-catalog.html" class="catalog-link active" aria-current="page">MATERIALS</a><a href="index.html" class="catalog-link">← Zpět do hry</a></nav>
+      </header>
+
+      <p class="catalog-intro">
+        Přehled všech materiálů a svitků z <code>material-data.js</code>. Každý materiál má jednu základní
+        definici; kvalita je hodnota konkrétního dropu a stacku (<code>templateId:quality</code>), proto zde
+        není u materiálů uvedena jako vlastnost definice. Materiály nemohou mít kvalitu GOD.
+      </p>
+
+      <section id="matGrid" class="catalog-grid" aria-label="Seznam materiálů (klikni na kartu pro detail)"></section>
+
+      <h2 class="catalog-section-title">QUALITY PREVIEW — MATERIALS</h2>
+      <p class="catalog-intro">
+        Jeden materiál (stejný asset) v pěti kvalitách Common–Mythic. Číslo ve slotu je počet kusů ve stacku.
+        Náhled se neukládá do inventáře ani do drop tabulek.
+      </p>
+      <section id="matPreview" class="catalog-grid" aria-label="Quality preview — materials"></section>
+    </main>
+
+    <div id="catBackdrop" class="cat-backdrop" aria-hidden="true" hidden></div>
+    <aside id="catDetail" class="cat-detail" role="dialog" aria-modal="true" aria-label="Detail materiálu" hidden>
+      <div class="detail-topbar">
+        <p class="eyebrow">DETAIL MATERIÁLU</p>
+        <button id="catClose" class="btn" type="button">Zavřít ✕</button>
+      </div>
+      <div id="catIcon" class="detail-icon" aria-hidden="true"></div>
+      <p id="catQuality" class="detail-quality"></p>
+      <h2 id="catTitle" class="detail-title"></h2>
+      <p id="catType" class="detail-type"></p>
+      <p id="catDesc" class="detail-flavor"></p>
+      <div id="catSources" class="kv-list"></div>
+      <div id="catMeta" class="kv-list kv-list-meta"></div>
+    </aside>
+
+    <script src="quality-data.js"></script>
+    <script src="item-data.js"></script>
+    <script src="material-data.js"></script>
+    <script src="world-data.js"></script>
+    <script>
+      "use strict";
+      const $id = (id) => document.getElementById(id);
+      const detail = $id("catDetail"), backdrop = $id("catBackdrop");
+      let openerCard = null;
+      const entries = []; // { key, material, quality, qty }
+
+      function kvRow(label, value) {
+        const row = document.createElement("div"); row.className = "kv-row";
+        const a = document.createElement("span"); a.textContent = label;
+        const b = document.createElement("strong"); b.textContent = value;
+        row.append(a, b); return row;
+      }
+      const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+
+      function iconNode(entry, target) {
+        const { material, quality, qty } = entry;
+        const img = document.createElement("img");
+        img.src = material.asset; img.alt = ""; img.loading = "lazy";
+        target.replaceChildren(img);
+        applyQualityVisuals(target, { quality, stackable: material.stackable !== false });
+        if (qty != null) target.append(el("span", "catalog-qty", `×${qty}`));
+      }
+
+      function buildCard(entry) {
+        const { material, quality } = entry;
+        const card = el("article", "catalog-card");
+        card.tabIndex = 0; card.setAttribute("role", "button");
+        card.setAttribute("aria-label", `${material.name} — zobrazit detail`);
+        card.dataset.key = entry.key;
+        const icon = el("div", "catalog-icon"); iconNode(entry, icon); card.append(icon);
+        card.append(el("h2", "catalog-name", material.name));
+        if (quality) card.append(el("span", `catalog-quality q-text q-${quality}`, qualityLabel(quality)));
+        const tags = el("div", "catalog-tags");
+        tags.append(el("span", "", MATERIAL_CATEGORY_LABELS[material.category] ?? material.category));
+        tags.append(el("span", "", material.stackable === false ? "Nestackuje" : "Stackuje"));
+        card.append(tags);
+        card.append(el("p", "catalog-desc", material.description ?? ""));
+        return card;
+      }
+
+      function sourceRows(material) {
+        const rows = [];
+        for (const enemyId of material.sourceEnemyIds ?? []) {
+          const enemy = ENEMIES[enemyId]; if (!enemy) continue;
+          const drop = (enemy.materialDrops ?? []).find((d) => d.templateId === material.id);
+          rows.push(kvRow(`${enemy.name} · ${LOCATIONS[enemy.locationId]?.name ?? ""}`,
+            drop ? `${qualityLabel(drop.quality ?? DEFAULT_QUALITY)} · ${(drop.chance * 100).toLocaleString("cs-CZ", { maximumFractionDigits: 2 })} %` : "—"));
+        }
+        return rows.length ? rows : [kvRow("Zdroj", "Zatím nepadá")];
+      }
+
+      function openDetail(entry, card) {
+        openerCard = card;
+        document.querySelectorAll(".catalog-card.selected").forEach((n) => n.classList.remove("selected"));
+        card.classList.add("selected");
+        const { material, quality } = entry;
+        iconNode({ material, quality }, $id("catIcon"));
+        const q = $id("catQuality");
+        q.textContent = quality ? qualityLabel(quality) : "Kvalita dle dropu";
+        q.className = "detail-quality " + (quality ? qualityClasses({ quality, stackable: true }).filter((c) => !c.startsWith("q-glow")).join(" ") : "");
+        $id("catTitle").textContent = material.name;
+        $id("catType").textContent = MATERIAL_CATEGORY_LABELS[material.category] ?? material.category;
+        $id("catDesc").textContent = material.description ?? "";
+        $id("catSources").replaceChildren(el("p", "eyebrow", "ZDROJE (kvalita · šance)"), ...sourceRows(material));
+        $id("catMeta").replaceChildren(
+          kvRow("ID šablony", material.id),
+          kvRow("Quality", quality ? qualityLabel(quality) : "dle dropu (výchozí " + qualityLabel(material.defaultQuality ?? DEFAULT_QUALITY) + ")"),
+          kvRow("Stackovatelný", material.stackable === false ? "Ne" : "Ano"),
+          kvRow("Obchodovatelný", material.tradeable === false ? "Ne" : "Ano"),
+          kvRow("Klíč stacku", stackKey(material.id, quality ?? material.defaultQuality ?? DEFAULT_QUALITY)),
+        );
+        detail.hidden = false; backdrop.hidden = false; detail.scrollTop = 0;
+        document.body.classList.add("no-scroll");
+        $id("catClose").focus({ preventScroll: true });
+      }
+      function closeDetail() {
+        if (detail.hidden) return;
+        detail.hidden = true; backdrop.hidden = true;
+        document.body.classList.remove("no-scroll");
+        document.querySelectorAll(".catalog-card.selected").forEach((n) => n.classList.remove("selected"));
+        openerCard?.focus({ preventScroll: true }); openerCard = null;
+      }
+
+      const grid = $id("matGrid"), preview = $id("matPreview");
+      const ids = [...MATERIAL_ORDER, ...Object.keys(MATERIALS).filter((id) => !MATERIAL_ORDER.includes(id))].filter((id) => MATERIALS[id]);
+      ids.forEach((id) => {
+        const entry = { key: `m-${id}`, material: MATERIALS[id], quality: null, qty: null };
+        entries.push(entry);
+        // Katalogová karta ukazuje výchozí kvalitu definice jen jako neutrální povrch.
+        const card = buildCard({ ...entry, quality: MATERIALS[id].defaultQuality ?? DEFAULT_QUALITY });
+        card.querySelector(".catalog-quality")?.remove();
+        grid.append(card);
+      });
+      const previewMaterial = MATERIALS["wing-dust"] ?? MATERIALS[ids[0]];
+      ["common", "rare", "epic", "legendary", "mythic"].forEach((quality, i) => {
+        const entry = { key: `p-${quality}`, material: previewMaterial, quality, qty: [12, 7, 24, 3, 99][i] };
+        entries.push(entry); preview.append(buildCard(entry));
+      });
+
+      [grid, preview].forEach((g) => {
+        const open = (event) => {
+          const card = event.target.closest(".catalog-card"); if (!card) return;
+          const entry = entries.find((e) => e.key === card.dataset.key);
+          if (entry) { event.preventDefault(); openDetail(entry, card); }
+        };
+        g.addEventListener("click", open);
+        g.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") open(e); });
+      });
+      $id("catClose").addEventListener("click", closeDetail);
+      backdrop.addEventListener("click", closeDetail);
+      document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDetail(); });
+    </script>
+  </body>
+</html>

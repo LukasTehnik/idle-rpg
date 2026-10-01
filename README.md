@@ -1,4 +1,4 @@
-# Idle RPG — Prototype 0.5 (Loot, Economy & Collection)
+# Idle RPG — Prototype 0.5.1 (Loot, Economy & Collection + Quality System)
 
 Pátý hratelný prototyp prohlížečového idle RPG. Ověřuje otázku: **dává smysl smyčka boj → loot → porovnání → nasadit / nechat / prodat → zlato → farmení → sbírka?** Podrobnosti: [`docs/prototype-0.5.md`](docs/prototype-0.5.md). Historie: [`docs/prototype-0.4.md`](docs/prototype-0.4.md).
 
@@ -33,7 +33,7 @@ Potom otevři `http://localhost:8080`.
 - **(0.4)** šest nepřátel Pustiny ticha s finálními jmény (Prašná můra, Plastová můra, Slepá můra, Pamětnice, Můra z hlubiny, Matka děr) a typem COMMON / UNCOMMON / RARE / ELITE / BOSS,
 - **(0.4)** sedm materiálů (`material-data.js`) se stabilními ID, cílené drop tabulky každého nepřítele (`world-data.js`) a sekce „Možná kořist“ v mapě,
 - **(0.4)** inventář rozdělený na záložky VYBAVENÍ (18 míst) a MATERIÁLY (stackuje se, nezabírá místa), detail materiálu se zdroji, přehled posledních dropů u boje,
-- běžnou, vzácnou a epickou raritu,
+- šest kvalit (Common → God) s jednotným vzhledem, viz [`docs/item-visual-rarity-rules.md`](docs/item-visual-rarity-rules.md),
 - náhodné hodnoty poškození, HP a kritického zásahu,
 - **(0.5)** inventář s kapacitou 60, NOVÝ / oblíbené / zámek, filtry, řazení, hledání, hromadný výběr, nevyzvednutá kořist při plném inventáři,
 - **(0.5)** porovnání itemu se stejným slotem podle výsledných statů postavy,
@@ -53,8 +53,10 @@ Potom otevři `http://localhost:8080`.
 index.html          shell, stránky (Postava, Inventář, Obchodník, Banka, Bestiář, Sbírka, Mapa, Boj)
 app.js              stav, boj, inventář, obchod, banka, bestiář, sbírka, router, uložení
 economy-data.js     (0.5) kapacita, síla itemu, prodejní vzorec, ztráta při smrti
-item-data.js        šablony vybavení (templateId), rarity, ikony
-material-data.js    materiály
+quality-data.js     (0.5.1) centrální kvality, normalizace, odvození vizuálních tříd
+item-data.js        šablony vybavení (templateId), ikony, composeItem()
+material-data.js    materiály (jedna definice, kvalita je hodnota dropu/stacku)
+item-catalog.html / material-catalog.html   katalogy + QUALITY PREVIEW
 world-data.js       lokace a nepřátelé (zdroj pravdy i pro bestiář a sbírku)
 styles.css          styly
 docs/               prototype-0.2 … 0.5, navrh-hry.md, UI reference
@@ -110,14 +112,21 @@ Od verze 0.5 používá rozhraní teplé retro RPG téma (hnědé povrchy, zlat�
 - `styles.css` — responzivní vizuální vrstva (retro RPG téma, centrální design tokeny v `:root`),
 - `assets/fonts/` — lokální fonty (Jersey 10) a jejich licence OFL,
 - `app.js` — stav hry, souboj, mapa světa/detail lokace/vstup, combat widget a postup,
-- `item-data.js` — sdílená data předmětů (rarity, sloty, ikony, šablony předmětů),
-- `material-data.js` — centrální data materiálů a svitků (stabilní ID, rarita, zdroje, popis),
+- `item-data.js` — sdílená data předmětů (sloty, ikony, šablony předmětů),
+- `material-data.js` — centrální data materiálů a svitků (stabilní ID, výchozí kvalita, zdroje, popis),
 - `world-data.js` — lokace (pozice na mapě, level, background, stav) a nepřátelé (staty, cílené drop tabulky) pro tok mapa → lokace → nepřítel → farmení; `WORLD_MAP` = cesta k mapovému assetu,
 - `assets/map/` — **dočasný** mapový podklad (`world-map-temporary.svg`); finální mapu stačí uložit jako jeden soubor a změnit `WORLD_MAP` ve `world-data.js`,
-- `item-catalog.html` — statický přehled všech předmětů,
+- `quality-data.js` — jediný zdroj pravdy o kvalitách (id, label, rank, glow, povolení pro stackovatelné) a validace,
+- `item-catalog.html`, `material-catalog.html` — statické přehledy předmětů a materiálů včetně QUALITY PREVIEW,
 - `docs/navrh-hry.md` — dosavadní návrhový dokument,
 - `docs/prototype-0.2.md` — cíle, pracovní balance a scénář testování Prototype 0.2.
 - `docs/prototype-0.3.md` — cíle, pracovní balance a scénář testování Prototype 0.3 (historický dokument).
 - `docs/prototype-0.4.md` — cíle, materiály, drop tabulky, migrace a scénář testování aktuální verze.
 - `docs/ui-direction.md` — pravidla vizuálního směru pro další verze.
 - `docs/visual-language-reference.md` — rozbor referencí a plán převodu jejich vizuálního jazyka do hry.
+
+## Kvality (0.5.1)
+
+Item i materiál nese jen sémantickou hodnotu `quality` (`common`, `rare`, `epic`, `legendary`, `mythic`, `god`). Barvy, rámy a glow odvozuje výhradně `applyQualityVisuals()` ze `quality-data.js`; v datech nejsou žádné CSS třídy. God je zakázaný u materiálů a dalších stackovatelných předmětů (spadne na common s varováním v dev režimu). Kvalita zatím **nemění staty, ceny ani drop rate**. Křídla jsou vždy zlatá; zlatá aura jen s explicitním `wingGlow: "gold"`. Maximálně vylepšený item (`isMaxUpgraded`) má neutrální MAX vrstvu, která nemění barvu kvality.
+
+Podrobný popis a návody jak přidat dropy je v [`docs/prototype-0.5.1.md`](docs/prototype-0.5.1.md).

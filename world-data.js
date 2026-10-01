@@ -123,18 +123,31 @@ const LOCATION_DEFS = [
 // hand-drawn CSS/SVG figure (Goblin) instead of a raster portrait. `defense`
 // is a flat reduction applied to incoming player damage; `gold` is granted
 // alongside `xp` on defeat. `dropChance` is the odds of an EQUIPMENT drop per
-// kill (which item/rarity is resolved via ITEM_TEMPLATES + RARITIES); materials
-// are rolled separately from `materialDrops`.
+// kill (which item is resolved via ITEM_TEMPLATES; its quality is rolled by the
+// legacy weighted roll, see ITEM_QUALITY_ROLL in item-data.js); materials are
+// rolled separately from `materialDrops`.
 // Enemy `type` is display-only (COMMON / UNCOMMON / RARE / ELITE / BOSS).
 //
-// `materialDrops` = per-kill INDEPENDENT rolls: { id, chance, min, max, tier }.
-//   id     -> key in MATERIALS (material-data.js)
-//   chance -> 0..1 probability per kill (working balance, easy to retune)
-//   min/max-> quantity range when it drops
-//   tier   -> label shown to the player instead of a raw percentage:
-//             "common" = Běžný drop, "uncommon" = Neobvyklý drop,
-//             "rare" = Vzácný drop, "veryRare" = Velmi vzácný drop
-// `dropChance` + `dropPool` = separate roll for an equipment item (0 = none).
+// Prototype 0.5.1 — kvalita v drop tabulkách. Každý záznam je NEZÁVISLÝ hod za zabití:
+//
+//   materialDrops: [ { templateId, quality, chance, quantity: [min, max], tier } ]
+//     templateId -> klíč v MATERIALS (material-data.js)
+//     quality    -> common | rare | epic | legendary | mythic (God je pro materiály zakázán
+//                   a spadne na common); chybí-li, použije se defaultQuality materiálu
+//     chance     -> 0..1 pravděpodobnost za zabití (pracovní balance)
+//     quantity   -> [min, max] kusů při dropu
+//     tier       -> popisek "Běžný/Neobvyklý/Vzácný drop" pro hráče (NENÍ to quality)
+//
+//   equipmentDrops: [ { templateId, quality, chance } ]   (nepovinné)
+//     templateId -> klíč (= icon) v ITEM_TEMPLATES; stejná šablona v jakékoliv kvalitě,
+//                   bez duplikace definice, ikony nebo CSS
+//     quality    -> common … god; chybí-li, common
+//     chance     -> 0..1 pravděpodobnost za zabití
+//     Příklad: Legendary zbraň s 1% šancí
+//       equipmentDrops: [{ templateId: "iron-sword", quality: "legendary", chance: 0.01 }]
+//
+// `dropChance` + `dropPool` = původní (zděděný) hod na náhodný kus z poolu; kvalitu losuje
+// ITEM_QUALITY_ROLL stejně jako dřív (0 = žádný drop). Chování se v 0.5.1 nezměnilo.
 const DROP_TIER_LABELS = Object.freeze({
   common: "Běžný drop",
   uncommon: "Neobvyklý drop",
@@ -160,8 +173,8 @@ const ENEMIES = Object.freeze({
     dropChance: 0.02, dropPool: PUSTINA_TICHA_DROP_POOL,
     equipmentLoot: { name: "Chitinové vybavení", icon: "chitin-armor", tier: "veryRare" },
     materialDrops: [
-      { id: "wing-dust", chance: 0.80, min: 1, max: 3, tier: "common" },
-      { id: "torn-membrane", chance: 0.25, min: 1, max: 1, tier: "uncommon" },
+      { templateId: "wing-dust", quality: "common", chance: 0.80, quantity: [1, 3], tier: "common" },
+      { templateId: "torn-membrane", quality: "common", chance: 0.25, quantity: [1, 1], tier: "uncommon" },
     ],
   },
   e02: {
@@ -171,9 +184,9 @@ const ENEMIES = Object.freeze({
     dropChance: 0.02, dropPool: PUSTINA_TICHA_DROP_POOL,
     equipmentLoot: { name: "Chitinové vybavení", icon: "chitin-armor", tier: "veryRare" },
     materialDrops: [
-      { id: "polymer-nest-piece", chance: 0.55, min: 1, max: 2, tier: "common" },
-      { id: "torn-membrane", chance: 0.30, min: 1, max: 1, tier: "uncommon" },
-      { id: "wing-dust", chance: 0.20, min: 1, max: 2, tier: "uncommon" },
+      { templateId: "polymer-nest-piece", quality: "common", chance: 0.55, quantity: [1, 2], tier: "common" },
+      { templateId: "torn-membrane", quality: "common", chance: 0.30, quantity: [1, 1], tier: "uncommon" },
+      { templateId: "wing-dust", quality: "common", chance: 0.20, quantity: [1, 2], tier: "uncommon" },
     ],
   },
   e03: {
@@ -183,9 +196,9 @@ const ENEMIES = Object.freeze({
     dropChance: 0.03, dropPool: PUSTINA_TICHA_DROP_POOL,
     equipmentLoot: { name: "Chitinové vybavení", icon: "chitin-armor", tier: "veryRare" },
     materialDrops: [
-      { id: "underground-fiber", chance: 0.50, min: 1, max: 2, tier: "common" },
-      { id: "wing-dust", chance: 0.25, min: 1, max: 2, tier: "uncommon" },
-      { id: "torn-membrane", chance: 0.25, min: 1, max: 1, tier: "uncommon" },
+      { templateId: "underground-fiber", quality: "common", chance: 0.50, quantity: [1, 2], tier: "common" },
+      { templateId: "wing-dust", quality: "common", chance: 0.25, quantity: [1, 2], tier: "uncommon" },
+      { templateId: "torn-membrane", quality: "common", chance: 0.25, quantity: [1, 1], tier: "uncommon" },
     ],
   },
   e04: {
@@ -195,9 +208,9 @@ const ENEMIES = Object.freeze({
     dropChance: 0.04, dropPool: PUSTINA_TICHA_DROP_POOL,
     equipmentLoot: { name: "Chitinové vybavení", icon: "chitin-armor", tier: "veryRare" },
     materialDrops: [
-      { id: "human-memory-fragment", chance: 0.35, min: 1, max: 1, tier: "common" },
-      { id: "wing-dust", chance: 0.20, min: 1, max: 2, tier: "uncommon" },
-      { id: "scroll-of-oblivion", chance: 0.05, min: 1, max: 1, tier: "rare" },
+      { templateId: "human-memory-fragment", quality: "rare", chance: 0.35, quantity: [1, 1], tier: "common" },
+      { templateId: "wing-dust", quality: "common", chance: 0.20, quantity: [1, 2], tier: "uncommon" },
+      { templateId: "scroll-of-oblivion", quality: "rare", chance: 0.05, quantity: [1, 1], tier: "rare" },
     ],
   },
   e05: {
@@ -208,9 +221,9 @@ const ENEMIES = Object.freeze({
     dropChance: 0.14, dropPool: PUSTINA_TICHA_DROP_POOL,
     equipmentLoot: { name: "Chitinové vybavení", icon: "chitin-armor", tier: "rare" },
     materialDrops: [
-      { id: "underground-fiber", chance: 0.45, min: 1, max: 3, tier: "common" },
-      { id: "polymer-nest-piece", chance: 0.20, min: 1, max: 2, tier: "uncommon" },
-      { id: "human-memory-fragment", chance: 0.12, min: 1, max: 1, tier: "rare" },
+      { templateId: "underground-fiber", quality: "common", chance: 0.45, quantity: [1, 3], tier: "common" },
+      { templateId: "polymer-nest-piece", quality: "common", chance: 0.20, quantity: [1, 2], tier: "uncommon" },
+      { templateId: "human-memory-fragment", quality: "rare", chance: 0.12, quantity: [1, 1], tier: "rare" },
     ],
   },
   e06: {
@@ -220,10 +233,10 @@ const ENEMIES = Object.freeze({
     dropChance: 0.45, dropPool: PUSTINA_TICHA_DROP_POOL,
     equipmentLoot: { name: "Chitinové vybavení", icon: "chitin-armor", tier: "uncommon" },
     materialDrops: [
-      { id: "human-memory-fragment", chance: 0.60, min: 1, max: 2, tier: "common" },
-      { id: "scroll-of-oblivion", chance: 0.10, min: 1, max: 1, tier: "rare" },
+      { templateId: "human-memory-fragment", quality: "rare", chance: 0.60, quantity: [1, 2], tier: "common" },
+      { templateId: "scroll-of-oblivion", quality: "rare", chance: 0.10, quantity: [1, 1], tier: "rare" },
       // Oko Matky padá VÝHRADNĚ z Matky děr.
-      { id: "mother-eye", chance: 0.05, min: 1, max: 1, tier: "veryRare" },
+      { templateId: "mother-eye", quality: "epic", chance: 0.05, quantity: [1, 1], tier: "veryRare" },
     ],
   },
 
@@ -256,7 +269,7 @@ const ENEMIES = Object.freeze({
     dropChance: 0.03, dropPool: MAGMA_DROP_POOL,
     equipmentLoot: { name: "Roztavené vybavení", icon: "molten-armor", tier: "veryRare" },
     materialDrops: [
-      { id: "ember-coal", chance: 0.8, min: 1, max: 3, tier: "common" },
+      { templateId: "ember-coal", quality: "common", chance: 0.8, quantity: [1, 3], tier: "common" },
     ],
   },
   "magma-e02": {
@@ -266,8 +279,8 @@ const ENEMIES = Object.freeze({
     dropChance: 0.03, dropPool: MAGMA_DROP_POOL,
     equipmentLoot: { name: "Roztavené vybavení", icon: "molten-armor", tier: "veryRare" },
     materialDrops: [
-      { id: "ember-coal", chance: 0.5, min: 1, max: 2, tier: "common" },
-      { id: "slag-chunk", chance: 0.45, min: 1, max: 2, tier: "common" },
+      { templateId: "ember-coal", quality: "common", chance: 0.5, quantity: [1, 2], tier: "common" },
+      { templateId: "slag-chunk", quality: "common", chance: 0.45, quantity: [1, 2], tier: "common" },
     ],
   },
   "magma-e03": {
@@ -277,8 +290,8 @@ const ENEMIES = Object.freeze({
     dropChance: 0.04, dropPool: MAGMA_DROP_POOL,
     equipmentLoot: { name: "Roztavené vybavení", icon: "molten-armor", tier: "veryRare" },
     materialDrops: [
-      { id: "scorched-cloth-bundle", chance: 0.45, min: 1, max: 2, tier: "uncommon" },
-      { id: "magma-crystal", chance: 0.12, min: 1, max: 1, tier: "rare" },
+      { templateId: "scorched-cloth-bundle", quality: "common", chance: 0.45, quantity: [1, 2], tier: "uncommon" },
+      { templateId: "magma-crystal", quality: "rare", chance: 0.12, quantity: [1, 1], tier: "rare" },
     ],
   },
   "magma-e04": {
@@ -288,9 +301,9 @@ const ENEMIES = Object.freeze({
     dropChance: 0.14, dropPool: MAGMA_DROP_POOL,
     equipmentLoot: { name: "Roztavené vybavení", icon: "molten-armor", tier: "rare" },
     materialDrops: [
-      { id: "slag-chunk", chance: 0.4, min: 1, max: 3, tier: "common" },
-      { id: "scorched-cloth-bundle", chance: 0.3, min: 1, max: 2, tier: "uncommon" },
-      { id: "magma-crystal", chance: 0.15, min: 1, max: 1, tier: "rare" },
+      { templateId: "slag-chunk", quality: "common", chance: 0.4, quantity: [1, 3], tier: "common" },
+      { templateId: "scorched-cloth-bundle", quality: "common", chance: 0.3, quantity: [1, 2], tier: "uncommon" },
+      { templateId: "magma-crystal", quality: "rare", chance: 0.15, quantity: [1, 1], tier: "rare" },
     ],
   },
   "magma-e05": {
@@ -300,8 +313,8 @@ const ENEMIES = Object.freeze({
     dropChance: 0.45, dropPool: MAGMA_DROP_POOL,
     equipmentLoot: { name: "Roztavené vybavení", icon: "molten-armor", tier: "uncommon" },
     materialDrops: [
-      { id: "magma-crystal", chance: 0.55, min: 1, max: 2, tier: "rare" },
-      { id: "furnace-core", chance: 0.05, min: 1, max: 1, tier: "veryRare" },
+      { templateId: "magma-crystal", quality: "rare", chance: 0.55, quantity: [1, 2], tier: "rare" },
+      { templateId: "furnace-core", quality: "epic", chance: 0.05, quantity: [1, 1], tier: "veryRare" },
     ],
   },
   "elektrika-e01": {
@@ -311,8 +324,8 @@ const ENEMIES = Object.freeze({
     dropChance: 0.03, dropPool: ELEKTRIKA_DROP_POOL,
     equipmentLoot: { name: "Přerušené vybavení", icon: "interrupted-armor", tier: "veryRare" },
     materialDrops: [
-      { id: "cracked-crt-membrane", chance: 0.7, min: 1, max: 3, tier: "common" },
-      { id: "nerve-cable-bundle", chance: 0.3, min: 1, max: 2, tier: "uncommon" },
+      { templateId: "cracked-crt-membrane", quality: "common", chance: 0.7, quantity: [1, 3], tier: "common" },
+      { templateId: "nerve-cable-bundle", quality: "common", chance: 0.3, quantity: [1, 2], tier: "uncommon" },
     ],
   },
   "elektrika-e02": {
@@ -322,8 +335,8 @@ const ENEMIES = Object.freeze({
     dropChance: 0.03, dropPool: ELEKTRIKA_DROP_POOL,
     equipmentLoot: { name: "Přerušené vybavení", icon: "interrupted-armor", tier: "veryRare" },
     materialDrops: [
-      { id: "nerve-cable-bundle", chance: 0.55, min: 1, max: 2, tier: "common" },
-      { id: "overgrown-data-chip", chance: 0.25, min: 1, max: 1, tier: "uncommon" },
+      { templateId: "nerve-cable-bundle", quality: "common", chance: 0.55, quantity: [1, 2], tier: "common" },
+      { templateId: "overgrown-data-chip", quality: "common", chance: 0.25, quantity: [1, 1], tier: "uncommon" },
     ],
   },
   "elektrika-e03": {
@@ -333,8 +346,8 @@ const ENEMIES = Object.freeze({
     dropChance: 0.04, dropPool: ELEKTRIKA_DROP_POOL,
     equipmentLoot: { name: "Přerušené vybavení", icon: "interrupted-armor", tier: "veryRare" },
     materialDrops: [
-      { id: "cracked-crt-membrane", chance: 0.45, min: 1, max: 2, tier: "common" },
-      { id: "bile-capacitor", chance: 0.12, min: 1, max: 1, tier: "rare" },
+      { templateId: "cracked-crt-membrane", quality: "common", chance: 0.45, quantity: [1, 2], tier: "common" },
+      { templateId: "bile-capacitor", quality: "rare", chance: 0.12, quantity: [1, 1], tier: "rare" },
     ],
   },
   "elektrika-e04": {
@@ -344,8 +357,8 @@ const ENEMIES = Object.freeze({
     dropChance: 0.14, dropPool: ELEKTRIKA_DROP_POOL,
     equipmentLoot: { name: "Přerušené vybavení", icon: "interrupted-armor", tier: "rare" },
     materialDrops: [
-      { id: "overgrown-data-chip", chance: 0.4, min: 1, max: 2, tier: "uncommon" },
-      { id: "bile-capacitor", chance: 0.18, min: 1, max: 1, tier: "rare" },
+      { templateId: "overgrown-data-chip", quality: "common", chance: 0.4, quantity: [1, 2], tier: "uncommon" },
+      { templateId: "bile-capacitor", quality: "rare", chance: 0.18, quantity: [1, 1], tier: "rare" },
     ],
   },
   "elektrika-e05": {
@@ -355,7 +368,7 @@ const ENEMIES = Object.freeze({
     dropChance: 0.45, dropPool: ELEKTRIKA_DROP_POOL,
     equipmentLoot: { name: "Přerušené vybavení", icon: "interrupted-armor", tier: "uncommon" },
     materialDrops: [
-      { id: "kernel-fiber", chance: 0.3, min: 1, max: 1, tier: "veryRare" },
+      { templateId: "kernel-fiber", quality: "epic", chance: 0.3, quantity: [1, 1], tier: "veryRare" },
     ],
   },
 });
@@ -369,7 +382,7 @@ function finalizeLocations(defs) {
     const enemies = def.enemyIds.map((id) => ENEMIES[id]).filter(Boolean);
     const materialIds = [];
     for (const enemy of enemies) {
-      for (const drop of enemy.materialDrops ?? []) if (!materialIds.includes(drop.id)) materialIds.push(drop.id);
+      for (const drop of enemy.materialDrops ?? []) if (!materialIds.includes(drop.templateId)) materialIds.push(drop.templateId);
     }
     result[def.id] = Object.freeze({
       ...def,

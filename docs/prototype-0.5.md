@@ -8,7 +8,7 @@ Staví na Prototype 0.4 (mapa, detail lokace, výběr nepřítele, auto boj, com
 
 ## Nové funkce
 
-- **Instance itemů**: `id`, `templateId`, `rarity`, `stats`, `obtainedAt`, `sourceEnemyId`, `sourceLocationId`, `isNew`, `isFavorite`, `isLocked`.
+- **Instance itemů**: `id`, `templateId`, `quality` (dříve `rarity`), `stats`, `obtainedAt`, `sourceEnemyId`, `sourceLocationId`, `isNew`, `isFavorite`, `isLocked`.
 - **Inventář**: badge NOVÉ, oblíbené (★), zámek; kapacita 60 (`LOOT_CONFIG.inventoryCapacity`); filtry (typ, rarita, nové, oblíbené, zamčené, lokace původu), řazení (nejnovější, nejstarší, rarita, název, prodejní hodnota, síla itemu), hledání, viditelné a zrušitelné aktivní filtry, hromadný výběr.
 - **Plný inventář**: drop se neztratí, uloží se do trvalé sekce „NEVYZVEDNUTÁ KOŘIST“ s počtem a tlačítkem pro přesun po uvolnění místa. Žádný potvrzovací modál při dropu.
 - **Porovnání**: detail se porovnává s itemem ve stejném slotu podle VÝSLEDNÝCH statů postavy (zelená / červená / neutrální). Desktop vedle sebe, mobil pod sebou. Nasazení nikdy neléčí (HP se jen ořízne na nové maximum).
@@ -67,3 +67,7 @@ Klíč `idle-rpg-prototype-v02` zůstává, verze se píše jako 3; načtou se v
 ## Mimo rozsah
 
 Crafting, prefixy/suffixy a recepty, kvalita crafting materiálů, hráčský market, multiplayer, účty, offline postup, questy, achievementy, cestovní náklady, energie, finální balance dropů, finální mapa světa a kořist pro Odpadkové hory.
+
+
+---
+**Aktualizace 0.5.1:** pole `rarity` bylo přejmenováno na `quality` a systém kvalit je popsán v [`prototype-0.5.1.md`](prototype-0.5.1.md).

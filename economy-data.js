@@ -19,11 +19,13 @@ const LOOT_CONFIG = Object.freeze({
 const POWER_WEIGHTS = Object.freeze({ damageMin: 2, damageMax: 2, maxHp: 0.5, critChance: 5 });
 
 // --- Prodejní hodnota -------------------------------------------------------
-//   prodejní hodnota = max(1, zaokrouhleno( síla · 0,5 · násobek rarity ))
+//   prodejní hodnota = max(1, zaokrouhleno( síla · 0,5 · násobek kvality ))
 // Síla už obsahuje vygenerované staty (ty vycházejí ze šablony a rarity),
-// násobek rarity ještě zvedá cenu vzácných a epických kusů.
+// násobek kvality ještě zvedá cenu vzácných a epických kusů.
 const SELL_GOLD_PER_POWER = 0.5;
-const SELL_RARITY_FACTOR = Object.freeze({ common: 1, uncommon: 1.2, rare: 1.5, epic: 2.5 });
+// Kvality bez uvedeného násobku (legendary, mythic, god) se zatím počítají s 1 — ceny pro ně
+// nejsou součástí 0.5.1 (viz docs/item-visual-rarity-rules.md, „Out of Scope“).
+const SELL_QUALITY_FACTOR = Object.freeze({ common: 1, rare: 1.5, epic: 2.5 });
 
 function itemPower(item) {
   const stats = item?.stats ?? {};
@@ -33,10 +35,10 @@ function itemPower(item) {
 }
 
 function itemSellValue(item) {
-  const factor = SELL_RARITY_FACTOR[item?.rarity] ?? 1;
+  const factor = SELL_QUALITY_FACTOR[item?.quality] ?? 1;
   return Math.max(1, Math.round(itemPower(item) * SELL_GOLD_PER_POWER * factor));
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { LOOT_CONFIG, POWER_WEIGHTS, SELL_GOLD_PER_POWER, SELL_RARITY_FACTOR, itemPower, itemSellValue };
+  module.exports = { LOOT_CONFIG, POWER_WEIGHTS, SELL_GOLD_PER_POWER, SELL_QUALITY_FACTOR, itemPower, itemSellValue };
 }

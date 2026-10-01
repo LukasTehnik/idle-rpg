@@ -14,7 +14,7 @@ const CONFIG = Object.freeze({
   saveKey: "idle-rpg-prototype-v02",
 });
 
-// RARITIES, SLOT_META, ICONS, ITEM_TEMPLATES and renderItemIcon() live in
+// ITEM_QUALITIES (quality-data.js), SLOT_META, ICONS, ITEM_TEMPLATES and renderItemIcon() live in
 // item-data.js; LOOT_CONFIG, itemPower() and itemSellValue() in economy-data.js; MATERIALS in material-data.js; LOCATIONS, ENEMIES and
 // DEFAULT_ENEMY_ID in world-data.js (all loaded before this file in index.html).
 
@@ -135,7 +135,7 @@ const ELEMENT_IDS = [
   "fightButton", "fightButtonText", "fightButtonIcon", "resetButton", "clearLogButton", "combatLog",
   "recentDropsList", "dropToastStack", "equipmentOverview",
   "inventoryGrid", "inventoryEmpty", "inventoryEmptyTitle", "inventoryEmptyText", "inventoryCount", "inventoryCapacity", "equippedCount",
-  "invTabs", "invSearch", "invType", "invTypeField", "invRarity", "invSort", "paperDoll",
+  "invTabs", "invSearch", "invType", "invTypeField", "invQuality", "invSort", "paperDoll",
   "invFlag", "invFlagField", "invOrigin", "invOriginField", "invActiveFilters",
   "unclaimedPanel", "unclaimedCount", "unclaimedList", "claimAllButton",
   "detailSecondary", "detailFavButton", "detailLockButton", "detailSellButton", "selectedValue", "sellSelectedButton", "selectSellableButton",
@@ -146,7 +146,7 @@ const ELEMENT_IDS = [
   "bestiaryLocation", "bestiaryProgress", "bestiaryList", "collectionLocation", "collectionProgress", "collectionOverview", "collectionList",
   "sellDialog", "sellDialogEyebrow", "sellDialogTitle", "sellDialogSummary", "sellDialogTotal", "sellDialogWarnings", "sellCancel", "sellConfirm",
   "deleteModeButton", "bulkDeleteBar", "selectedCount", "confirmDeleteButton", "cancelDeleteButton",
-  "itemDetail", "detailEmpty", "detailBody", "detailRarity", "detailIcon", "detailTitle", "detailType",
+  "itemDetail", "detailEmpty", "detailBody", "detailQuality", "detailIcon", "detailTitle", "detailType",
   "detailStats", "detailCompare", "detailFlavor", "detailMeta", "detailActionButton", "detailNote", "detailCloseButton", "detailBackdrop",
   "worldMap", "worldMapImg", "mapPins", "mapTooltip", "locDetail", "locBackdrop", "mapTempNote",
   "enterDialog", "enterDialogTarget", "enterCancel", "enterConfirm",
@@ -174,7 +174,7 @@ const ui = {
   page: "boj",
   selection: null, // { kind: "item", id } | { kind: "equipped", slot } | { kind: "material", id }
   tab: "all", // all | equipment | materials | scrolls
-  search: "", type: "all", rarity: "all", flag: "all", origin: "all", sort: "newest",
+  search: "", type: "all", quality: "all", flag: "all", origin: "all", sort: "newest",
   selectedMapLocationId: null, // jen náhled na mapě; aktivní lokace je state.activeLocationId
   locTab: "info", // info | enemies | loot
   highlightEnemyId: null,
@@ -183,7 +183,6 @@ const ui = {
 // Pod 1440 px se detail itemu otevírá jako výsuvný panel (na mobilu přes celou obrazovku).
 const mqSheet = window.matchMedia("(max-width: 1439px)");
 const mqDrawer = window.matchMedia("(max-width: 899px)");
-const RARITY_ORDER = ["epic", "rare", "uncommon", "common"];
 const SLOT_ORDER = Object.keys(SLOT_META);
 const STAT_KEYS = ["damageMin", "damageMax", "maxHp", "critChance"];
 const STAT_LABELS = Object.freeze({
@@ -266,14 +265,21 @@ function performDelete(ids) {
   render(); renderLoot(); saveState();
 }
 
-// Keeps only sane { id: positiveInteger } pairs. Unknown ids are preserved
-// (a future/removed material must never wipe a player's stash).
+// Keeps only sane { "templateId:quality": positiveInteger } pairs (Prototype 0.5.1).
+// Starý save (≤ 0.5) ukládal jen { id: množství } bez kvality — takový stack se přesune pod
+// klíč `id:<defaultQuality>`. Neznámé ID se zachovají (odebraný materiál nesmí smazat
+// zásobu hráče); neznámá nebo nepovolená kvalita (např. God) spadne na common a stacky
+// se po normalizaci sloučí, nic se neztrácí.
 function sanitizeMaterials(raw) {
   const result = {};
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return result;
-  for (const [id, qty] of Object.entries(raw)) {
+  for (const [key, qty] of Object.entries(raw)) {
     const n = Math.floor(Number(qty));
-    if (Number.isFinite(n) && n > 0) result[id] = n;
+    if (!(Number.isFinite(n) && n > 0)) continue;
+    const { templateId, quality } = parseStackKey(key);
+    const quality0 = quality ?? MATERIALS[templateId]?.defaultQuality ?? DEFAULT_QUALITY;
+    const finalKey = stackKey(templateId, normalizeQuality(quality0, { stackable: true, where: `materials ${key}` }));
+    result[finalKey] = (result[finalKey] ?? 0) + n;
   }
   return result;
 }
@@ -284,7 +290,7 @@ function sanitizeRecentDrops(raw) {
     .filter((entry) => entry && typeof entry.key === "string" && (entry.type === "material" || entry.type === "item"))
     .map((entry) => ({
       type: entry.type, key: entry.key, name: String(entry.name ?? entry.key),
-      rarity: RARITIES[entry.rarity] ? entry.rarity : "common",
+      quality: normalizeQuality(entry.quality ?? entry.rarity, { stackable: entry.type === "material", where: "recentDrops" }),
       qty: Math.max(1, Math.floor(Number(entry.qty) || 1)), at: Number(entry.at) || Date.now(),
     }))
     .slice(0, CONFIG.maxRecentDrops);
@@ -300,7 +306,10 @@ function migrateLegacyInventory(inventory, materials) {
   for (const item of inventory) {
     const key = item && !SLOT_META[item.slot] ? (item.materialId ?? item.icon) : null;
     const id = key && (MATERIALS[key] ? key : LEGACY_MATERIAL_ALIASES[key]);
-    if (id && MATERIALS[id]) merged[id] = (merged[id] ?? 0) + Math.max(1, Math.floor(Number(item.quantity) || 1));
+    if (id && MATERIALS[id]) {
+      const stack = stackKey(id, MATERIALS[id].defaultQuality ?? DEFAULT_QUALITY);
+      merged[stack] = (merged[stack] ?? 0) + Math.max(1, Math.floor(Number(item.quantity) || 1));
+    }
     else kept.push(item);
   }
   return { inventory: kept, materials: merged };
@@ -353,9 +362,8 @@ function registerInCollection(collection, item) {
   });
   entry.count += 1;
   const power = itemPower(item);
-  const rank = (rarity) => RARITY_ORDER.length - RARITY_ORDER.indexOf(rarity);
-  if (!entry.best || power > entry.best.power || (power === entry.best.power && rank(item.rarity) > rank(entry.best.rarity))) {
-    entry.best = { power, rarity: item.rarity, stats: { ...(item.stats ?? {}) }, at: item.obtainedAt ?? Date.now() };
+  if (!entry.best || power > entry.best.power || (power === entry.best.power && qualityRank(item.quality) > qualityRank(entry.best.quality))) {
+    entry.best = { power, quality: item.quality, stats: { ...(item.stats ?? {}) }, at: item.obtainedAt ?? Date.now() };
   }
   return first;
 }
@@ -366,7 +374,7 @@ function sanitizeCollection(raw) {
   for (const [id, entry] of Object.entries(raw)) {
     if (!entry || typeof entry !== "object") continue;
     const best = entry.best && typeof entry.best === "object" && Number.isFinite(entry.best.power)
-      ? { power: entry.best.power, rarity: RARITIES[entry.best.rarity] ? entry.best.rarity : "common", stats: entry.best.stats && typeof entry.best.stats === "object" ? { ...entry.best.stats } : {}, at: Number(entry.best.at) || 0 }
+      ? { power: entry.best.power, quality: normalizeQuality(entry.best.quality ?? entry.best.rarity, { where: "collection" }), stats: entry.best.stats && typeof entry.best.stats === "object" ? { ...entry.best.stats } : {}, at: Number(entry.best.at) || 0 }
       : null;
     result[id] = {
       count: Math.max(1, goldInt(entry.count)), firstAt: Number(entry.firstAt) || 0,
@@ -399,7 +407,6 @@ function sanitizeBestiary(raw) {
   return result;
 }
 
-function findTemplateById(templateId) { return ITEM_TEMPLATES.find((template) => template.templateId === templateId) ?? null; }
 
 function discoverEnemy(enemyId, bestiary = state.bestiary) {
   if (!ENEMIES[enemyId]) return null;
@@ -422,7 +429,8 @@ function backfillBestiary(saved, owned, materials, currentEnemyId, run) {
     if (run?.targetEnemyId === currentEnemyId) entry.kills = goldInt(run.kills);
   }
   owned.forEach((item) => { if (item.sourceEnemyId) noteEnemyDrop(item.sourceEnemyId, "item", item.templateId, bestiary); });
-  for (const id of Object.keys(materials)) {
+  for (const key of Object.keys(materials)) {
+    const id = parseStackKey(key).templateId;
     const sources = MATERIALS[id]?.sourceEnemyIds ?? [];
     if (sources.length === 1) noteEnemyDrop(sources[0], "material", id, bestiary);
   }
@@ -433,7 +441,7 @@ function loadState() {
   const fresh = initialState();
   try {
     const saved = JSON.parse(localStorage.getItem(CONFIG.saveKey));
-    if (!saved || (saved.version !== 2 && saved.version !== 3)) return fresh;
+    if (!saved || (saved.version !== 2 && saved.version !== 3 && saved.version !== 4)) return fresh;
     // currentEnemyId is new -- only trust it if it names a real, still-valid
     // enemy (protects against a corrupted save or a future removed enemy id
     // crashing the app on load).
@@ -482,7 +490,7 @@ function loadState() {
 
 function saveState() {
   const payload = {
-    version: 3, level: state.level, xp: state.xp, kills: state.kills, drops: state.drops,
+    version: 4, level: state.level, xp: state.xp, kills: state.kills, drops: state.drops,
     carriedGold: state.carriedGold, bankGold: state.bankGold, coreFragments: state.coreFragments, currentEnemyId: state.currentEnemyId,
     buyback: state.buyback, lootRules: state.lootRules, lootLog: state.lootLog, stats: state.stats, collection: state.collection, bestiary: state.bestiary,
     activeLocationId: state.activeLocationId, run: state.run,
@@ -509,7 +517,7 @@ function formatTime(seconds) {
 function getItemBonus(item, stat) { return item?.stats?.[stat] ?? 0; }
 
 // --- Instance vybavení (Prototype 0.5) --------------------------------------
-// Každá instance nese: id, templateId, rarity, stats, obtainedAt, sourceEnemyId,
+// Každá instance nese: id, templateId, quality, stats, obtainedAt, sourceEnemyId,
 // sourceLocationId, isNew, isFavorite, isLocked (+ původní pole 0.4: name, slot,
 // icon, image, source, acquiredAt, tradeable, flavorText).
 function inventoryFreeSlots() { return Math.max(0, CONFIG.inventoryCapacity - state.inventory.length); }
@@ -520,8 +528,10 @@ function sanitizeItem(raw) {
   const template = findItemTemplate(raw);
   const enemy = ENEMIES[raw.sourceEnemyId] ?? Object.values(ENEMIES).find((candidate) => candidate.name === raw.source) ?? null;
   const time = Number.isFinite(raw.obtainedAt) ? raw.obtainedAt : (Number.isFinite(raw.acquiredAt) ? raw.acquiredAt : 0);
+  const { rarity: legacyRarity, ...rest } = raw; // `rarity` ≤ 0.5 → `quality` (jediný kanonický název)
   return {
-    ...raw,
+    ...rest,
+    quality: normalizeQuality(raw.quality ?? legacyRarity, { where: `item ${raw.name ?? raw.icon ?? "?"}` }),
     templateId: typeof raw.templateId === "string" ? raw.templateId : (template?.templateId ?? raw.icon ?? null),
     obtainedAt: time,
     acquiredAt: Number.isFinite(raw.acquiredAt) ? raw.acquiredAt : time,
@@ -529,6 +539,21 @@ function sanitizeItem(raw) {
     sourceLocationId: LOCATIONS[raw.sourceLocationId] ? raw.sourceLocationId : (enemy?.locationId ?? null),
     isNew: raw.isNew === true, isFavorite: raw.isFavorite === true, isLocked: raw.isLocked === true,
   };
+}
+
+// Vizuální vstup pro applyQualityVisuals (quality-data.js): kvalita z instance, typ a
+// wingGlow ze šablony (instance může wingGlow přepsat), upgrade z instance.
+function itemVisual(item) {
+  const template = findItemTemplate(item);
+  return {
+    quality: item.quality, slot: item.slot ?? template?.slot ?? null, wingGlow: item.wingGlow ?? template?.wingGlow ?? null,
+    upgradeLevel: item.upgradeLevel, maxUpgradeLevel: item.maxUpgradeLevel, isMaxUpgraded: item.isMaxUpgraded,
+  };
+}
+function materialVisual(quality) { return { quality, stackable: true }; }
+// Třídy pro název předmětu (barva = rám kvality; křídla zlatě), bez glow/MAX tříd.
+function qTextClass(visual) {
+  return ["q-text", ...qualityClasses(visual).filter((name) => !name.startsWith("q-glow-") && name !== "q-max" && name !== "q-wings-glow")].join(" ");
 }
 
 // Najde item v inventáři, na postavě nebo v nevyzvednuté kořisti.
@@ -714,6 +739,7 @@ function defeatEnemy() {
   state.player.hp = Math.min(stats.maxHp, state.player.hp + healing);
   if (state.player.hp > before) addLog(`Krátký oddech obnovil ${state.player.hp - before} životů.`, "system");
   if (Math.random() < (enemyCfg.dropChance ?? CONFIG.dropChance)) generateDrop(enemyCfg);
+  rollEquipmentDrops(enemyCfg);
   rollMaterialDrops(enemyCfg);
   if (ui.page === "obchodnik") renderMerchant(); // dostupnost zpětného odkupu závisí na zlatě
   if (ui.page === "bestiar") renderBestiary();
@@ -752,14 +778,15 @@ function defeatPlayer() {
   saveState();
 }
 
-function chooseRarity() {
+// Zděděný náhodný hod kvality pro drop z `dropPool` (váhy: ITEM_QUALITY_ROLL v item-data.js).
+function rollLegacyQuality() {
   const roll = Math.random() * 100;
   let cumulative = 0;
-  for (const [key, rarity] of Object.entries(RARITIES)) {
-    cumulative += rarity.weight;
+  for (const [key, entry] of Object.entries(ITEM_QUALITY_ROLL)) {
+    cumulative += entry.weight;
     if (roll < cumulative) return key;
   }
-  return "common";
+  return DEFAULT_QUALITY;
 }
 
 // Resolves an enemy's dropPool (icon keys, see world-data.js) into actual
@@ -772,19 +799,24 @@ function resolveDropPool(enemyCfg) {
   return pool.length ? pool : ITEM_TEMPLATES;
 }
 
-function createItem(enemyCfg) {
-  const pool = resolveDropPool(enemyCfg);
-  const template = pool[randomInt(0, pool.length - 1)];
-  const rarityKey = chooseRarity();
-  const rarity = RARITIES[rarityKey];
+// `fixed` = { templateId, quality } z `equipmentDrops` (pevná šablona i kvalita). Bez něj se
+// šablona losuje z dropPool a kvalita zděděným hodem (chování 0.4/0.5 beze změny).
+// Kvalita sama staty NEMĚNÍ: násobič statů (ITEM_QUALITY_ROLL) patří jen zděděnému hodu,
+// pevná kvalita (např. legendary) používá základní rozsah šablony × 1 — balance je mimo rozsah 0.5.1.
+function createItem(enemyCfg, fixed = null) {
+  const template = fixed ? findTemplateById(fixed.templateId) : (() => { const pool = resolveDropPool(enemyCfg); return pool[randomInt(0, pool.length - 1)]; })();
+  const quality = fixed ? normalizeQuality(fixed.quality, { where: `drop ${fixed.templateId}` }) : rollLegacyQuality();
+  const multiplier = fixed ? 1 : (ITEM_QUALITY_ROLL[quality]?.statMultiplier ?? 1);
   const stats = {};
   for (const [stat, range] of Object.entries(template.rolls ?? {})) {
     const raw = stat === "critChance" ? randomDecimal(range[0], range[1]) : randomInt(range[0], range[1]);
-    stats[stat] = stat === "critChance" ? Math.round(raw * rarity.multiplier * 10) / 10 : Math.max(stat === "damageMin" ? 0 : 1, Math.round(raw * rarity.multiplier));
+    stats[stat] = stat === "critChance" ? Math.round(raw * multiplier * 10) / 10 : Math.max(stat === "damageMin" ? 0 : 1, Math.round(raw * multiplier));
   }
   return {
     id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
-    name: template.name, slot: template.slot ?? null, icon: template.icon, rarity: rarityKey, stats,
+    name: template.name, slot: template.slot ?? null, icon: template.icon, quality, stats,
+    upgradeLevel: 0, maxUpgradeLevel: null, isMaxUpgraded: false,
+    ...(template.wingGlow ? { wingGlow: template.wingGlow } : {}),
     // Carry over the template's own artwork/glow (if any) — without this,
     // signature items with unique art (item.image/item.glowColor) render as
     // a blank icon once dropped, even though they look correct wherever the
@@ -813,24 +845,23 @@ function createItem(enemyCfg) {
 // non-blocking toast (see showDropToast) -- nothing here requires a click.
 //
 // Equipment: every drop is its own inventory entry (capacity-limited).
-function generateDrop(enemyCfg = getCurrentEnemy()) {
-  const item = createItem(enemyCfg);
-  const rarity = RARITIES[item.rarity];
+function generateDrop(enemyCfg = getCurrentEnemy(), fixed = null) {
+  const item = createItem(enemyCfg, fixed);
   state.drops += 1;
   // Nejdřív se item zapíše do sbírky (ať se pak prodá nebo ne) -- první získání šablony se nikdy neprodá automaticky.
   const firstOfTemplate = recordItemAcquired(item);
-  pushRecentDrop({ type: "item", key: item.icon, name: item.name, rarity: item.rarity, qty: 1 });
+  pushRecentDrop({ type: "item", key: item.icon, name: item.name, quality: item.quality, qty: 1 });
   if (ruleAllowsAutoSell(item, firstOfTemplate)) { autoSellDrop(item); return; }
   if (state.inventory.length >= CONFIG.inventoryCapacity) {
     // Plný inventář: item nikdy tiše nezmizí, uloží se do nevyzvednuté kořisti.
     state.unclaimed.push(item);
-    addLog(`${rarity.label} předmět: ${item.name} — inventář je plný, kořist čeká na vyzvednutí (${state.unclaimed.length}).`, "level-up");
+    addLog(`${qualityLabel(item.quality)} ${item.name} — inventář je plný, kořist čeká na vyzvednutí (${state.unclaimed.length}).`, "level-up");
     renderLoot();
     showDropToast(item, "Inventář plný — čeká na vyzvednutí");
     return;
   }
   state.inventory.unshift(item);
-  addLog(`${rarity.label} předmět: ${item.name}.`, item.rarity === "common" ? "system" : "level-up");
+  addLog(`${qualityLabel(item.quality)}: ${item.name}.`, item.quality === "common" ? "system" : "level-up");
   renderLoot();
   showDropToast(item);
 }
@@ -839,29 +870,40 @@ function generateDrop(enemyCfg = getCurrentEnemy()) {
 // (data lives in world-data.js). Stacks live in state.materials by stable id
 // and never touch the equipment capacity.
 function rollMaterialDrops(enemyCfg) {
-  for (const drop of enemyCfg?.materialDrops ?? []) {
-    const material = MATERIALS[drop.id];
-    if (!material) continue;
+  for (const raw of enemyCfg?.materialDrops ?? []) {
+    const drop = normalizeMaterialDrop(raw, enemyCfg.id);
+    if (!drop) continue;
+    const material = MATERIALS[drop.templateId];
     // Safety net: a material may only drop from an enemy that is listed as a
     // source of it (guards e.g. "Oko Matky" = Matka děr only).
     if (!material.sourceEnemyIds.includes(enemyCfg.id)) continue;
     if (Math.random() >= drop.chance) continue;
-    addMaterial(drop.id, randomInt(drop.min ?? 1, drop.max ?? drop.min ?? 1), enemyCfg.id);
+    addMaterial(drop.templateId, randomInt(drop.quantity[0], drop.quantity[1]), enemyCfg.id, drop.quality);
   }
 }
 
-function addMaterial(materialId, quantity, enemyId = null) {
+// Pevné vybavení z `equipmentDrops` (nezávislý hod za každý záznam; stejná šablona v dané kvalitě).
+function rollEquipmentDrops(enemyCfg) {
+  for (const raw of enemyCfg?.equipmentDrops ?? []) {
+    const drop = normalizeEquipmentDrop(raw, enemyCfg.id);
+    if (drop && Math.random() < drop.chance) generateDrop(enemyCfg, drop);
+  }
+}
+
+function addMaterial(materialId, quantity, enemyId = null, quality = null) {
   const material = MATERIALS[materialId];
   if (!material || !(quantity > 0)) return;
-  state.materials[materialId] = (state.materials[materialId] ?? 0) + quantity;
+  const q = normalizeQuality(quality ?? material.defaultQuality, { stackable: true, where: `addMaterial ${materialId}` });
+  const key = stackKey(materialId, q);
+  state.materials[key] = (state.materials[key] ?? 0) + quantity;
   state.drops += 1;
   state.stats.materialsFound += quantity;
   if (enemyId) noteEnemyDrop(enemyId, "material", materialId);
-  const total = state.materials[materialId];
-  addLog(`Získáno: ${material.name} ×${quantity} (celkem ${total}).`, material.rarity === "common" ? "system" : "level-up");
-  pushRecentDrop({ type: "material", key: materialId, name: material.name, rarity: material.rarity, qty: quantity });
+  const total = state.materials[key];
+  addLog(`Získáno: ${material.name} (${qualityLabel(q)}) ×${quantity} (celkem ${total}).`, q === "common" ? "system" : "level-up");
+  pushRecentDrop({ type: "material", key: materialId, name: material.name, quality: q, qty: quantity });
   renderLoot();
-  showMaterialToast(material, quantity, total);
+  showMaterialToast(material, quantity, total, q);
 }
 
 function pushRecentDrop(entry) {
@@ -883,12 +925,17 @@ function renderRecentDrops() {
   }
   state.recentDrops.forEach((drop) => {
     const row = document.createElement("li");
-    row.className = `recent-drop rarity-${drop.rarity}`;
+    row.className = "recent-drop";
+    const dropTemplate = drop.type === "item" ? findTemplateById(drop.key) ?? ITEM_TEMPLATES.find((template) => template.icon === drop.key) : null;
+    const dropVisual = drop.type === "material" ? materialVisual(drop.quality) : { quality: drop.quality, slot: dropTemplate?.slot ?? null, wingGlow: dropTemplate?.wingGlow ?? null };
+    applyQualityVisuals(row, dropVisual, { surface: false });
     row.innerHTML = `<span class="recent-drop-icon" aria-hidden="true"></span><span class="recent-drop-name"></span><span class="recent-drop-qty"></span><time class="recent-drop-time"></time>`;
     const iconSource = drop.type === "material"
       ? { image: MATERIALS[drop.key]?.asset }
       : (ITEM_TEMPLATES.find((template) => template.icon === drop.key) ?? { icon: drop.key });
     renderItemIcon(row.querySelector(".recent-drop-icon"), iconSource);
+    applyQualityVisuals(row.querySelector(".recent-drop-icon"), dropVisual);
+    row.querySelector(".recent-drop-icon").classList.add("recent-drop-icon");
     row.querySelector(".recent-drop-name").textContent = drop.name;
     row.querySelector(".recent-drop-qty").textContent = `×${drop.qty}`;
     const time = row.querySelector("time");
@@ -913,31 +960,37 @@ function statSummary(item) { return statRows(item).map(([label, value]) => `${la
 // requires no click, auto-dismisses, and never overlaps the fight controls
 // or log panel (see .drop-toast-stack / .drop-toast in styles.css).
 function showDropToast(item, note = null) {
-  const rarity = RARITIES[item.rarity];
   const toast = document.createElement("div");
-  toast.className = `drop-toast rarity-${item.rarity}`;
-  toast.style.setProperty("--drop-color", rarity.color);
+  toast.className = "drop-toast";
+  const visual = itemVisual(item);
+  applyQualityVisuals(toast, visual, { surface: false });
   toast.innerHTML = `<span class="drop-toast-icon" aria-hidden="true"></span><div class="drop-toast-copy"><strong></strong><span></span></div>`;
-  renderItemIcon(toast.querySelector(".drop-toast-icon"), item);
+  const icon = toast.querySelector(".drop-toast-icon");
+  renderItemIcon(icon, item);
+  applyQualityVisuals(icon, visual);
+  icon.classList.add("drop-toast-icon");
   const nameEl = toast.querySelector("strong");
   nameEl.textContent = item.name;
-  nameEl.className = `rarity-text rarity-${item.rarity}`;
-  toast.querySelector(".drop-toast-copy span").textContent = note ?? `${rarity.label} · ${SLOT_META[item.slot]?.label ?? ""}`;
+  nameEl.className = "q-text";
+  toast.querySelector(".drop-toast-copy span").textContent = note ?? `${qualityLabel(item.quality)} · ${SLOT_META[item.slot]?.label ?? ""}`;
   presentToast(toast);
 }
 
 // Toast for a material/scroll drop: "Získáno: Prach z křídel ×2".
-function showMaterialToast(material, quantity, total) {
-  const rarity = RARITIES[material.rarity];
+function showMaterialToast(material, quantity, total, quality) {
   const toast = document.createElement("div");
-  toast.className = `drop-toast rarity-${material.rarity}`;
-  toast.style.setProperty("--drop-color", rarity.color);
+  toast.className = "drop-toast";
+  const visual = materialVisual(quality);
+  applyQualityVisuals(toast, visual, { surface: false });
   toast.innerHTML = `<span class="drop-toast-icon" aria-hidden="true"></span><div class="drop-toast-copy"><strong></strong><span></span></div>`;
-  renderItemIcon(toast.querySelector(".drop-toast-icon"), { image: material.asset });
+  const icon = toast.querySelector(".drop-toast-icon");
+  renderItemIcon(icon, { image: material.asset });
+  applyQualityVisuals(icon, visual);
+  icon.classList.add("drop-toast-icon");
   const nameEl = toast.querySelector("strong");
   nameEl.textContent = `Získáno: ${material.name} ×${quantity}`;
-  nameEl.className = `rarity-text rarity-${material.rarity}`;
-  toast.querySelector(".drop-toast-copy span").textContent = `${MATERIAL_CATEGORY_LABELS[material.category] ?? "Materiál"} · celkem ${total}×`;
+  nameEl.className = "q-text";
+  toast.querySelector(".drop-toast-copy span").textContent = `${qualityLabel(quality)} · ${MATERIAL_CATEGORY_LABELS[material.category] ?? "Materiál"} · celkem ${total}×`;
   presentToast(toast);
 }
 
@@ -967,7 +1020,7 @@ function equipItem(itemId) {
   const newMaxHp = getPlayerStats().maxHp;
   // Změna vybavení nikdy neléčí (jinak by šlo léčit přehazováním itemů) -- HP se jen ořízne na nové maximum.
   state.player.hp = Math.min(newMaxHp, state.player.hp);
-  addLog(`${item.name} byl vybaven.`, item.rarity === "common" ? "system" : "level-up");
+  addLog(`${item.name} byl vybaven.`, item.quality === "common" ? "system" : "level-up");
   // Výběr sleduje předmět: z inventáře přechází na jeho slot, kde nabídne SUNDAT.
   ui.selection = { kind: "equipped", slot: item.slot };
   render(); renderLoot(); saveState();
@@ -993,28 +1046,34 @@ function unequipItem(slot) {
 // Inventář, paper-doll a persistentní detail
 // ---------------------------------------------------------------------
 
-function getOwnedMaterialIds() {
-  const known = MATERIAL_ORDER.filter((id) => state.materials[id] > 0);
-  const unknown = Object.keys(state.materials).filter((id) => !MATERIALS[id] && state.materials[id] > 0);
-  return [...known, ...unknown];
+// Stacky materiálů: jedna položka na kombinaci templateId + quality (klíč `id:quality`).
+// Řazení: pořadí materiálů, uvnitř materiálu od nejvyšší kvality.
+function getOwnedMaterialStacks() {
+  const stacks = Object.entries(state.materials)
+    .filter(([, qty]) => qty > 0)
+    .map(([key, qty]) => ({ key, qty, ...parseStackKey(key) }))
+    .filter((stack) => MATERIALS[stack.templateId]);
+  const order = (id) => { const i = MATERIAL_ORDER.indexOf(id); return i < 0 ? MATERIAL_ORDER.length : i; };
+  return stacks.sort((a, b) => order(a.templateId) - order(b.templateId) || qualityRank(b.quality) - qualityRank(a.quality));
 }
 
 // Jednotný seznam pro grid: vybavení (state.inventory, omezená kapacita) a
 // materiály/svitky (state.materials, stackují se, kapacitu nezabírají).
 function getInventoryEntries() {
   const entries = state.inventory.map((item, index) => ({
-    kind: "item", key: `item:${item.id}`, id: item.id, name: item.name, rarity: item.rarity, slot: item.slot,
-    category: "equipment", qty: 1, order: index, iconSource: item, item,
+    kind: "item", key: `item:${item.id}`, id: item.id, name: item.name, quality: item.quality, slot: item.slot,
+    category: "equipment", qty: 1, order: index, iconSource: item, item, visual: itemVisual(item),
     time: item.obtainedAt ?? 0, originLocationId: item.sourceLocationId ?? null,
     value: itemSellValue(item), power: itemPower(item),
     flags: { new: item.isNew === true, favorite: item.isFavorite === true, locked: item.isLocked === true },
   }));
-  getOwnedMaterialIds().filter((id) => MATERIALS[id]).forEach((id, index) => {
-    const material = MATERIALS[id];
+  getOwnedMaterialStacks().forEach((stack, index) => {
+    const material = MATERIALS[stack.templateId];
     entries.push({
-      kind: "material", key: `mat:${id}`, id, name: material.name, rarity: material.rarity, slot: null,
+      kind: "material", key: `mat:${stack.key}`, id: stack.key, templateId: stack.templateId, name: material.name,
+      quality: normalizeQuality(stack.quality, { stackable: true, where: "inventory" }), slot: null,
       category: material.category === "scroll" ? "scrolls" : "materials",
-      qty: state.materials[id], order: 1000 + index, iconSource: { image: material.asset },
+      qty: stack.qty, order: 1000 + index, iconSource: { image: material.asset }, visual: materialVisual(normalizeQuality(stack.quality, { stackable: true })),
       time: -1, originLocationId: material.sourceLocationId ?? null, value: 0, power: 0, flags: {},
     });
   });
@@ -1022,11 +1081,11 @@ function getInventoryEntries() {
 }
 
 function entryAriaLabel(entry) {
-  const rarity = RARITIES[entry.rarity]?.label ?? "";
+  const quality = qualityLabel(entry.quality);
   const slot = SLOT_META[entry.slot]?.label;
   const qty = entry.kind === "material" ? `, ${entry.qty} ks` : "";
   const flags = [entry.flags?.new ? "nové" : null, entry.flags?.favorite ? "oblíbené" : null, entry.flags?.locked ? "uzamčené" : null].filter(Boolean);
-  return `${entry.name}, ${rarity}${slot ? `, ${slot}` : ""}${qty}${flags.length ? `, ${flags.join(", ")}` : ""}`;
+  return `${entry.name}, ${quality}${slot ? `, ${slot}` : ""}${qty}${flags.length ? `, ${flags.join(", ")}` : ""}`;
 }
 
 // Filtry typu slotu a stavu (nové / oblíbené / uzamčené) se týkají jen vybavení;
@@ -1038,12 +1097,12 @@ function filterEntries(entries) {
   const gear = gearFiltersApply();
   return entries.filter((entry) => {
     if (ui.tab !== "all" && entry.category !== ui.tab) return false;
-    if (ui.rarity !== "all" && entry.rarity !== ui.rarity) return false;
+    if (ui.quality !== "all" && entry.quality !== ui.quality) return false;
     if (gear && ui.type !== "all" && entry.slot !== ui.type) return false;
     if (gear && ui.flag !== "all" && !entry.flags?.[ui.flag]) return false;
     if (ui.origin !== "all" && entry.originLocationId !== ui.origin) return false;
     if (query) {
-      const haystack = `${entry.name} ${SLOT_META[entry.slot]?.label ?? ""} ${RARITIES[entry.rarity]?.label ?? ""}`.toLowerCase();
+      const haystack = `${entry.name} ${SLOT_META[entry.slot]?.label ?? ""} ${qualityLabel(entry.quality)}`.toLowerCase();
       if (!haystack.includes(query)) return false;
     }
     return true;
@@ -1058,7 +1117,7 @@ function sortEntries(entries) {
   const sorters = {
     newest: (a, b) => itemsFirst(a, b) || (a.kind === "item" ? b.time - a.time || a.order - b.order : a.order - b.order),
     oldest: (a, b) => itemsFirst(a, b) || (a.kind === "item" ? a.time - b.time || b.order - a.order : a.order - b.order),
-    rarity: (a, b) => rank(RARITY_ORDER, a.rarity) - rank(RARITY_ORDER, b.rarity) || byName(a, b),
+    quality: (a, b) => rank(QUALITY_ORDER, a.quality) - rank(QUALITY_ORDER, b.quality) || byName(a, b),
     name: byName,
     value: (a, b) => itemsFirst(a, b) || b.value - a.value || byName(a, b),
     power: (a, b) => itemsFirst(a, b) || b.power - a.power || byName(a, b),
@@ -1088,8 +1147,9 @@ function resolveSelection() {
     const item = state.equipment[s.slot];
     if (item) resolved = { kind: "equipped", slot: s.slot, item };
   } else if (s.kind === "material") {
-    const material = MATERIALS[s.id];
-    if (material && state.materials[s.id] > 0) resolved = { kind: "material", id: s.id, material };
+    const { templateId, quality } = parseStackKey(s.id);
+    const material = MATERIALS[templateId];
+    if (material && state.materials[s.id] > 0) resolved = { kind: "material", id: s.id, templateId, quality: normalizeQuality(quality, { stackable: true }), material };
   }
   if (!resolved) ui.selection = null;
   return resolved;
@@ -1115,7 +1175,7 @@ function activeFilterList() {
   const gear = gearFiltersApply();
   if (ui.search.trim()) list.push(["search", `Hledání: „${ui.search.trim()}“`]);
   if (gear && ui.type !== "all") list.push(["type", `Slot: ${SLOT_META[ui.type]?.label ?? ui.type}`]);
-  if (ui.rarity !== "all") list.push(["rarity", `Rarita: ${RARITIES[ui.rarity]?.label ?? ui.rarity}`]);
+  if (ui.quality !== "all") list.push(["quality", `Quality: ${qualityLabel(ui.quality)}`]);
   if (gear && ui.flag !== "all") list.push(["flag", `Stav: ${{ new: "Nové", favorite: "Oblíbené", locked: "Uzamčené" }[ui.flag] ?? ui.flag}`]);
   if (ui.origin !== "all") list.push(["origin", `Lokace: ${LOCATIONS[ui.origin]?.name ?? ui.origin}`]);
   return list;
@@ -1135,7 +1195,7 @@ function renderActiveFilters() {
 function clearFilter(key) {
   if (key === "all" || key === "search") ui.search = "";
   if (key === "all" || key === "type") ui.type = "all";
-  if (key === "all" || key === "rarity") ui.rarity = "all";
+  if (key === "all" || key === "quality") ui.quality = "all";
   if (key === "all" || key === "flag") ui.flag = "all";
   if (key === "all" || key === "origin") ui.origin = "all";
   syncInventoryControls();
@@ -1163,10 +1223,10 @@ function renderInventory() {
   grid.innerHTML = "";
 
   visible.forEach((entry) => {
-    const rarity = RARITIES[entry.rarity] ?? RARITIES.common;
     const cell = document.createElement("button");
     cell.type = "button";
-    cell.className = `inv-cell rarity-${entry.rarity}`;
+    cell.className = "inv-cell";
+    applyQualityVisuals(cell, entry.visual);
     cell.dataset.key = entry.key;
     const marked = deleteMode && entry.kind === "item" && selectedForDeletion.has(entry.id);
     const selected = !deleteMode && entry.key === selectedKeyValue;
@@ -1177,7 +1237,7 @@ function renderInventory() {
     cell.setAttribute("aria-pressed", String(deleteMode ? marked : selected));
     if (locked) cell.setAttribute("aria-disabled", "true");
     cell.setAttribute("aria-label", deleteMode ? `${locked ? "Uzamčeno, nelze vybrat" : "Vybrat"}: ${entryAriaLabel(entry)}` : `${entryAriaLabel(entry)} — zobrazit detail`);
-    cell.title = entry.kind === "item" ? `${entry.name} · ${rarity.label} · ${entry.value} gold` : `${entry.name} · ${rarity.label}`;
+    cell.title = entry.kind === "item" ? `${entry.name} · ${qualityLabel(entry.quality)} · ${entry.value} gold` : `${entry.name} · ${qualityLabel(entry.quality)}`;
     const flags = [
       entry.flags?.new ? "<span class='flag flag-new'>NOVÉ</span>" : "",
       entry.flags?.favorite ? "<span class='flag flag-fav' title='Oblíbené'>★</span>" : "",
@@ -1236,11 +1296,14 @@ function renderUnclaimed() {
   const rows = state.unclaimed.slice(0, LOOT_CONFIG.unclaimedListPreview).map((item) => {
     const icon = mk("span", { class: "unclaimed-icon", "aria-hidden": "true" });
     renderItemIcon(icon, item);
+    applyQualityVisuals(icon, itemVisual(item));
     const copy = mk("span", { class: "unclaimed-copy" },
-      mk("strong", { class: `rarity-text rarity-${item.rarity}`, text: item.name }),
-      mk("span", { text: `${RARITIES[item.rarity]?.label ?? ""} · ${SLOT_META[item.slot]?.label ?? ""} · síla ${fmtNum(itemPower(item))}` }));
-    return mk("li", { class: `unclaimed-row rarity-${item.rarity}` }, icon, copy,
+      mk("strong", { class: qTextClass(itemVisual(item)), text: item.name }),
+      mk("span", { text: `${qualityLabel(item.quality)} · ${SLOT_META[item.slot]?.label ?? ""} · síla ${fmtNum(itemPower(item))}` }));
+    const row = mk("li", { class: "unclaimed-row" }, icon, copy,
       mk("button", { class: "btn", type: "button", "data-claim-id": item.id, disabled: full, text: "Přesunout" }));
+    applyQualityVisuals(row, itemVisual(item), { surface: false });
+    return row;
   });
   if (count > rows.length) rows.push(mk("li", { class: "unclaimed-more", text: `… a dalších ${count - rows.length} předmětů` }));
   elements.unclaimedList.replaceChildren(...rows);
@@ -1273,14 +1336,15 @@ function renderPaperDoll() {
     if (item) equippedCount += 1;
     const selected = resolved?.kind === "equipped" && resolved.slot === slot;
     const compatible = compatibleSlot === slot;
-    button.className = `pd-slot${item ? ` filled rarity-${item.rarity}` : ""}`;
+    button.className = `pd-slot${item ? " filled" : ""}`;
+    if (item) applyQualityVisuals(button, itemVisual(item));
     button.classList.toggle("selected", selected);
     button.classList.toggle("compatible", compatible);
     button.setAttribute("aria-pressed", String(selected));
     button.setAttribute("aria-label", item
-      ? `${meta.label}: ${item.name}, ${RARITIES[item.rarity].label} — zobrazit detail`
+      ? `${meta.label}: ${item.name}, ${qualityLabel(item.quality)} — zobrazit detail`
       : `${meta.label}: prázdný slot${compatible ? " — sem lze vybavit vybraný předmět" : ""}`);
-    button.title = item ? `${item.name} · ${RARITIES[item.rarity].label}` : `${meta.label} — prázdný slot`;
+    button.title = item ? `${item.name} · ${qualityLabel(item.quality)}` : `${meta.label} — prázdný slot`;
     button.innerHTML = `<span class="pd-type"></span><span class="pd-icon" aria-hidden="true"></span>${compatible ? `<span class="pd-badge">${item ? "Vyměnit" : "Vybavit"}</span>` : ""}`;
     button.querySelector(".pd-type").textContent = meta.label;
     const icon = button.querySelector(".pd-icon");
@@ -1315,19 +1379,21 @@ const COMPARE_ROWS = Object.freeze([
 ]);
 
 function compareCard(label, item) {
-  const card = mk("div", { class: `cmp-card${item ? ` rarity-${item.rarity}` : " empty"}` }, mk("span", { class: "cmp-card-label", text: label }));
+  const card = mk("div", { class: `cmp-card${item ? "" : " empty"}` }, mk("span", { class: "cmp-card-label", text: label }));
+  if (item) applyQualityVisuals(card, itemVisual(item), { surface: false });
   if (!item) {
     card.append(mk("strong", { class: "cmp-card-name", text: "Prázdný slot" }), mk("span", { class: "cmp-card-sub", text: "Nic není nasazeno" }));
     return card;
   }
   const icon = mk("span", { class: "cmp-card-icon", "aria-hidden": "true" });
   renderItemIcon(icon, item);
+  applyQualityVisuals(icon, itemVisual(item));
   const stats = mk("ul", { class: "cmp-stats" });
   statRows(item).forEach(([name, value]) => stats.append(mk("li", {}, mk("span", { text: name }), mk("b", { text: value }))));
   card.append(
     icon,
-    mk("strong", { class: `cmp-card-name rarity-text rarity-${item.rarity}`, text: item.name }),
-    mk("span", { class: "cmp-card-sub", text: `${RARITIES[item.rarity]?.label ?? ""} · síla ${fmtNum(itemPower(item))}` }),
+    mk("strong", { class: `cmp-card-name ${qTextClass(itemVisual(item))}`, text: item.name }),
+    mk("span", { class: "cmp-card-sub", text: `${qualityLabel(item.quality)} · síla ${fmtNum(itemPower(item))}` }),
     stats,
   );
   return card;
@@ -1363,18 +1429,17 @@ function renderCompare(item) {
 function renderDetail() {
   const resolved = resolveSelection();
   const panel = elements.itemDetail;
-  ["common", "uncommon", "rare", "epic"].forEach((key) => panel.classList.remove(`rarity-${key}`));
   elements.detailEmpty.classList.toggle("hidden", Boolean(resolved));
   elements.detailBody.classList.toggle("hidden", !resolved);
   if (!resolved) { closeSheet({ restoreFocus: false }); return; }
 
   const isMaterial = resolved.kind === "material";
   const source = isMaterial ? resolved.material : resolved.item;
-  const rarity = RARITIES[source.rarity] ?? RARITIES.common;
-  panel.classList.add(`rarity-${source.rarity}`);
+  const visual = isMaterial ? materialVisual(resolved.quality) : itemVisual(resolved.item);
+  applyQualityVisuals(panel, visual, { surface: false });
   elements.detailIcon.classList.remove("material-art");
   elements.detailTitle.textContent = source.name;
-  elements.detailTitle.className = `detail-title rarity-text rarity-${source.rarity}`;
+  elements.detailTitle.className = `detail-title ${qTextClass(visual)}`;
   elements.detailStats.innerHTML = "";
   elements.detailMeta.innerHTML = "";
   elements.detailCompare.classList.add("hidden");
@@ -1387,14 +1452,17 @@ function renderDetail() {
   if (isMaterial) {
     const material = resolved.material;
     const categoryLabel = MATERIAL_CATEGORY_LABELS[material.category] ?? "Materiál";
-    elements.detailRarity.textContent = `${rarity.label} ${categoryLabel.toLowerCase()}`;
+    elements.detailQuality.textContent = `${qualityLabel(resolved.quality)} · ${categoryLabel}`;
     renderItemIcon(elements.detailIcon, { image: material.asset });
+    applyQualityVisuals(elements.detailIcon, visual);
     elements.detailType.textContent = categoryLabel;
     elements.detailFlavor.textContent = material.description ?? "";
     elements.detailFlavor.classList.toggle("hidden", !material.description);
     const enemyNames = material.sourceEnemyIds.map((id) => ENEMIES[id]?.name ?? id).join(", ");
     [
+      ["Quality", qualityLabel(resolved.quality)],
       ["Vlastněno", `${state.materials[resolved.id] ?? 0}×`],
+      ["Stackovatelné", material.stackable === false ? "Ne" : "Ano (každá quality zvlášť)"],
       ["Kategorie", categoryLabel],
       ["Lokace původu", LOCATIONS[material.sourceLocationId]?.name ?? "Neznámo"],
       ["Získatelné z", enemyNames],
@@ -1407,8 +1475,9 @@ function renderDetail() {
   const item = resolved.item;
   const template = findItemTemplate(item);
   const equippedNow = resolved.kind === "equipped";
-  elements.detailRarity.textContent = `${rarity.label} předmět`;
+  elements.detailQuality.textContent = `${qualityLabel(item.quality)} · předmět`;
   renderItemIcon(elements.detailIcon, item);
+  applyQualityVisuals(elements.detailIcon, visual);
   elements.detailType.textContent = `${SLOT_META[item.slot]?.label ?? "Ostatní"}${equippedNow ? " · právě vybaveno" : ""}`;
   statRows(item).forEach(([label, value]) => elements.detailStats.append(kvRow(label, value)));
   if (!equippedNow) renderCompare(item);
@@ -1420,6 +1489,7 @@ function renderDetail() {
   const tradeable = item.tradeable ?? template?.tradeable ?? true;
   const acquiredAt = formatAcquiredAt(item.acquiredAt);
   const metaRows = [
+    ["Quality", qualityLabel(item.quality)],
     ["Slot", SLOT_META[item.slot]?.label ?? "—"],
     ["Síla itemu", fmtNum(itemPower(item))],
     ["Prodejní hodnota", `${itemSellValue(item)} gold`],
@@ -1469,15 +1539,16 @@ function renderEquipmentOverview() {
     const li = document.createElement("li");
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `ov-item${item ? ` filled rarity-${item.rarity}` : ""}`;
+    button.className = `ov-item${item ? " filled" : ""}`;
+    if (item) applyQualityVisuals(button, itemVisual(item), { surface: false });
     button.dataset.slot = slot;
     button.setAttribute("aria-label", item ? `${meta.label}: ${item.name} — otevřít v inventáři` : `${meta.label}: prázdný slot`);
     button.innerHTML = `<span class="ov-icon" aria-hidden="true"></span><span class="ov-copy"><span class="ov-slot"></span><span class="ov-name"></span><span class="ov-rar"></span></span>`;
     button.querySelector(".ov-slot").textContent = meta.label;
     button.querySelector(".ov-name").textContent = item ? item.name : "Prázdný slot";
-    button.querySelector(".ov-rar").textContent = item ? RARITIES[item.rarity].label : "—";
+    button.querySelector(".ov-rar").textContent = item ? qualityLabel(item.quality) : "—";
     const icon = button.querySelector(".ov-icon");
-    if (item) renderItemIcon(icon, item);
+    if (item) { renderItemIcon(icon, item); applyQualityVisuals(icon, itemVisual(item)); }
     else icon.innerHTML = ICONS[meta.icon] ?? "";
     li.append(button);
     list.append(li);
@@ -1542,7 +1613,7 @@ function onInventoryCell(key) {
     const item = state.inventory.find((entry) => entry.id === id);
     if (item?.isNew) { item.isNew = false; saveState(); }
   }
-  selectEntity(kind === "item" ? { kind: "item", id } : { kind: "material", id });
+  selectEntity(kind === "item" ? { kind: "item", id } : { kind: "material", id }); // id materiálu = klíč stacku `templateId:quality`
 }
 
 function onDollSlot(slot) {
@@ -1589,7 +1660,7 @@ function syncInventoryControls() {
   });
   elements.invSearch.value = ui.search;
   elements.invType.value = ui.type;
-  elements.invRarity.value = ui.rarity;
+  elements.invQuality.value = ui.quality;
   elements.invFlag.value = ui.flag;
   elements.invOrigin.value = ui.origin;
   elements.invSort.value = ui.sort;
@@ -1664,7 +1735,7 @@ function resetGame() {
   elements.combatLog.innerHTML = "";
   ui.selection = null;
   ui.selectedMapLocationId = null; ui.locTab = "info"; ui.highlightEnemyId = null;
-  ui.tab = "all"; ui.search = ""; ui.type = "all"; ui.rarity = "all"; ui.flag = "all"; ui.origin = "all"; ui.sort = "newest";
+  ui.tab = "all"; ui.search = ""; ui.type = "all"; ui.quality = "all"; ui.flag = "all"; ui.origin = "all"; ui.sort = "newest";
   closeSheet({ restoreFocus: false });
   ui.merchantSelected.clear();
   setBankMessage("", "");
@@ -1735,16 +1806,19 @@ function enemyArt(enemy, known) {
 
 // Možná kořist nepřítele se bere z world-data (materialDrops + dropPool lokace), žádný druhý seznam.
 function enemyLootSlots(enemy) {
-  const materials = (enemy.materialDrops ?? []).filter((drop) => MATERIALS[drop.id]);
-  const items = enemy.dropChance > 0 ? [...new Set(enemy.dropPool ?? [])].map(findTemplateById).filter(Boolean) : [];
-  return { materials, items };
+  const materials = (enemy.materialDrops ?? []).map((drop) => normalizeMaterialDrop(drop, enemy.id)).filter(Boolean);
+  const poolIds = enemy.dropChance > 0 ? [...(enemy.dropPool ?? [])] : [];
+  const fixed = (enemy.equipmentDrops ?? []).map((drop) => normalizeEquipmentDrop(drop, enemy.id)).filter(Boolean);
+  const items = [...new Set([...poolIds, ...fixed.map((drop) => drop.templateId)])].map(findTemplateById).filter(Boolean);
+  return { materials, items, fixed };
 }
 
-function lootChip(known, label, { icon = null, image = null, tier = null } = {}) {
+function lootChip(known, label, { icon = null, image = null, tier = null, visual = null } = {}) {
   const chip = mk("li", { class: `loot-chip${known ? "" : " unknown"}` });
   if (known) {
     const slot = mk("span", { class: "loot-chip-icon", "aria-hidden": "true" });
     renderItemIcon(slot, image ? { image } : icon);
+    if (visual) applyQualityVisuals(slot, visual);
     chip.append(slot, mk("span", { class: "loot-chip-name", text: label }));
     if (tier) chip.append(mk("span", { class: "loot-chip-tier", text: DROP_TIER_LABELS[tier] ?? "" }));
   } else {
@@ -1776,20 +1850,22 @@ function bestiaryCard(enemy) {
     card.append(mk("p", { class: "bestiary-hint", text: "Kořist z této lokace zatím není k dispozici (lokace je jen ukázka)." }));
     return card;
   }
-  const { materials, items } = enemyLootSlots(enemy);
+  const { materials, items, fixed } = enemyLootSlots(enemy);
   const chips = mk("ul", { class: "loot-chips" });
   materials.forEach((drop) => {
-    const material = MATERIALS[drop.id];
-    const found = entry.materials.includes(drop.id);
-    chips.append(lootChip(found, material.name, { image: material.asset, tier: drop.tier }));
+    const material = MATERIALS[drop.templateId];
+    const found = entry.materials.includes(drop.templateId);
+    chips.append(lootChip(found, `${material.name} · ${qualityLabel(drop.quality)}`, { image: material.asset, tier: drop.tier, visual: materialVisual(drop.quality) }));
   });
   items.forEach((template) => {
     const found = entry.items.includes(template.templateId);
-    chips.append(lootChip(found, template.name, { icon: template }));
+    const fixedQualities = fixed.filter((drop) => drop.templateId === template.templateId).map((drop) => drop.quality);
+    chips.append(lootChip(found, fixedQualities.length ? `${template.name} · ${fixedQualities.map(qualityLabel).join("/")}` : template.name,
+      { icon: template, visual: fixedQualities.length === 1 ? itemVisual({ quality: fixedQualities[0], slot: template.slot, icon: template.icon }) : null }));
   });
   if (chips.children.length) {
     const total = materials.length + items.length;
-    const foundCount = materials.filter((d) => entry.materials.includes(d.id)).length + items.filter((t) => entry.items.includes(t.templateId)).length;
+    const foundCount = materials.filter((d) => entry.materials.includes(d.templateId)).length + items.filter((t) => entry.items.includes(t.templateId)).length;
     card.append(mk("p", { class: "bestiary-loot-title", text: `Kořist · objeveno ${foundCount} / ${total}` }), chips);
   } else card.append(mk("p", { class: "bestiary-hint", text: "Tento nepřítel nenese žádnou kořist." }));
   return card;
@@ -1836,12 +1912,16 @@ function collectionCard({ template, locationId }) {
   const entry = state.collection[template.templateId];
   const card = mk("li", { class: `collection-card${entry ? "" : " unknown"}` });
   const iconBox = mk("span", { class: "collection-icon", "aria-hidden": "true" });
-  if (entry) renderItemIcon(iconBox, template); else iconBox.append(mk("span", { class: "collection-q", text: "?" }));
+  if (entry) {
+    renderItemIcon(iconBox, template);
+    // Ikona nese kvalitu nejlepšího získaného kusu (jedna šablona, jakákoli kvalita).
+    applyQualityVisuals(iconBox, { quality: entry.best?.quality ?? DEFAULT_QUALITY, slot: template.slot, wingGlow: template.wingGlow ?? null });
+  } else iconBox.append(mk("span", { class: "collection-q", text: "?" }));
   const rows = mk("dl", { class: "collection-meta" });
   const add = (label, value) => rows.append(mk("div", {}, mk("dt", { text: label }), mk("dd", { text: value })));
   if (entry) {
     add("Získáno", `${fmtNum(entry.count)}×`);
-    if (entry.best) add("Nejlepší kus", `${RARITIES[entry.best.rarity]?.label ?? ""} · síla ${fmtNum(entry.best.power)}`);
+    if (entry.best) add("Nejlepší kus", `${qualityLabel(entry.best.quality)} · síla ${fmtNum(entry.best.power)}`);
     add("Poprvé", `${LOCATIONS[entry.firstLocationId]?.name ?? "Neznámo"} · ${ENEMIES[entry.firstEnemyId]?.name ?? "Neznámý nepřítel"}`);
     const when = formatAcquiredAt(entry.firstAt);
     if (when) add("Kdy", when);
@@ -1880,18 +1960,18 @@ function renderCollection() {
 function saleSummary(ids) {
   const wanted = new Set(ids);
   const items = state.inventory.filter((item) => wanted.has(item.id) && !item.isLocked);
-  const byRarity = {};
+  const byQuality = {};
   let total = 0;
-  items.forEach((item) => { byRarity[item.rarity] = (byRarity[item.rarity] ?? 0) + 1; total += itemSellValue(item); });
+  items.forEach((item) => { byQuality[item.quality] = (byQuality[item.quality] ?? 0) + 1; total += itemSellValue(item); });
   return {
-    items, count: items.length, total, byRarity,
+    items, count: items.length, total, byQuality,
     hasFavorite: items.some((item) => item.isFavorite),
-    hasRareOrEpic: items.some((item) => item.rarity === "rare" || item.rarity === "epic"),
+    hasRareOrEpic: items.some((item) => qualityRank(item.quality) >= qualityRank("rare")),
   };
 }
 
-function rarityBreakdown(byRarity) {
-  const parts = RARITY_ORDER.filter((key) => byRarity[key]).map((key) => `${RARITIES[key].label} ×${byRarity[key]}`);
+function qualityBreakdown(byQuality) {
+  const parts = QUALITY_ORDER.filter((key) => byQuality[key]).map((key) => `${qualityLabel(key)} ×${byQuality[key]}`);
   return parts.length ? parts.join(" · ") : "—";
 }
 
@@ -1934,12 +2014,12 @@ function openBulkDialog(mode, ids) {
   pendingBulk = { mode, ids: summary.items.map((item) => item.id) };
   elements.sellDialogEyebrow.textContent = isSell ? "Potvrzení prodeje" : "Potvrzení smazání";
   elements.sellDialogTitle.textContent = `${isSell ? "Prodat" : "Smazat"} ${summary.count} ${pluralizePredmet(summary.count)}?`;
-  elements.sellDialogSummary.textContent = rarityBreakdown(summary.byRarity);
+  elements.sellDialogSummary.textContent = qualityBreakdown(summary.byQuality);
   elements.sellDialogTotal.textContent = isSell
     ? `Výkup celkem: ${fmtGold(summary.total)} gold`
     : "Za smazané předměty nedostaneš zlato a nelze je odkoupit zpět.";
   const warnings = [];
-  if (summary.hasRareOrEpic) warnings.push(`Výběr obsahuje vzácný nebo epický předmět (${summary.items.filter((item) => item.rarity === "rare" || item.rarity === "epic").length}×).`);
+  if (summary.hasRareOrEpic) warnings.push(`Výběr obsahuje předměty kvality RARE nebo vyšší (${summary.items.filter((item) => qualityRank(item.quality) >= qualityRank("rare")).length}×).`);
   if (summary.hasFavorite) warnings.push(`Výběr obsahuje oblíbený předmět (${summary.items.filter((item) => item.isFavorite).length}×).`);
   elements.sellDialogWarnings.replaceChildren(...warnings.map((text) => mk("li", { text })));
   elements.sellConfirm.textContent = isSell ? "Prodat" : "Smazat";
@@ -1961,7 +2041,7 @@ function confirmBulkDialog() {
 // oblíbené/uzamčené. Nasazené itemy se do tohoto toku nikdy nedostanou (jde o čerstvý drop).
 function ruleAllowsAutoSell(item, firstOfTemplate) {
   const rules = state.lootRules;
-  return rules.autoSellCommon && item.rarity === "common" && rules.slots[item.slot] !== false
+  return rules.autoSellCommon && item.quality === "common" && rules.slots[item.slot] !== false
     && !firstOfTemplate && !item.isFavorite && !item.isLocked;
 }
 
@@ -1995,7 +2075,7 @@ function buyBack(itemId) {
 
 // --- Stránka Obchodník --------------------------------------------------------
 function merchantSellable() {
-  const rank = (item) => RARITY_ORDER.indexOf(item.rarity);
+  const rank = (item) => QUALITY_ORDER.indexOf(item.quality);
   return state.inventory.filter((item) => !item.isLocked).sort((a, b) =>
     rank(a) - rank(b) || SLOT_ORDER.indexOf(a.slot) - SLOT_ORDER.indexOf(b.slot) || a.name.localeCompare(b.name, "cs") || (b.obtainedAt ?? 0) - (a.obtainedAt ?? 0));
 }
@@ -2003,7 +2083,7 @@ function merchantSellable() {
 function updateMerchantSummary() {
   const summary = saleSummary([...ui.merchantSelected]);
   elements.merchantCount.textContent = summary.count;
-  elements.merchantBreakdown.textContent = rarityBreakdown(summary.byRarity);
+  elements.merchantBreakdown.textContent = qualityBreakdown(summary.byQuality);
   elements.merchantTotal.textContent = fmtGold(summary.total);
   elements.merchantSell.disabled = summary.count === 0;
   $$(".merchant-row", elements.merchantList).forEach((row) => row.classList.toggle("selected", ui.merchantSelected.has(row.dataset.id)));
@@ -2018,15 +2098,18 @@ function renderMerchantSell() {
   list.replaceChildren(...sellable.map((item) => {
     const icon = mk("span", { class: "merchant-icon", "aria-hidden": "true" });
     renderItemIcon(icon, item);
+    applyQualityVisuals(icon, itemVisual(item));
     const flags = [item.isNew ? "NOVÉ" : null, item.isFavorite ? "★ oblíbené" : null].filter(Boolean).join(" · ");
     const box = mk("input", { type: "checkbox", "data-sell-id": item.id, "aria-label": `Označit k prodeji: ${item.name}, ${itemSellValue(item)} gold` });
     box.checked = ui.merchantSelected.has(item.id);
-    return mk("li", { class: `merchant-row rarity-${item.rarity}`, "data-id": item.id },
+    const sellRow = mk("li", { class: "merchant-row", "data-id": item.id },
       mk("label", {}, box, icon,
         mk("span", { class: "merchant-copy" },
-          mk("strong", { class: `rarity-text rarity-${item.rarity}`, text: item.name }),
-          mk("span", { text: `${RARITIES[item.rarity]?.label ?? ""} · ${SLOT_META[item.slot]?.label ?? ""} · síla ${fmtNum(itemPower(item))}${flags ? ` · ${flags}` : ""}` })),
+          mk("strong", { class: qTextClass(itemVisual(item)), text: item.name }),
+          mk("span", { text: `${qualityLabel(item.quality)} · ${SLOT_META[item.slot]?.label ?? ""} · síla ${fmtNum(itemPower(item))}${flags ? ` · ${flags}` : ""}` })),
         mk("span", { class: "merchant-price", text: `${fmtGold(itemSellValue(item))} gold` })));
+    applyQualityVisuals(sellRow, itemVisual(item), { surface: false });
+    return sellRow;
   }));
   if (focusId) $(`[data-sell-id="${CSS.escape(focusId)}"]`, list)?.focus({ preventScroll: true });
   elements.merchantEmpty.classList.toggle("hidden", sellable.length > 0);
@@ -2045,13 +2128,16 @@ function renderBuyback() {
   list.replaceChildren(...state.buyback.map((entry) => {
     const icon = mk("span", { class: "merchant-icon", "aria-hidden": "true" });
     renderItemIcon(icon, entry.item);
+    applyQualityVisuals(icon, itemVisual(entry.item));
     const poor = state.carriedGold < entry.price;
     const reason = full ? "Inventář je plný" : poor ? "Nedostatek zlata" : "";
-    return mk("li", { class: `merchant-row buyback-row rarity-${entry.item.rarity}` }, icon,
+    const backRow = mk("li", { class: "merchant-row buyback-row" }, icon,
       mk("span", { class: "merchant-copy" },
-        mk("strong", { class: `rarity-text rarity-${entry.item.rarity}`, text: entry.item.name }),
-        mk("span", { text: `${RARITIES[entry.item.rarity]?.label ?? ""} · ${SLOT_META[entry.item.slot]?.label ?? ""}${reason ? ` · ${reason}` : ""}` })),
+        mk("strong", { class: qTextClass(itemVisual(entry.item)), text: entry.item.name }),
+        mk("span", { text: `${qualityLabel(entry.item.quality)} · ${SLOT_META[entry.item.slot]?.label ?? ""}${reason ? ` · ${reason}` : ""}` })),
       mk("button", { class: "btn", type: "button", "data-buyback-id": entry.item.id, disabled: full || poor, title: reason, text: `Odkoupit · ${fmtGold(entry.price)}` }));
+    applyQualityVisuals(backRow, itemVisual(entry.item), { surface: false });
+    return backRow;
   }));
 }
 
@@ -2242,18 +2328,38 @@ function getLocationEnemies(location) { return location.enemyIds.map((id) => ENE
 // Kořist lokace rozdělená do skupin. Bez procent a vah -- jen co v lokaci padat může.
 function getLocationLootGroups(location) {
   const bossIds = new Set(location.bossIds);
+  const enemies = location.enemyIds.map((id) => ENEMIES[id]).filter(Boolean);
   const materials = location.materialIds.map((id) => MATERIALS[id]).filter(Boolean);
   const bossOnly = (material) => material.sourceEnemyIds.length > 0 && material.sourceEnemyIds.every((id) => bossIds.has(id));
-  const materialRow = (material, type) => ({ icon: { image: material.asset }, name: material.name, rarity: material.rarity, type });
+  // Jeden řádek na kombinaci materiál + kvalita, ve které v lokaci padá (z drop tabulek).
+  const materialRows = (material, type) => {
+    const qualities = [...new Set(enemies.flatMap((enemy) => (enemy.materialDrops ?? [])
+      .map((drop) => normalizeMaterialDrop(drop, enemy.id)).filter((drop) => drop?.templateId === material.id).map((drop) => drop.quality)))];
+    return (qualities.length ? qualities : [normalizeQuality(material.defaultQuality, { stackable: true })])
+      .sort((a, b) => qualityRank(b) - qualityRank(a))
+      .map((quality) => ({ icon: { image: material.asset }, name: material.name, quality, visual: materialVisual(quality), type }));
+  };
   const equipment = location.itemIds
     .map((iconKey) => ITEM_TEMPLATES.find((template) => template.icon === iconKey))
     .filter(Boolean)
-    .map((template) => ({ icon: template, name: template.name, rarity: null, type: `Vybavení · ${SLOT_META[template.slot]?.label ?? ""}` }));
+    .map((template) => ({ icon: template, name: template.name, quality: null, visual: null, type: `Vybavení · ${SLOT_META[template.slot]?.label ?? ""}` }));
+  // Pevné dropy z `equipmentDrops` (šablona v konkrétní kvalitě).
+  const seenFixed = new Set();
+  enemies.forEach((enemy) => (enemy.equipmentDrops ?? []).forEach((raw) => {
+    const drop = normalizeEquipmentDrop(raw, enemy.id);
+    const key = drop && `${drop.templateId}:${drop.quality}`;
+    if (!drop || seenFixed.has(key)) return;
+    seenFixed.add(key);
+    const template = findTemplateById(drop.templateId);
+    equipment.push({ icon: template, name: template.name, quality: drop.quality, visual: itemVisual({ quality: drop.quality, slot: template.slot, icon: template.icon }), type: `Vybavení · ${SLOT_META[template.slot]?.label ?? ""}` });
+  }));
+  const rowsOf = (list, type) => list.flatMap((material) => materialRows(material, typeFor(material, type)));
+  const typeFor = (material, type) => (typeof type === "function" ? type(material) : type);
   return [
     ["Vybavení", equipment],
-    ["Materiály", materials.filter((m) => m.category === "material" && !bossOnly(m)).map((m) => materialRow(m, "Materiál"))],
-    ["Svitky", materials.filter((m) => m.category === "scroll" && !bossOnly(m)).map((m) => materialRow(m, "Svitek"))],
-    ["Unikátní boss itemy", materials.filter(bossOnly).map((m) => materialRow(m, m.category === "scroll" ? "Svitek" : "Boss materiál"))],
+    ["Materiály", rowsOf(materials.filter((m) => m.category === "material" && !bossOnly(m)), "Materiál")],
+    ["Svitky", rowsOf(materials.filter((m) => m.category === "scroll" && !bossOnly(m)), "Svitek")],
+    ["Unikátní boss itemy", rowsOf(materials.filter(bossOnly), (m) => (m.category === "scroll" ? "Svitek" : "Boss materiál"))],
   ].filter(([, rows]) => rows.length);
 }
 
@@ -2314,12 +2420,14 @@ function renderLootPanel(location) {
     nodes.push(mk("h3", { class: "ld-group", text: `${title} (${rows.length})` }));
     const list = mk("ul", { class: "ld-loot" });
     rows.forEach((row) => {
-      const rarity = row.rarity ? RARITIES[row.rarity] : null;
       const icon = mk("span", { class: "map-loot-icon", "aria-hidden": "true" });
       renderItemIcon(icon, row.icon);
-      const name = mk("strong", { text: row.name, class: row.rarity ? `rarity-text rarity-${row.rarity}` : "" });
-      const type = mk("span", { text: rarity ? `${rarity.label} · ${row.type}` : row.type });
-      list.append(mk("li", { class: `map-loot-row${row.rarity ? ` rarity-${row.rarity}` : ""}` }, icon, mk("span", { class: "map-loot-copy" }, name, type)));
+      if (row.visual) applyQualityVisuals(icon, row.visual);
+      const name = mk("strong", { text: row.name, class: row.visual ? qTextClass(row.visual) : "" });
+      const type = mk("span", { text: row.quality ? `${qualityLabel(row.quality)} · ${row.type}` : row.type });
+      const li = mk("li", { class: "map-loot-row" }, icon, mk("span", { class: "map-loot-copy" }, name, type));
+      if (row.visual) applyQualityVisuals(li, row.visual, { surface: false });
+      list.append(li);
     });
     nodes.push(list);
   });
@@ -2684,7 +2792,7 @@ elements.invTabs.addEventListener("click", (event) => {
 });
 elements.invSearch.addEventListener("input", () => { ui.search = elements.invSearch.value; renderInventory(); });
 elements.invType.addEventListener("change", () => { ui.type = elements.invType.value; renderInventory(); });
-elements.invRarity.addEventListener("change", () => { ui.rarity = elements.invRarity.value; renderInventory(); });
+elements.invQuality.addEventListener("change", () => { ui.quality = elements.invQuality.value; renderInventory(); });
 elements.invFlag.addEventListener("change", () => { ui.flag = elements.invFlag.value; renderInventory(); });
 elements.invOrigin.addEventListener("change", () => { ui.origin = elements.invOrigin.value; renderInventory(); });
 elements.invSort.addEventListener("change", () => { ui.sort = elements.invSort.value; renderInventory(); });
@@ -2718,13 +2826,13 @@ function merchantSelectWhere(predicate) {
   merchantSellable().filter((item) => !item.isFavorite && predicate(item)).forEach((item) => ui.merchantSelected.add(item.id));
   renderMerchantSell();
 }
-elements.merchantSelectCommon.addEventListener("click", () => merchantSelectWhere((item) => item.rarity === "common"));
+elements.merchantSelectCommon.addEventListener("click", () => merchantSelectWhere((item) => item.quality === "common"));
 elements.merchantSelectAll.addEventListener("click", () => merchantSelectWhere(() => true));
 elements.merchantClear.addEventListener("click", () => { ui.merchantSelected.clear(); renderMerchantSell(); });
 elements.merchantSlot.addEventListener("change", () => {
   const slot = elements.merchantSlot.value;
   elements.merchantSlot.value = "";
-  if (slot) merchantSelectWhere((item) => item.rarity === "common" && item.slot === slot);
+  if (slot) merchantSelectWhere((item) => item.quality === "common" && item.slot === slot);
 });
 elements.merchantSell.addEventListener("click", () => requestSale([...ui.merchantSelected]));
 elements.buybackList.addEventListener("click", (event) => {
@@ -2830,7 +2938,7 @@ window.addEventListener("beforeunload", saveState);
 function validateMaterialSources() {
   const fromTables = {};
   for (const enemy of Object.values(ENEMIES)) {
-    for (const drop of enemy.materialDrops ?? []) (fromTables[drop.id] ??= new Set()).add(enemy.id);
+    for (const drop of enemy.materialDrops ?? []) (fromTables[drop.templateId] ??= new Set()).add(enemy.id);
   }
   for (const material of Object.values(MATERIALS)) {
     const declared = [...material.sourceEnemyIds].sort().join(",");
@@ -2839,6 +2947,16 @@ function validateMaterialSources() {
   }
 }
 validateMaterialSources();
+
+// Dev kontrola drop tabulek: chybějící šablona/materiál, neznámá quality, God materiál.
+// normalize* funkce při chybě zapíšou varování (jen v dev režimu) a vrací bezpečný tvar.
+function validateDropTables() {
+  for (const enemy of Object.values(ENEMIES)) {
+    (enemy.materialDrops ?? []).forEach((drop) => normalizeMaterialDrop(drop, enemy.id));
+    (enemy.equipmentDrops ?? []).forEach((drop) => normalizeEquipmentDrop(drop, enemy.id));
+  }
+}
+validateDropTables();
 
 initCombatWidgets();
 applyCharacterPreview();

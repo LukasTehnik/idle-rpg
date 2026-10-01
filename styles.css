@@ -99,12 +99,24 @@
   --color-danger-bg: #2c1613;
   --color-levelup: #b7c96a;      /* zelenozlatá */
 
-  /* rarity (rámečky a text; text je vždy doplněn i slovním štítkem/značkou) */
-  --rarity-common: #c8bda8;
-  --rarity-uncommon: #6ea263;
-  --rarity-rare: #5f9bd0;
-  --rarity-epic: #a47dd2;
-  --rarity-legendary: #d69a3d;
+  /* kvalita (Prototype 0.5.1) — pracovní tokeny z docs/item-visual-rarity-rules.md;
+     barva se vždy doplňuje slovním štítkem (COMMON … GOD) a značkou (pipy) */
+  --quality-common-bg: #4a4d52;
+  --quality-common-frame: #a5a9ae;
+  --quality-rare-bg: #174f9b;
+  --quality-rare-frame: #55aaff;
+  --quality-epic-bg: #642b91;
+  --quality-epic-frame: #c478ff;
+  --quality-legendary-bg: #087e7b;
+  --quality-legendary-frame: #35ead8;
+  --quality-mythic-bg: #8d222b;
+  --quality-mythic-frame: #ff555f;
+  --quality-god-start: #16d9ca;
+  --quality-god-middle: #d23fb5;
+  --quality-god-end: #ff454f;
+  --wing-bg: #9a6a16;
+  --wing-frame: #ffd45d;
+  --max-mark: #fff4c4;           /* neutrální bílozlatá vrstva MAX upgradu */
   --rarity-ink: #1c140c;         /* text na rarity plochách */
 
   /* ---------------------------------------------------------- rozměry komponent */
@@ -377,55 +389,21 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 
 .empty-rune { color: var(--color-border-strong); font-size: 40px; line-height: 1; }
 
-/* rarity — sdílené proměnné; barva se vždy doplňuje značkou (pipy) nebo slovním štítkem */
-.rarity-common { --rar-color: var(--rarity-common); --rar-n: 1; }
-.rarity-uncommon { --rar-color: var(--rarity-uncommon); --rar-n: 2; }
-.rarity-rare { --rar-color: var(--rarity-rare); --rar-n: 3; }
-.rarity-epic { --rar-color: var(--rarity-epic); --rar-n: 4; }
-.rarity-legendary { --rar-color: var(--rarity-legendary); --rar-n: 5; }
-.rarity-text { color: var(--rar-color); }
+/* kvalita — sdílené proměnné; rámeček i text berou barvu z --q-frame (definice v sekci QUALITY SYSTEM na konci souboru) */
+.q-text { color: var(--q-frame); }
 
-/* rarity značka: n čtverečků (1 = běžný … 4 = epický) */
+/* značka kvality: n čtverečků (1 = COMMON … 6 = GOD) — barva není jediný údaj */
 .inv-cell::before, .pd-slot.filled::before {
   position: absolute; z-index: 2; top: 4px; left: 4px; height: 5px; pointer-events: none; content: "";
-  width: calc(var(--rar-n, 1) * 7px - 2px);
-  background: repeating-linear-gradient(90deg, var(--rar-color) 0 5px, transparent 5px 7px);
+  width: calc(var(--q-n, 1) * 7px - 2px);
+  background: repeating-linear-gradient(90deg, var(--q-frame) 0 5px, transparent 5px 7px);
 }
 .inv-cell.empty::before { display: none; }
 .pd-slot.filled::before { top: auto; bottom: 22px; left: 5px; }
 .inv-grid.delete-mode .inv-cell::before { left: 26px; }
 
-.rarity-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--color-border); color: var(--color-text-secondary); font-size: var(--fs-label); text-transform: uppercase; }
-.rarity-dot { display: inline-block; height: 5px; margin-right: 6px; vertical-align: middle; background: repeating-linear-gradient(90deg, var(--rar-color) 0 5px, transparent 5px 7px); width: calc(var(--rar-n) * 7px - 2px); }
-.rarity-dot.common { --rar-color: var(--rarity-common); --rar-n: 1; }
-.rarity-dot.uncommon { --rar-color: var(--rarity-uncommon); --rar-n: 2; }
-.rarity-dot.rare { --rar-color: var(--rarity-rare); --rar-n: 3; }
-.rarity-dot.epic { --rar-color: var(--rarity-epic); --rar-n: 4; }
-
-/* ------------------------------------------------------ item glow (statický) */
-/* Statický pixelový glow signature itemů. Zůstává uvnitř boxu ikony (overflow:hidden),
-   nebliká, nepulzuje a nepřekrývá sousední buňky. Assety samotné se barevně neupravují. */
-.item-glow { position: relative; overflow: hidden; isolation: isolate; }
-.item-glow::before {
-  content: ""; position: absolute; inset: 0; z-index: -1; opacity: .45; pointer-events: none;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--glow-color, var(--rarity-rare)) 55%, transparent) 0%, transparent 45%),
-    linear-gradient(-45deg, color-mix(in srgb, var(--glow-color, var(--rarity-rare)) 40%, transparent) 0%, transparent 40%);
-}
-.item-glow::after {
-  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--glow-color, var(--rarity-rare)) 60%, transparent);
-}
-.item-glow img, .item-glow svg {
-  position: relative;
-  filter: drop-shadow(0 0 2px color-mix(in srgb, var(--glow-color, var(--rarity-rare)) 75%, transparent));
-}
-.detail-icon.item-glow::before { opacity: .6; }
-.detail-icon.item-glow img, .detail-icon.item-glow svg {
-  filter:
-    drop-shadow(0 0 3px color-mix(in srgb, var(--glow-color, var(--rarity-rare)) 80%, transparent))
-    drop-shadow(0 0 6px color-mix(in srgb, var(--glow-color, var(--rarity-rare)) 40%, transparent));
-}
+.quality-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--color-border); color: var(--color-text-secondary); font-size: var(--fs-label); text-transform: uppercase; }
+.q-dot { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: middle; border: 2px solid var(--q-frame); background: var(--q-bg); }
 
 /* ------------------------------------------------------------- POSTAVA */
 .postava-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 20px; }
@@ -444,7 +422,7 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 }
 .ov-item:hover { border-color: var(--color-border-highlight); background: var(--color-cell-hover); }
 .ov-item:active { background: var(--color-surface-3); }
-.ov-item.filled { border-color: var(--rar-color); }
+.ov-item.filled { border-color: var(--q-frame); }
 .ov-icon { display: grid; flex: none; width: 68px; height: 68px; place-items: center; overflow: hidden; color: var(--color-border-strong); }
 .ov-icon img { width: 100%; height: 100%; object-fit: contain; }
 .ov-icon svg { width: 46%; height: 46%; }
@@ -452,7 +430,7 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 .ov-slot { color: var(--color-text-muted); font-family: var(--font-display); font-size: var(--fs-small); letter-spacing: .1em; text-transform: uppercase; }
 .ov-name { overflow: hidden; color: var(--color-text-primary); font-size: var(--fs-item); font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .ov-rar { color: var(--color-text-secondary); font-size: var(--fs-small); }
-.ov-item.filled .ov-rar { color: var(--rar-color); }
+.ov-item.filled .ov-rar { color: var(--q-frame); }
 .ov-item:not(.filled) .ov-name { color: var(--color-text-muted); font-weight: 400; }
 
 /* ------------------------------------------------------------- INVENTÁŘ */
@@ -503,11 +481,11 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 .inv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--cell-min), 1fr)); gap: 8px; }
 .inv-cell {
   position: relative; display: flex; min-width: 0; aspect-ratio: 1 / 1.22; flex-direction: column;
-  padding: 8px 6px 5px; border: 2px solid var(--rar-color); border-radius: 0;
+  padding: 8px 6px 5px; border: 2px solid var(--q-frame); border-radius: 0;
   background: var(--color-cell); box-shadow: inset 0 0 0 1px var(--color-shadow); text-align: center; cursor: pointer;
   transition: background var(--t-fast) linear, border-color var(--t-fast) linear;
 }
-.inv-cell:hover { background: var(--color-cell-hover); box-shadow: inset 0 0 0 1px var(--rar-color); }
+.inv-cell:hover { background: var(--color-cell-hover); box-shadow: inset 0 0 0 1px var(--q-frame); }
 .inv-cell:active { background: var(--color-surface-3); }
 .inv-cell.selected {
   background: var(--color-surface-3); border-color: var(--color-accent-gold);
@@ -520,11 +498,11 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
   align-items: center; justify-content: center; border: 1px dashed var(--color-border);
   background: transparent; box-shadow: none; color: var(--color-text-muted); font-size: var(--fs-label); cursor: default; letter-spacing: .08em; text-transform: uppercase;
 }
-.cell-icon { display: grid; flex: 1; min-height: 0; place-items: center; overflow: hidden; color: var(--rar-color); }
+.cell-icon { display: grid; flex: 1; min-height: 0; place-items: center; overflow: hidden; color: var(--q-frame); }
 .cell-icon img { width: 100%; height: 100%; object-fit: contain; }
 .cell-icon svg { width: 58%; height: 58%; }
 .cell-name {
-  display: -webkit-box; height: 32px; overflow: hidden; color: var(--rar-color); overflow-wrap: anywhere;
+  display: -webkit-box; height: 32px; overflow: hidden; color: var(--q-frame); overflow-wrap: anywhere;
   font-size: var(--fs-label); line-height: 16px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
 }
 .cell-qty {
@@ -573,10 +551,10 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
   transition: background var(--t-fast) linear, border-color var(--t-fast) linear;
 }
 /* obsazený slot: plný rámeček v barvě rarity, světlejší podklad */
-.pd-slot.filled { border-style: solid; border-color: var(--rar-color); background: rgba(43, 36, 27, .96); box-shadow: inset 0 0 0 1px var(--color-shadow); }
+.pd-slot.filled { border-style: solid; border-color: var(--q-frame); background: rgba(43, 36, 27, .96); box-shadow: inset 0 0 0 1px var(--color-shadow); }
 .pd-slot:not(.filled) .pd-icon svg { opacity: .8; }
 .pd-slot:hover { background: rgba(56, 45, 33, .96); border-color: var(--color-border-highlight); }
-.pd-slot.filled:hover { border-color: var(--rar-color); box-shadow: inset 0 0 0 1px var(--rar-color); }
+.pd-slot.filled:hover { border-color: var(--q-frame); box-shadow: inset 0 0 0 1px var(--q-frame); }
 .pd-slot:active { background: var(--color-surface-3); }
 .pd-slot.selected { border-style: solid; border-color: var(--color-accent-gold); background: var(--color-surface-3); outline: 2px solid var(--color-accent-gold); outline-offset: 0; }
 .pd-slot.selected::after { position: absolute; z-index: 4; top: -2px; right: -2px; width: 8px; height: 8px; background: var(--color-accent-gold-light); content: ""; }
@@ -591,10 +569,10 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 .pd-icon { display: grid; flex: 1; width: 100%; min-height: 0; place-items: center; overflow: hidden; color: var(--color-border-highlight); }
 .pd-icon img { width: 100%; height: 100%; object-fit: contain; }
 .pd-icon svg { width: 44%; height: 44%; opacity: .8; }
-.pd-slot.filled .pd-icon svg { opacity: 1; color: var(--rar-color); }
+.pd-slot.filled .pd-icon svg { opacity: 1; color: var(--q-frame); }
 .pd-badge {
   position: absolute; right: 0; bottom: 0; left: 0; z-index: 3; padding: 1px 0;
-  background: var(--rar-color, var(--color-accent-gold)); color: var(--rarity-ink);
+  background: var(--q-frame, var(--color-accent-gold)); color: var(--rarity-ink);
   font-family: var(--font-display); font-size: var(--fs-label); font-weight: 700; letter-spacing: .06em; text-align: center; text-transform: uppercase;
 }
 
@@ -611,15 +589,15 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 .detail-empty strong { margin-top: 10px; color: var(--color-text-primary); font-family: var(--font-display); font-size: var(--fs-item); text-transform: uppercase; }
 .detail-empty p { margin: 6px 0 0; font-size: var(--fs-small); }
 .detail-visual { text-align: center; }
-.detail-rarity {
-  display: inline-block; padding: 1px 12px; background: var(--rar-color, var(--color-border-strong)); color: var(--rarity-ink);
+.detail-quality {
+  display: inline-block; padding: 1px 12px; background: var(--q-frame, var(--color-border-strong)); color: var(--rarity-ink);
   font-family: var(--font-display); font-size: var(--fs-small); font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
 }
 .detail-icon {
   display: grid; width: min(100%, 300px); aspect-ratio: 1; margin: 10px auto 0; place-items: center;
-  border: 2px solid var(--rar-color, var(--color-border-strong));
+  border: 2px solid var(--q-frame, var(--color-border-strong));
   background: var(--color-bg-deep); box-shadow: inset 0 0 0 2px var(--color-surface-1), inset 0 0 0 3px var(--color-border);
-  color: var(--rar-color, var(--color-text-muted));
+  color: var(--q-frame, var(--color-text-muted));
 }
 .detail-icon img { width: 94%; height: 94%; object-fit: contain; }
 .detail-icon svg { width: 46%; height: 46%; }
@@ -651,7 +629,7 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 
 /* -------------------------------------------------------------- MAPA */
 .map-loot-row { display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--color-border); }
-.map-loot-icon { display: grid; width: 36px; height: 36px; place-items: center; color: var(--rar-color, var(--color-text-muted)); }
+.map-loot-icon { display: grid; width: 36px; height: 36px; place-items: center; color: var(--q-frame, var(--color-text-muted)); }
 .map-loot-icon img { width: 34px; height: 34px; object-fit: contain; }
 .map-loot-icon svg { width: 22px; height: 22px; }
 .map-loot-copy { display: grid; min-width: 0; gap: 1px; }
@@ -721,10 +699,10 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 .recent-drops-list { display: grid; margin: 0; padding: 0; list-style: none; }
 .recent-drop, .recent-drop-empty { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto auto; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px dashed var(--color-border); font-size: var(--fs-small); }
 .recent-drop-empty { display: block; color: var(--color-text-secondary); }
-.recent-drop-icon { display: grid; width: 36px; height: 36px; place-items: center; color: var(--rar-color, var(--color-text-muted)); }
+.recent-drop-icon { display: grid; width: 36px; height: 36px; place-items: center; color: var(--q-frame, var(--color-text-muted)); }
 .recent-drop-icon img { width: 34px; height: 34px; object-fit: contain; }
 .recent-drop-icon svg { width: 22px; height: 22px; }
-.recent-drop-name { min-width: 0; overflow: hidden; color: var(--rar-color, var(--color-text-primary)); font-size: var(--fs-base); text-overflow: ellipsis; white-space: nowrap; }
+.recent-drop-name { min-width: 0; overflow: hidden; color: var(--q-frame, var(--color-text-primary)); font-size: var(--fs-base); text-overflow: ellipsis; white-space: nowrap; }
 .recent-drop-qty { color: var(--color-text-primary); font-variant-numeric: tabular-nums; }
 .recent-drop-time { color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
 
@@ -732,12 +710,12 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 .drop-toast-stack { position: fixed; right: 16px; bottom: 16px; z-index: 30; display: flex; width: min(340px, calc(100vw - 32px)); flex-direction: column-reverse; gap: 8px; pointer-events: none; }
 .drop-toast {
   display: flex; align-items: center; gap: 12px; padding: 10px 12px;
-  border: 1px solid var(--color-border-strong); border-left: 4px solid var(--rar-color, var(--rarity-common)); background: var(--color-surface-3);
+  border: 1px solid var(--color-border-strong); border-left: 4px solid var(--q-frame, var(--quality-common-frame)); background: var(--color-surface-3);
   box-shadow: inset 0 0 0 1px var(--color-surface-1), var(--shadow-hard);
   opacity: 0; transform: translateX(8px); transition: opacity 120ms linear, transform 120ms linear;
 }
 .drop-toast.visible { opacity: 1; transform: translateX(0); }
-.drop-toast-icon { display: grid; width: 40px; height: 40px; flex: none; place-items: center; overflow: hidden; border: 1px solid var(--color-border-strong); background: var(--color-bg-deep); color: var(--rar-color, var(--color-text-muted)); }
+.drop-toast-icon { display: grid; width: 40px; height: 40px; flex: none; place-items: center; overflow: hidden; border: 1px solid var(--color-border-strong); background: var(--color-bg-deep); color: var(--q-frame, var(--color-text-muted)); }
 .drop-toast-icon img { width: 100%; height: 100%; object-fit: contain; }
 .drop-toast-icon svg { width: 24px; height: 24px; }
 .drop-toast-copy { display: grid; gap: 1px; min-width: 0; }
@@ -774,7 +752,7 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 .catalog-name { color: var(--color-text-primary); font-size: var(--fs-item); font-weight: 700; line-height: 1.3; }
 .catalog-slot { color: var(--color-text-secondary); font-family: var(--font-display); font-size: var(--fs-small); letter-spacing: .08em; text-transform: uppercase; }
 .catalog-glow-badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border: 1px solid var(--color-border-strong); color: var(--color-text-secondary); font-family: var(--font-display); font-size: var(--fs-small); letter-spacing: .08em; text-transform: uppercase; }
-.catalog-glow-badge::before { width: 8px; height: 8px; background: var(--glow-color, var(--rarity-rare)); content: ""; }
+.catalog-glow-badge::before { width: 8px; height: 8px; background: var(--glow-color, var(--quality-rare-frame)); content: ""; }
 .catalog-rolls { display: grid; gap: 5px; width: 100%; margin-top: 2px; padding-top: 12px; border-top: 1px dashed var(--color-border); color: var(--color-text-secondary); font-size: var(--fs-small); }
 .catalog-rolls div { display: flex; justify-content: space-between; gap: 8px; text-align: left; }
 .catalog-rolls strong { white-space: nowrap; }
@@ -1125,8 +1103,8 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 .unclaimed-head .eyebrow { color: var(--color-health-light); }
 .unclaimed-title { font-size: var(--fs-item); letter-spacing: .04em; text-transform: uppercase; }
 .unclaimed-list { display: grid; gap: 6px; max-height: 300px; margin: 10px 0 0; padding: 0; overflow-y: auto; list-style: none; scrollbar-color: var(--color-border-strong) transparent; scrollbar-width: thin; }
-.unclaimed-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 6px 8px; border: 1px solid var(--rar-color); background: var(--color-cell); }
-.unclaimed-icon { display: grid; width: 44px; height: 44px; place-items: center; overflow: hidden; color: var(--rar-color); }
+.unclaimed-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 6px 8px; border: 1px solid var(--q-frame); background: var(--color-cell); }
+.unclaimed-icon { display: grid; width: 44px; height: 44px; place-items: center; overflow: hidden; color: var(--q-frame); }
 .unclaimed-icon img { width: 100%; height: 100%; object-fit: contain; }
 .unclaimed-icon svg { width: 60%; height: 60%; }
 .unclaimed-copy { display: grid; min-width: 0; gap: 1px; }
@@ -1139,10 +1117,10 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 .detail-actions .detail-secondary .btn { min-height: 40px; font-size: var(--fs-btn); }
 .detail-secondary .btn[aria-pressed="true"] { background: var(--color-surface-3); box-shadow: inset 0 0 0 2px var(--color-accent-gold); color: var(--color-accent-gold-light); }
 .cmp-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
-.cmp-card { display: grid; align-content: start; justify-items: center; gap: 4px; padding: 10px; border: 2px solid var(--rar-color, var(--color-border)); background: var(--color-bg-deep); text-align: center; }
+.cmp-card { display: grid; align-content: start; justify-items: center; gap: 4px; padding: 10px; border: 2px solid var(--q-frame, var(--color-border)); background: var(--color-bg-deep); text-align: center; }
 .cmp-card.empty { border-style: dashed; color: var(--color-text-muted); }
 .cmp-card-label { color: var(--color-accent-gold); font-family: var(--font-display); font-size: var(--fs-label); letter-spacing: .12em; text-transform: uppercase; }
-.cmp-card-icon { display: grid; width: 72px; height: 72px; place-items: center; overflow: hidden; color: var(--rar-color); }
+.cmp-card-icon { display: grid; width: 72px; height: 72px; place-items: center; overflow: hidden; color: var(--q-frame); }
 .cmp-card-icon img { width: 100%; height: 100%; object-fit: contain; }
 .cmp-card-icon svg { width: 60%; height: 60%; }
 .cmp-card-name { font-size: var(--fs-small); line-height: 1.25; }
@@ -1179,7 +1157,7 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 .merchant-slot-field { min-width: 150px; }
 .merchant-list, .buyback-list, #lootLogList { margin: 0; padding: 0; list-style: none; }
 .merchant-list { display: grid; max-height: 460px; gap: 4px; overflow-y: auto; }
-.merchant-row { display: flex; align-items: center; gap: 10px; border: 1px solid var(--color-border); border-left: 4px solid var(--rar-color, var(--color-border)); background: var(--color-surface-2); }
+.merchant-row { display: flex; align-items: center; gap: 10px; border: 1px solid var(--color-border); border-left: 4px solid var(--q-frame, var(--color-border)); background: var(--color-surface-2); }
 .merchant-row.selected { background: var(--color-surface-3); box-shadow: inset 0 0 0 1px var(--color-accent-gold); }
 .merchant-row > label { display: flex; flex: 1; min-width: 0; align-items: center; gap: 10px; padding: 6px 8px; cursor: pointer; }
 .merchant-row.buyback-row { padding: 6px 8px; }
@@ -1311,3 +1289,161 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 .ui-icon { display: inline-block; width: 28px; height: 28px; flex: none; object-fit: contain; }
 .bank-card dt { display: flex; align-items: center; gap: 6px; }
 .bank-card dt .ui-icon { width: 24px; height: 24px; }
+
+/* ======================================================================
+   PROTOTYPE 0.5.1 — QUALITY SYSTEM (docs/item-visual-rarity-rules.md)
+   Třídy vzniknou z dat výhradně přes applyQualityVisuals() v quality-data.js:
+   .q-<quality>  proměnné barev      .q-slot   plný povrch slotu (pozadí + rám)
+   .q-glow-*     statická pixelová zář (Legendary+)   .q-stack  materiál / stackovatelné
+   .q-wings      zlatý výjimečný povrch křídel        .q-max    maximálně vylepšený item
+   Pořadí vrstev: typ (křídla) → kvalita → zvláštní glow → MAX → stavy (hover, výběr…).
+   Žádné pulzování, žádné rozmazané stíny — jen tvrdé pixelové hrany.
+   ====================================================================== */
+.q-common    { --q-bg: var(--quality-common-bg);    --q-bg2: #3a3d41; --q-frame: var(--quality-common-frame);    --q-ink: #eef0f2; --q-n: 1; --q-aura: #cfd3d8; }
+.q-rare      { --q-bg: var(--quality-rare-bg);      --q-bg2: #103a75; --q-frame: var(--quality-rare-frame);      --q-ink: #eef6ff; --q-n: 2; --q-aura: #7fc0ff; }
+.q-epic      { --q-bg: var(--quality-epic-bg);      --q-bg2: #4a1f6d; --q-frame: var(--quality-epic-frame);      --q-ink: #f6eaff; --q-n: 3; --q-aura: #d9a3ff; }
+.q-legendary { --q-bg: var(--quality-legendary-bg); --q-bg2: #05605d; --q-frame: var(--quality-legendary-frame); --q-ink: #eafffc; --q-n: 4; --q-aura: var(--quality-legendary-frame); }
+.q-mythic    { --q-bg: var(--quality-mythic-bg);    --q-bg2: #6a171e; --q-frame: var(--quality-mythic-frame);    --q-ink: #fff0f0; --q-n: 5; --q-aura: var(--quality-mythic-frame); }
+.q-god {
+  --q-bg: var(--quality-god-middle); --q-bg2: #55204f; --q-frame: #ff7ad9; --q-ink: #fff; --q-n: 6; --q-aura: #ff7ad9;
+  /* stupňovitý (ne hladký) přechod tyrkys → růžová → červená */
+  --q-fill: linear-gradient(135deg, #0a8a84 0 14%, #0f9a8f 14% 22%, #3f7f9c 22% 30%, #8a3a9e 30% 40%, #b43aa4 40% 52%, #b4388a 52% 60%, #b8333f 60% 72%, #9a2630 72% 100%);
+  --q-frame-img: linear-gradient(135deg, #16d9ca 0 33%, #d23fb5 33% 66%, #ff454f 66% 100%) 2;
+}
+/* Typ itemu přebíjí kvalitu: každá křídla jsou vždy zlatá (kvalita se zobrazuje jen názvem/textem). */
+.q-wings { --q-bg: var(--wing-bg); --q-bg2: #6b4709; --q-frame: var(--wing-frame); --q-ink: #fff6d6; --q-aura: var(--wing-frame); --q-fill: var(--wing-bg); --q-frame-img: none; }
+.q-text { color: var(--q-frame); }
+
+/* ---- povrch slotu: plná barva + jemné ditheringové dláždění + tmavý spodní pás, tvrdý pixelový rám */
+.q-slot.q-slot {
+  position: relative; overflow: visible;
+  border: 2px solid var(--q-frame); border-image: var(--q-frame-img, none);
+  background:
+    conic-gradient(rgba(255, 255, 255, .08) 25%, transparent 0 50%, rgba(255, 255, 255, .08) 0 75%, transparent 0) 0 0 / 4px 4px,
+    linear-gradient(180deg, transparent 0 64%, rgba(0, 0, 0, .22) 64% 100%),
+    var(--q-fill, var(--q-bg));
+  color: var(--q-ink);
+  box-shadow: 0 0 0 1px #0d0b09, inset 0 0 0 1px rgba(0, 0, 0, .5), inset 0 0 0 2px color-mix(in srgb, var(--q-frame) 28%, transparent), var(--q-halo, 0 0 0 0 transparent);
+}
+.q-slot img { filter: drop-shadow(1px 0 0 rgba(10, 8, 6, .75)) drop-shadow(-1px 0 0 rgba(10, 8, 6, .75)) drop-shadow(0 1px 0 rgba(10, 8, 6, .75)) drop-shadow(0 -1px 0 rgba(10, 8, 6, .75)); }
+.q-slot svg { color: var(--q-ink); }
+.q-slot .cell-icon, .q-slot .pd-icon, .q-slot .cell-name { color: var(--q-ink); }
+.q-slot .cell-name { text-shadow: 1px 1px 0 rgba(0, 0, 0, .65); }
+.q-slot .pd-type { color: var(--q-ink); text-shadow: 1px 1px 0 rgba(0, 0, 0, .65); }
+.q-slot .cell-qty { background: rgba(10, 8, 6, .85); border-color: var(--q-frame); color: #fff; }
+
+/* stavy nikdy nepřebíjí kvalitu: hover = neutrální bílý vnitřní rámeček, výběr = silný neutrální obrys */
+.q-slot.q-slot:hover { box-shadow: 0 0 0 1px #0d0b09, inset 0 0 0 2px rgba(255, 255, 255, .8), var(--q-halo, 0 0 0 0 transparent); }
+.q-slot.q-slot.selected { background-color: var(--q-bg); border-color: var(--q-frame); outline: 2px solid #fff; outline-offset: 1px; }
+.q-slot.q-slot.marked { outline: 2px solid var(--color-danger); outline-offset: 1px; }
+.q-slot.q-slot.compatible { border-color: var(--q-frame); }
+
+/* ---- zář (jen Legendary+, jen statická, jen pár pixelů za rámem; materiály slabší) */
+.q-aura {
+  position: absolute; z-index: 3; inset: -4px; pointer-events: none; background-repeat: no-repeat;
+  --aura-t: 1px; --aura-a: .85;
+  background-size: 100% var(--aura-t), 100% var(--aura-t), var(--aura-t) 100%, var(--aura-t) 100%, 3px 3px, 3px 3px, 3px 3px, 3px 3px;
+  background-position: 0 0, 0 100%, 0 0, 100% 0, 0 0, 100% 0, 0 100%, 100% 100%;
+  opacity: var(--aura-a);
+}
+/* Legendary: tenká nepravidelná tyrkysová přerušovaná linka + měkký tvrdý prstenec */
+.q-glow-legendary { --q-halo: 0 0 0 2px rgba(53, 234, 216, .26); }
+.q-glow-legendary > .q-aura {
+  --aura-t: 1px; --aura-a: .8;
+  background-image:
+    repeating-linear-gradient(90deg, var(--q-aura) 0 6px, transparent 6px 13px, var(--q-aura) 13px 15px, transparent 15px 33px),
+    repeating-linear-gradient(90deg, transparent 0 8px, var(--q-aura) 8px 11px, transparent 11px 27px, var(--q-aura) 27px 31px, transparent 31px 40px),
+    repeating-linear-gradient(0deg, var(--q-aura) 0 4px, transparent 4px 15px, var(--q-aura) 15px 18px, transparent 18px 29px),
+    repeating-linear-gradient(0deg, transparent 0 9px, var(--q-aura) 9px 12px, transparent 12px 24px, var(--q-aura) 24px 26px, transparent 26px 37px),
+    none, none, none, none;
+}
+/* Mythic: silnější červená aura — tlustší, hustší úlomky + jiskry v rozích */
+.q-glow-mythic { --q-halo: 0 0 0 2px rgba(255, 85, 95, .42), 0 0 0 3px rgba(255, 85, 95, .16); }
+.q-glow-mythic > .q-aura {
+  --aura-t: 2px; --aura-a: 1;
+  background-image:
+    repeating-linear-gradient(90deg, var(--q-aura) 0 7px, transparent 7px 10px, var(--q-aura) 10px 12px, transparent 12px 21px, var(--q-aura) 21px 25px, transparent 25px 28px),
+    repeating-linear-gradient(90deg, transparent 0 4px, var(--q-aura) 4px 9px, transparent 9px 13px, var(--q-aura) 13px 15px, transparent 15px 26px),
+    repeating-linear-gradient(0deg, var(--q-aura) 0 6px, transparent 6px 9px, var(--q-aura) 9px 13px, transparent 13px 24px),
+    repeating-linear-gradient(0deg, transparent 0 3px, var(--q-aura) 3px 7px, transparent 7px 12px, var(--q-aura) 12px 14px, transparent 14px 23px),
+    linear-gradient(var(--q-aura), var(--q-aura)), linear-gradient(var(--q-aura), var(--q-aura)), linear-gradient(var(--q-aura), var(--q-aura)), linear-gradient(var(--q-aura), var(--q-aura));
+}
+/* God: unikátní tyrkysovo-růžovo-červená aura — stupňovité pruhy, vícebarevné jiskry, dvojitý rám */
+.q-glow-god { --q-halo: 0 0 0 2px rgba(255, 69, 79, .5), 0 0 0 3px rgba(210, 63, 181, .38), 0 0 0 4px rgba(22, 217, 202, .28); }
+.q-glow-god > .q-aura {
+  --aura-t: 2px; --aura-a: 1; inset: -5px;
+  background-image:
+    repeating-linear-gradient(90deg, #16d9ca 0 6px, transparent 6px 8px, #d23fb5 8px 14px, transparent 14px 16px, #ff454f 16px 22px, transparent 22px 25px),
+    repeating-linear-gradient(90deg, #ff454f 0 5px, transparent 5px 8px, #d23fb5 8px 13px, transparent 13px 15px, #16d9ca 15px 22px, transparent 22px 27px),
+    repeating-linear-gradient(0deg, #16d9ca 0 5px, transparent 5px 7px, #d23fb5 7px 13px, transparent 13px 15px, #ff454f 15px 21px, transparent 21px 24px),
+    repeating-linear-gradient(0deg, #ff454f 0 6px, transparent 6px 8px, #d23fb5 8px 12px, transparent 12px 15px, #16d9ca 15px 23px, transparent 23px 26px),
+    linear-gradient(#16d9ca, #16d9ca), linear-gradient(#ff454f, #ff454f), linear-gradient(#d23fb5, #d23fb5), linear-gradient(#ffd0f0, #ffd0f0);
+}
+.q-glow-god.q-slot { box-shadow: 0 0 0 1px #0d0b09, inset 0 0 0 2px #1a0b19, inset 0 0 0 3px #ffd0f0, var(--q-halo); }
+.q-glow-god.q-slot:hover { box-shadow: 0 0 0 1px #0d0b09, inset 0 0 0 2px rgba(255, 255, 255, .8), var(--q-halo); }
+
+/* Stackovatelné (materiály, svitky…): stejná škála, zář slabší než u vybavení */
+.q-stack.q-glow-legendary { --q-halo: 0 0 0 1px rgba(53, 234, 216, .2); }
+.q-stack.q-glow-mythic { --q-halo: 0 0 0 1px rgba(255, 85, 95, .26); }
+.q-stack > .q-aura { --aura-t: 1px; --aura-a: .5; inset: -3px; }
+.q-stack.q-glow-mythic > .q-aura { --aura-a: .6; }
+
+/* Křídla: zlatý povrch bez zářivého efektu; jen explicitně označená nejvzácnější (wingGlow "gold") mají aurou */
+.q-wings.q-slot { box-shadow: 0 0 0 1px #0d0b09, inset 0 0 0 1px rgba(0, 0, 0, .5), inset 0 0 0 2px rgba(255, 212, 93, .3); }
+.q-wings.q-wings-glow { --q-halo: 0 0 0 2px rgba(255, 212, 93, .3); }
+.q-wings.q-wings-glow.q-slot { box-shadow: 0 0 0 1px #0d0b09, inset 0 0 0 1px rgba(0, 0, 0, .5), inset 0 0 0 2px rgba(255, 212, 93, .3), var(--q-halo); }
+.q-wings-glow > .q-aura {
+  --aura-t: 1px; --aura-a: .85;
+  background-image:
+    repeating-linear-gradient(90deg, var(--wing-frame) 0 6px, transparent 6px 14px, var(--wing-frame) 14px 16px, transparent 16px 31px),
+    repeating-linear-gradient(90deg, transparent 0 9px, var(--wing-frame) 9px 12px, transparent 12px 28px, var(--wing-frame) 28px 31px, transparent 31px 41px),
+    repeating-linear-gradient(0deg, var(--wing-frame) 0 4px, transparent 4px 16px, var(--wing-frame) 16px 19px, transparent 19px 30px),
+    repeating-linear-gradient(0deg, transparent 0 8px, var(--wing-frame) 8px 11px, transparent 11px 25px, var(--wing-frame) 25px 27px, transparent 27px 38px),
+    none, none, none, none;
+}
+.q-wings.q-wings-glow.q-stack > .q-aura { --aura-a: .5; }
+
+/* ---- maximální upgrade: samostatná neutrální vrstva (nemění pozadí ani barvu kvality) */
+.q-upg { position: absolute; z-index: 5; right: 2px; bottom: 2px; padding: 0 3px; background: rgba(10, 8, 6, .85); color: #fff; font-family: var(--font-display); font-size: 12px; font-weight: 700; line-height: 14px; pointer-events: none; }
+.q-upg-max { background: var(--max-mark); color: #2a1d00; letter-spacing: .06em; }
+.q-max-corners {
+  position: absolute; z-index: 5; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(var(--max-mark), var(--max-mark)) 0 0 / 8px 2px no-repeat, linear-gradient(var(--max-mark), var(--max-mark)) 0 0 / 2px 8px no-repeat,
+    linear-gradient(var(--max-mark), var(--max-mark)) 100% 0 / 8px 2px no-repeat, linear-gradient(var(--max-mark), var(--max-mark)) 100% 0 / 2px 8px no-repeat,
+    linear-gradient(var(--max-mark), var(--max-mark)) 0 100% / 8px 2px no-repeat, linear-gradient(var(--max-mark), var(--max-mark)) 0 100% / 2px 8px no-repeat,
+    linear-gradient(var(--max-mark), var(--max-mark)) 100% 100% / 8px 2px no-repeat, linear-gradient(var(--max-mark), var(--max-mark)) 100% 100% / 2px 8px no-repeat;
+}
+
+/* ---- konkrétní prvky UI, které jsou „slot“ (ikona v řádku) — velikosti a odsazení */
+.merchant-icon.q-slot, .recent-drop-icon.q-slot, .map-loot-icon.q-slot, .loot-chip-icon.q-slot { border-width: 2px; }
+.drop-toast-icon.q-slot { border-width: 2px; background-color: var(--q-bg); }
+.detail-icon.q-slot { border-width: 3px; }
+.cmp-card-icon.q-slot, .unclaimed-icon.q-slot, .collection-icon.q-slot, .ov-icon.q-slot { border-width: 2px; }
+/* řádky/karty s kvalitou jen přebírají barvu rámu; vlastní povrch nemají */
+.recent-drop { margin: 0; }
+.recent-drop-icon { color: var(--q-ink, var(--color-text-muted)); }
+.recent-drop-name { color: var(--q-frame, var(--color-text-primary)); }
+.ov-item.filled .ov-icon { color: var(--q-ink); }
+.pd-slot.filled.q-slot { background-color: var(--q-bg); border-style: solid; }
+.pd-slot.filled.q-slot .pd-icon svg { color: var(--q-ink); }
+.pd-slot.filled.q-slot::before { bottom: 22px; }
+.pd-slot.q-slot .pd-badge { background: rgba(10, 8, 6, .88); color: #fff; }
+.q-slot.q-slot.selected::after { z-index: 6; }
+@media (max-width: 599px) {
+  .q-aura { inset: -3px; }
+  .q-glow-god > .q-aura { inset: -4px; }
+}
+
+/* ---- katalogy (0.5.1): navigace ITEMS / MATERIALS, sekce quality preview */
+.catalog-nav { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+.catalog-nav .catalog-link { margin-left: 0; }
+.catalog-link.active { border-bottom-width: 3px; color: var(--color-text-primary); }
+.catalog-section-title { margin: 34px 0 0; padding-bottom: 6px; border-bottom: 1px solid var(--color-border-strong); color: var(--color-accent-gold-light); font-family: var(--font-display); font-size: var(--fs-item); letter-spacing: .14em; }
+.catalog-quality { font-family: var(--font-display); font-size: var(--fs-small); letter-spacing: .12em; }
+.catalog-icon.q-slot { background-color: var(--q-bg); }
+.catalog-qty { position: absolute; right: 3px; bottom: 3px; z-index: 6; padding: 0 5px; background: rgba(10, 8, 6, .88); border: 1px solid var(--q-frame); color: #fff; font-family: var(--font-display); font-size: 15px; line-height: 18px; }
+.catalog-icon { position: relative; }
+.catalog-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+.catalog-tags span { padding: 1px 7px; border: 1px solid var(--color-border-strong); color: var(--color-text-secondary); font-family: var(--font-display); font-size: var(--fs-small); letter-spacing: .08em; text-transform: uppercase; }
+.catalog-desc { color: var(--color-text-secondary); font-size: var(--fs-small); line-height: 1.5; }

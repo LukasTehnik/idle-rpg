@@ -1,18 +1,23 @@
 "use strict";
 
-// Shared item/rarity data and rendering helper, used by both the game
+// Shared item data and rendering helper, used by both the game
 // (app.js) and the item catalog (item-catalog.html). Load this script
 // BEFORE app.js / the catalog's own script — both rely on these top-level
 // const declarations being already defined via the shared classic-script
 // global scope.
 
-const RARITIES = Object.freeze({
-  common: { label: "Běžný", color: "#c8bda8", weight: 74, multiplier: 1 },
-  // Prototype 0.4: "uncommon" is used by materials only. weight 0 keeps it
-  // out of the equipment rarity roll (chooseRarity), so gear odds are unchanged.
-  uncommon: { label: "Neobvyklý", color: "#6ea263", weight: 0, multiplier: 1.2 },
-  rare: { label: "Vzácný", color: "#5f9bd0", weight: 22, multiplier: 1.55 },
-  epic: { label: "Epický", color: "#a47dd2", weight: 4, multiplier: 2.3 },
+// Prototype 0.5.1: kvalita (common … god) je definovaná centrálně v quality-data.js
+// (načítá se PŘED tímto souborem). Šablona itemu kvalitu NEOBSAHUJE — kvalitu nese
+// až konkrétní instance / drop (`quality`).
+//
+// Zděděný náhodný hod kvality pro drop z `dropPool` (chování z 0.4/0.5 beze změny):
+// `weight` = pravděpodobnost v %, `statMultiplier` = násobič vygenerovaných statů, který
+// se zapečetí do instance při dropu. Kvalita sama staty nikdy nemění; tato tabulka se
+// týká jen starého losování. Vyšší kvality (legendary+) se zatím neurčují náhodně.
+const ITEM_QUALITY_ROLL = Object.freeze({
+  common: { weight: 74, statMultiplier: 1 },
+  rare: { weight: 22, statMultiplier: 1.55 },
+  epic: { weight: 4, statMultiplier: 2.3 },
 });
 
 const SLOT_META = Object.freeze({
@@ -132,7 +137,7 @@ const ITEM_TEMPLATE_DEFS = [
   // Křídla — vlastní slot "wings". Kořist z Pustiny ticha (viz world-data.js).
   // Prozatímní hodnoty rollů — stejně jako u chitinové sady snadno doladitelné zde.
   {
-    name: "Můří křídla", slot: "wings", icon: "moth-wings",
+    name: "Můří křídla", slot: "wings", icon: "moth-wings", wingGlow: "none", // "gold" = nejvzácnější křídla se zlatou aurou (explicitně, nikdy z kvality)
     image: "assets/icons/items/moth-wings.png",
     rolls: { maxHp: [6, 12], critChance: [0.2, 0.7] },
   },
@@ -218,12 +223,37 @@ function findItemTemplate(item) {
 
 // Renders an item's icon into a container, choosing an <img> for items with
 // their own artwork (item.image) or an inline SVG from ICONS otherwise.
-// Items that define item.glowColor get the reusable "item-glow" artefact
-// effect (see styles.css) regardless of their rolled rarity — this is the
-// item's own signature look, independent of common/rare/epic.
+// Prototype 0.5.1: starý „item-glow“ (rozmazaný stín podle glowColor) se už nepoužívá —
+// zář určuje výhradně kvalita (viz quality-data.js a docs/item-visual-rarity-rules.md).
+// `glowColor` zůstává v datech jen jako historická poznámka k signature itemům.
 function renderItemIcon(container, item) {
   container.innerHTML = item.image ? `<img src="${item.image}" alt="" />` : (ICONS[item.icon] ?? "");
-  container.classList.toggle("item-glow", Boolean(item.glowColor));
-  if (item.glowColor) container.style.setProperty("--glow-color", item.glowColor);
-  else container.style.removeProperty("--glow-color");
+  container.classList.remove("item-glow");
+  container.style.removeProperty("--glow-color");
+}
+
+function findTemplateById(templateId) { return ITEM_TEMPLATES.find((template) => template.templateId === templateId) ?? null; }
+
+// Výsledný předmět = šablona + data konkrétní instance. Kvalita (a upgrade, wingGlow…)
+// pochází z instance; jedna šablona tak existuje v libovolné kvalitě bez duplikace.
+// Vrací nový objekt (šablona ani instance se nemění).
+function composeItem(templateId, instance = {}) {
+  const template = findTemplateById(templateId);
+  if (!template) { qualityWarn(`Chybějící šablona itemu "${templateId}".`); return null; }
+  const { rolls, ...base } = template;
+  return {
+    ...base, templateId, ...instance,
+    quality: normalizeQuality(instance.quality, { where: `item ${templateId}` }),
+    wingGlow: instance.wingGlow ?? template.wingGlow ?? null,
+    upgradeLevel: instance.upgradeLevel ?? 0,
+    maxUpgradeLevel: instance.maxUpgradeLevel ?? null,
+  };
+}
+
+// Záznam drop tabulky pro vybavení: { templateId, quality, chance } → ověřený tvar (nebo null).
+function normalizeEquipmentDrop(drop, where = "") {
+  if (!drop || !findTemplateById(drop.templateId)) { qualityWarn(`equipmentDrops${where ? ` (${where})` : ""}: chybějící šablona "${drop?.templateId}".`); return null; }
+  const chance = Number(drop.chance);
+  if (!(chance > 0)) return null;
+  return { templateId: drop.templateId, quality: normalizeQuality(drop.quality, { where: `equipmentDrops ${drop.templateId}` }), chance: Math.min(1, chance) };
 }
