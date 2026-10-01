@@ -91,7 +91,8 @@ const QUALITY_COMPACT_SELECTOR = ".recent-drop-icon, .loot-chip-icon, .map-loot-
 // nebo { quality, stackable }. `surface:true` přidá třídu .q-slot (plné pozadí, rám, glow).
 function applyQualityVisuals(element, source, { surface = true } = {}) {
   if (!element) return element;
-  element.className = element.className.replace(/(^|\s)q-[\w-]+/g, " ").replace(/\s+/g, " ").trim();
+  element.className = element.className.replace(/(^|\s)(q-[\w-]+|scroll-surface|scroll-icon)/g, " ").replace(/\s+/g, " ").trim();
+  delete element.dataset.visual;
   const max = isMaxUpgraded(source);
   const classes = qualityClasses({
     quality: source?.quality, stackable: source?.stackable === true, slot: source?.slot ?? null,

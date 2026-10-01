@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines how equipment, wings, crafting materials, consumables, and scrolls must communicate quality in the game UI. It is the implementation reference for inventory slots, equipped-item slots, loot notifications, item details, crafting, shops, and every future screen that displays an item.
+This document defines how equipment, wings, crafting materials, consumables, and affix scrolls are presented in the game UI. Equipment and materials communicate quality through color. Prefix and suffix scrolls are a deliberate exception and use one uniform visual presentation without player-facing rarity.
 
 The system must feel like an old-school pixel RPG: bold, readable, slightly rough, and valuable items should feel exciting without using smooth modern neon effects.
 
@@ -11,7 +11,7 @@ The system must feel like an old-school pixel RPG: bold, readable, slightly roug
 1. **Quality determines the slot background, frame, name color, and rarity effect.**
 2. **Item type does not normally change rarity colors.** Wings are the only current exception.
 3. **Upgrade level does not change item quality.** A Common `+10` item is still Common.
-4. **Color must never be the only indicator.** Always display the English quality name in item details and tooltips.
+4. **Color must never be the only quality indicator for equipment and materials.** Display their English quality name in item details and tooltips.
 5. **Glow begins at Legendary quality.** Common, Rare, and Epic items do not glow.
 6. **All effects are static and pixel-based.** Do not use smooth pulsing, large blurred shadows, or glow that covers nearby slots.
 7. **The item asset remains the visual focus.** Backgrounds may be bold, but they must not reduce icon readability.
@@ -137,9 +137,9 @@ Suggested data:
 }
 ```
 
-## Materials, Consumables, and Scrolls
+## Materials and Consumables
 
-Crafting materials, consumables, prefix scrolls, suffix scrolls, recipes, and similar stackable items use the same quality language as equipment.
+Crafting materials, consumables, recipes, and other quality-bearing stackable items use the same quality language as equipment.
 
 Allowed qualities:
 
@@ -152,7 +152,34 @@ Rules:
 - Materials and consumables cannot have God quality.
 - The natural appearance of the asset does not determine its quality. Wood still looks like wood; its UI background communicates its quality.
 - Legendary and Mythic stackable items may glow, but their glow should be weaker than equipment glow to prevent a material-filled inventory from becoming visually noisy.
-- Prefix, suffix, and other rare scrolls use the standard quality palette. They do not receive a separate scroll-only color system.
+
+## Affix Scroll Exception
+
+Prefix and suffix scrolls do not use the equipment or material quality scale in player-facing UI.
+
+Rules:
+
+- Every affix scroll uses the same dedicated scroll background and pixel frame.
+- Every affix scroll uses the same name color and the same glow behavior.
+- Scrolls do not display `Common`, `Rare`, `Epic`, `Legendary`, `Mythic`, `God`, or `T1–T5`.
+- Internal tier, drop weight, source scarcity, stat strength, and market value must not change the scroll's visual treatment.
+- A stronger or rarer scroll must not receive a brighter frame, different background, additional glow, rarity badge, or special name color.
+- The player sees the scroll name, exact modifiers, conditions, compatible slots, and functional restrictions, but decides its value independently.
+- Prefix and suffix scrolls may use different icon symbols when useful, but those symbols identify scroll type rather than power.
+- Development and balance tools may show internal tier and scarcity metadata; normal game UI must not.
+
+Recommended semantic data:
+
+```js
+{
+  itemType: "affix_scroll",
+  affixType: "suffix",
+  affixId: "suffix_of_discovery",
+  visualClass: "affix_scroll"
+}
+```
+
+Do not assign an equipment-style `quality` value to an affix scroll instance. Internal balance data belongs to the referenced affix definition and must be ignored by the production renderer.
 - Stack count must remain readable on every background.
 
 ## Maximum Upgrade Presentation
@@ -208,8 +235,8 @@ Recommended treatment:
 
 Apply item visuals in this order:
 
-1. **Item type override** — wings replace the standard quality background with gold.
-2. **Quality** — defines the standard background, frame, item-name color, and base glow eligibility.
+1. **Item type override** — wings replace the standard quality background with gold; affix scrolls replace it with the uniform scroll presentation.
+2. **Quality** — defines the standard background, frame, item-name color, and base glow eligibility only for quality-bearing item types.
 3. **Special glow** — Legendary, Mythic, God, or explicitly marked rare wings.
 4. **Maximum upgrade overlay** — separate marker or effect.
 5. **Set state** — primarily shown on the character preview.
@@ -298,7 +325,7 @@ Small UI representations may simplify the effect, but they must not use a differ
 
 ## Accessibility and Readability
 
-- Always show the written quality name in the full item detail.
+- Always show the written quality name in the full detail of quality-bearing equipment and materials. Do not show a quality label for affix scrolls.
 - Use distinct frames or corner patterns in addition to color where practical.
 - Keep item names readable against their quality background.
 - Ensure stack counts, upgrade levels, and status icons have sufficient contrast.
@@ -314,7 +341,9 @@ The implementation is complete when:
 - God uses a turquoise–pink–red stepped or dithered gradient,
 - every wing uses gold presentation regardless of quality,
 - only explicitly marked rarest wings have gold glow,
-- materials, consumables, and scrolls use the same scale but cannot be God quality,
+- materials and quality-bearing consumables use the same scale but cannot be God quality,
+- every prefix and suffix scroll uses the same dedicated scroll presentation without a quality or tier label,
+- scroll strength and scarcity never change its background, frame, name color, or glow,
 - Legendary and Mythic stackables have a reduced glow intensity,
 - only maximally upgraded items receive the separate upgrade effect,
 - quality remains recognizable under hover, selection, equipment, damage, and upgrade overlays,

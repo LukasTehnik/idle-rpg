@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#12100d" />
+    <meta name="robots" content="noindex" />
+    <title>Affix katalog (DEV) — Idle RPG</title>
+    <link rel="preload" href="assets/fonts/jersey-10-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      .dev-banner { margin: 0 0 16px; padding: 12px 18px; border: 2px solid var(--color-danger); background: var(--color-danger-bg); color: var(--color-text-primary); font-family: var(--font-display); font-size: var(--fs-h2, 20px); letter-spacing: .12em; text-align: center; }
+      .dev-banner small { display: block; margin-top: 4px; color: var(--color-text-secondary); font-size: var(--fs-small); letter-spacing: .04em; }
+      .dev-section { margin: 28px 0 0; }
+      .dev-section > h2 { margin: 0 0 10px; }
+      .dev-bar { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; margin: 0 0 12px; padding: 12px; border: 1px solid var(--color-border); background: var(--color-surface-1); }
+      .dev-bar label { display: grid; gap: 4px; color: var(--color-text-secondary); font-size: var(--fs-label); letter-spacing: .06em; text-transform: uppercase; }
+      .dev-bar select, .dev-bar input[type="search"], .dev-bar input[type="number"] { min-width: 130px; min-height: 36px; padding: 4px 8px; border: 2px solid var(--color-border-strong); background: var(--color-bg-deep); color: var(--color-text-primary); font: inherit; }
+      .dev-bar .btn { min-height: 36px; }
+      .dev-count { margin-left: auto; color: var(--color-accent-gold-light); font-family: var(--font-display); }
+      .tbl-wrap { overflow: auto; border: 1px solid var(--color-border); background: var(--color-surface-1); }
+      .tbl-wrap.tall { max-height: 560px; }
+      table.dev { width: 100%; border-collapse: collapse; font-size: var(--fs-small); }
+      table.dev th, table.dev td { padding: 6px 9px; border-bottom: 1px solid var(--color-border); text-align: left; vertical-align: top; }
+      table.dev th { position: sticky; top: 0; z-index: 1; background: var(--color-surface-2); color: var(--color-accent-gold-light); font-family: var(--font-display); letter-spacing: .06em; white-space: nowrap; }
+      table.dev tr.pick { cursor: pointer; }
+      table.dev tr.pick:hover td { background: var(--color-surface-2); }
+      table.dev tr.sel td { background: var(--color-surface-3); }
+      table.dev code { color: var(--color-text-secondary); }
+      .tag { display: inline-block; margin: 0 4px 2px 0; padding: 0 6px; border: 1px solid var(--color-border-strong); color: var(--color-text-secondary); font-size: var(--fs-label); }
+      .tag.warn { border-color: var(--color-accent-gold-dark); color: var(--color-accent-gold-light); }
+      .tag.bad { border-color: var(--color-danger); color: var(--color-health-light, #e88); }
+      .tag.ok { border-color: #3d8a5a; color: #7fd6a0; }
+      .neg { color: var(--color-health-light, #e88); }
+      .pos { color: #8fd6a4; }
+      .inactive { opacity: .6; }
+      .sb-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px; }
+      .sb-card { padding: 14px; border: 2px solid var(--color-border-strong); background: var(--color-surface-1); }
+      .sb-card h3 { margin: 0 0 10px; }
+      .sb-row { display: grid; grid-template-columns: 110px 1fr; gap: 8px; align-items: center; margin: 0 0 8px; }
+      .sb-row > span { color: var(--color-text-secondary); font-size: var(--fs-label); letter-spacing: .06em; text-transform: uppercase; }
+      .sb-card select, .sb-card input[type="number"] { width: 100%; min-height: 34px; padding: 3px 8px; border: 2px solid var(--color-border-strong); background: var(--color-bg-deep); color: var(--color-text-primary); font: inherit; }
+      .sb-roll { display: grid; grid-template-columns: 1fr 78px; gap: 8px; align-items: center; margin: 0 0 4px; font-size: var(--fs-small); }
+      .sb-roll input[type="range"] { grid-column: 1 / -1; width: 100%; }
+      .sb-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+      .sb-actions .btn { min-height: 32px; padding: 2px 10px; }
+      .sb-result { margin: 10px 0 0; padding: 10px; border: 1px dashed var(--color-border-strong); }
+      .sb-name { margin: 0 0 8px; color: var(--color-accent-gold-light); font-family: var(--font-display); font-size: var(--fs-h2, 20px); }
+      .msg-list { margin: 8px 0 0; padding: 0; list-style: none; font-size: var(--fs-small); }
+      .msg-list li { margin: 0 0 4px; padding: 5px 8px; border-left: 3px solid var(--color-danger); background: var(--color-danger-bg); }
+      .msg-list li.info { border-color: var(--color-accent-gold-dark); background: var(--color-surface-2); }
+      .msg-list li.good { border-color: #3d8a5a; background: var(--color-surface-2); }
+      .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 10px; }
+      .mono { font-family: "Courier New", monospace; font-size: var(--fs-label); white-space: pre-wrap; word-break: break-word; }
+      @media (max-width: 760px) { .sb-grid { grid-template-columns: 1fr; } .sb-row { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">IDLE RPG / PROTOTYPE 0.6</p>
+          <h1>Affix katalog</h1>
+        </div>
+        <nav class="catalog-nav" aria-label="Katalogy"><a href="item-catalog.html" class="catalog-link">ITEMS</a><a href="material-catalog.html" class="catalog-link">MATERIALS</a><a href="affix-catalog.html" class="catalog-link active" aria-current="page">AFFIXES</a><a href="index.html" class="catalog-link">← Zpět do hry</a></nav>
+      </header>
+
+      <div class="dev-banner" role="note">DEVELOPMENT TOOL — NOT PLAYER-FACING<small>Zobrazuje interní data (tier, build role, váhy, zdroje). Nic z toho se nesmí objevit v běžném UI hry. Nic zde neovlivňuje hráčův save.</small></div>
+
+      <div class="catalog-intro" id="summary"></div>
+
+      <section class="dev-section" aria-labelledby="h-affixes">
+        <h2 id="h-affixes" class="catalog-section-title">1 · KATALOG AFFIXŮ (INTERNÍ)</h2>
+        <div class="dev-bar">
+          <label>Typ<select id="fType"><option value="">Vše</option><option value="prefix">Prefix</option><option value="suffix">Suffix</option></select></label>
+          <label>Tier<select id="fTier"><option value="">Vše</option></select></label>
+          <label>Stat<select id="fStat"><option value="">Vše</option></select></label>
+          <label>Slot<select id="fSlot"><option value="">Vše</option></select></label>
+          <label>Kategorie<select id="fCat"><option value="">Vše</option></select></label>
+          <label>Hledat<input id="fText" type="search" placeholder="id / název" autocomplete="off" /></label>
+          <button id="fReset" class="btn" type="button">Reset filtrů</button>
+          <span id="fCount" class="dev-count" aria-live="polite"></span>
+        </div>
+        <div class="tbl-wrap tall"><table class="dev" id="affixTable"><thead><tr>
+          <th>ID</th><th>Typ</th><th>Název</th><th>Tier</th><th>Kategorie</th><th>Build (primary / secondary / role)</th><th>Váha</th><th>Pooly / pásmo</th><th>Sloty</th><th>Modifiery</th><th>Nevýhody</th><th>Pravidla</th><th>Live</th>
+        </tr></thead><tbody></tbody></table></div>
+        <p class="catalog-intro">Klik na řádek = výběr pro náhled svitku a pro přidání do sandboxu níže.</p>
+      </section>
+
+      <section class="dev-section" aria-labelledby="h-preview">
+        <h2 id="h-preview" class="catalog-section-title">2 · CO VIDÍ HRÁČ (ALLOWLIST VIEW MODEL)</h2>
+        <div class="dev-bar">
+          <button id="showAll" class="btn" type="button">Zobrazit všech 64 svitků najednou</button>
+          <button id="uniformCheck" class="btn" type="button">Ověřit jednotný vzhled</button>
+          <span id="uniformResult" class="dev-count" aria-live="polite"></span>
+        </div>
+        <div id="previewOne" class="preview-grid"></div>
+        <details id="viewModelDump"><summary>Surový view model vybraného svitku (7 povolených polí)</summary><pre class="mono" id="vmDump"></pre></details>
+        <div id="previewAll" class="preview-grid" hidden></div>
+      </section>
+
+      <section class="dev-section" aria-labelledby="h-sandbox">
+        <h2 id="h-sandbox" class="catalog-section-title">3 · SANDBOX ITEMU A POROVNÁNÍ</h2>
+        <div class="sb-grid">
+          <div class="sb-card" id="sbA"></div>
+          <div class="sb-card" id="sbB"></div>
+        </div>
+        <div class="sb-card" style="margin-top:16px" id="compareBox"></div>
+      </section>
+
+      <section class="dev-section" aria-labelledby="h-tests">
+        <h2 id="h-tests" class="catalog-section-title">4 · KONFLIKTY, NEGATIVNÍ MODIFIERY A CAPY</h2>
+        <div class="sb-grid">
+          <div class="sb-card">
+            <h3>Sken blokovaných kombinací</h3>
+            <div class="dev-bar"><label>Slot<select id="scanSlot"></select></label><button id="scanBtn" class="btn" type="button">Skenovat prefix × suffix</button></div>
+            <div id="scanOut" class="mono"></div>
+          </div>
+          <div class="sb-card">
+            <h3>Test capů a minimálních časů</h3>
+            <div class="dev-bar">
+              <label>Crit chance %<input id="capCrit" type="number" value="60" /></label>
+              <label>Dodge %<input id="capDodge" type="number" value="40" /></label>
+              <label>Magic Find %<input id="capMf" type="number" value="16" /></label>
+              <label>Attack speed %<input id="capAs" type="number" value="70" /></label>
+              <label>Search time (s)<input id="capSearch" type="number" step="0.05" value="-2.6" /></label>
+              <label>Revive time (s)<input id="capRevive" type="number" step="0.1" value="-3.5" /></label>
+              <button id="capBtn" class="btn" type="button">Vyhodnotit</button>
+            </div>
+            <div id="capOut"></div>
+          </div>
+          <div class="sb-card">
+            <h3>Negativní modifiery — předvolby</h3>
+            <div class="sb-actions" id="negPresets"></div>
+            <div id="negOut"></div>
+          </div>
+          <div class="sb-card">
+            <h3>Obrana a průraz</h3>
+            <div class="dev-bar"><label>Obrana cíle<input id="defTarget" type="number" value="3" /></label><label>Průraz<input id="defPen" type="number" value="5" /></label><label>Obrana hráče (součet)<input id="defPlayer" type="number" value="-2" /></label><button id="defBtn" class="btn" type="button">Vyhodnotit</button></div>
+            <div id="defOut"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="dev-section" aria-labelledby="h-drop">
+        <h2 id="h-drop" class="catalog-section-title">5 · PŘIPRAVENOST NA DROPY (JEN DATA, NIC NENÍ ZAPNUTÉ)</h2>
+        <div class="sb-grid">
+          <div class="sb-card"><h3>Stav živých dropů</h3><div id="liveStatus"></div></div>
+          <div class="sb-card"><h3>Dev fixture <code>scrollDropChance</code> + <code>scrollPool</code></h3><div id="fixtureOut"></div><div class="sb-actions"><button id="simBtn" class="btn" type="button">Simulovat 20 000 killů</button></div><div id="simOut" class="mono"></div></div>
+        </div>
+      </section>
+
+      <section class="dev-section" aria-labelledby="h-stats">
+        <h2 id="h-stats" class="catalog-section-title">6 · REGISTR STATŮ</h2>
+        <div class="tbl-wrap"><table class="dev" id="statTable"><thead><tr><th>ID</th><th>Název</th><th>valueType</th><th>operation</th><th>format</th><th>stackingRule</th><th>cap</th><th>Podmínka</th><th>Výpočet</th><th>enabled</th><th>verze</th></tr></thead><tbody></tbody></table></div>
+      </section>
+
+      <section class="dev-section" aria-labelledby="h-save">
+        <h2 id="h-save" class="catalog-section-title">7 · TEST STARÉHO SAVU</h2>
+        <div class="sb-card">
+          <p>Vloží ukázku itemu a svitku ze savu 0.5.1/v4 (bez polí affixů) i ze savu v5 a prožene je migračními funkcemi. Skutečný save hráče se nečte ani nemění.</p>
+          <div class="sb-actions"><button id="saveBtn" class="btn" type="button">Spustit test migrace</button></div>
+          <div id="saveOut" class="mono"></div>
+        </div>
+      </section>
+    </main>
+
+    <script src="quality-data.js"></script>
+    <script src="item-data.js"></script>
+    <script src="economy-data.js"></script>
+    <script src="material-data.js"></script>
+    <script src="world-data.js"></script>
+    <script src="stat-data.js"></script>
+    <script src="affix-data.js"></script>
+    <script src="affix-logic.js"></script>
+    <script src="scroll-ui.js"></script>
+    <script>
+      "use strict";
+      const $ = (selector, root = document) => root.querySelector(selector);
+      const el = (tag, props = {}, ...kids) => {
+        const node = document.createElement(tag);
+        for (const [key, value] of Object.entries(props)) {
+          if (value == null || value === false) continue;
+          if (key === "class") node.className = value; else if (key === "text") node.textContent = value; else if (key === "html") node.innerHTML = value; else node.setAttribute(key, value === true ? "" : value);
+        }
+        node.append(...kids.filter((k) => k != null && k !== false));
+        return node;
+      };
+      const fmtRange = (m) => formatModifier(m.statId, { min: m.minValue, max: m.maxValue }, m.params ?? {});
+      const statTag = (statId) => (STATS[statId]?.calc === "active" ? el("span", { class: "tag ok", text: "live calc" }) : el("span", { class: "tag warn", title: `Připraveno jako data — systém „${STATS[statId]?.system ?? "?"}“ ještě neexistuje`, text: "inactive" }));
+      let selectedId = "prefix_serrated";
+
+      // --- Shrnutí ---------------------------------------------------------
+      const validation = validateAffixCatalog();
+      $("#summary").innerHTML = `Statů v registru: <strong>${STAT_DEFINITIONS.length}</strong> · Affixů: <strong>${AFFIX_DEFINITIONS.length}</strong> (prefixy ${listAffixes("prefix").length}, suffixy ${listAffixes("suffix").length}) · unikátních ID: <strong>${new Set(AFFIX_DEFINITIONS.map((a) => a.id)).size}</strong> · validace katalogu: <strong class="${validation.ok ? "pos" : "neg"}">${validation.ok ? "OK" : `${validation.errors.length} chyb`}</strong> · affixů povolených v živých dropech: <strong>${getLiveDropAffixIds().length}</strong>`;
+      if (!validation.ok) $("#summary").append(el("pre", { class: "mono neg", text: validation.errors.join("\n") }));
+
+      // --- Filtry ----------------------------------------------------------
+      [1, 2, 3, 4, 5].forEach((t) => $("#fTier").append(el("option", { value: t, text: `T${t}` })));
+      STAT_DEFINITIONS.forEach((s) => $("#fStat").append(el("option", { value: s.id, text: `${s.id}` })));
+      AFFIX_EQUIPMENT_SLOTS.forEach((s) => { $("#fSlot").append(el("option", { value: s, text: AFFIX_SLOT_LABELS[s] })); $("#scanSlot").append(el("option", { value: s, text: AFFIX_SLOT_LABELS[s] })); });
+      AFFIX_CATEGORIES.forEach((c) => $("#fCat").append(el("option", { value: c, text: c })));
+      const filterIds = ["fType", "fTier", "fStat", "fSlot", "fCat", "fText"];
+      filterIds.forEach((id) => $(`#${id}`).addEventListener("input", renderAffixTable));
+      $("#fReset").addEventListener("click", () => { filterIds.forEach((id) => { $(`#${id}`).value = ""; }); renderAffixTable(); });
+
+      function renderAffixTable() {
+        const f = Object.fromEntries(filterIds.map((id) => [id, $(`#${id}`).value.trim().toLowerCase()]));
+        const rows = AFFIX_DEFINITIONS.filter((a) => (!f.fType || a.type === f.fType) && (!f.fTier || String(a.tier) === f.fTier)
+          && (!f.fStat || [...a.modifiers, ...a.drawbacks].some((m) => m.statId === f.fStat)) && (!f.fSlot || a.allowedSlots.includes(f.fSlot))
+          && (!f.fCat || a.category === f.fCat) && (!f.fText || `${a.id} ${a.displayName}`.toLowerCase().includes(f.fText)));
+        const body = $("#affixTable tbody");
+        body.replaceChildren();
+        rows.forEach((a) => {
+          const tr = el("tr", { class: `pick${a.id === selectedId ? " sel" : ""}`, "data-id": a.id, tabindex: "0", "aria-label": `Vybrat ${a.displayName}` });
+          const mods = el("td"); a.modifiers.forEach((m) => mods.append(el("div", { class: STATS[m.statId]?.calc === "active" ? "" : "inactive", text: fmtRange(m) }), statTag(m.statId)));
+          const draw = el("td"); a.drawbacks.forEach((m) => draw.append(el("div", { class: "neg", text: fmtRange(m) })));
+          const rules = el("td");
+          if (a.uniqueEquipped) rules.append(el("span", { class: "tag", text: "uniqueEquipped" }));
+          if (a.signatureGroup) rules.append(el("span", { class: "tag", text: a.signatureGroup }));
+          if (a.locationIdentity) rules.append(el("span", { class: "tag", text: `loc:${a.locationIdentity}` }));
+          if (a.boundFamily) rules.append(el("span", { class: "tag", text: "boundFamily" }));
+          tr.append(
+            el("td", {}, el("code", { text: a.id })), el("td", { text: a.type }), el("td", { text: a.displayName }), el("td", { text: `T${a.tier}` }), el("td", { text: a.category }),
+            el("td", { text: `${a.design.primaryBuild} / ${a.design.secondaryBuilds.join(", ") || "—"} / ${a.design.buildRole}` }),
+            el("td", { text: a.scarcity.relativeDropWeight }), el("td", { text: `${a.scarcity.sourcePools.join(", ")} · band: ${a.scarcity.progressionBand ?? "null"}` }),
+            el("td", { text: a.allowedSlots.map((s) => AFFIX_SLOT_LABELS[s]).join(", ") }), mods, draw, rules,
+            el("td", {}, el("span", { class: `tag ${a.enabledInLiveDrops ? "bad" : "ok"}`, text: a.enabledInLiveDrops ? "LIVE" : "off" })),
+          );
+          const choose = () => { selectedId = a.id; renderAffixTable(); renderPreviewOne(); };
+          tr.addEventListener("click", choose);
+          tr.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); choose(); } });
+          body.append(tr);
+        });
+        $("#fCount").textContent = `${rows.length} / ${AFFIX_DEFINITIONS.length}`;
+      }
+
+      // --- Náhled hráče ----------------------------------------------------
+      function renderPreviewOne() {
+        const scroll = { affixId: selectedId, tradeable: true };
+        const model = buildAffixScrollViewModel(scroll);
+        $("#previewOne").replaceChildren(buildAffixScrollCard(model));
+        $("#vmDump").textContent = JSON.stringify(model, null, 2);
+      }
+      $("#showAll").addEventListener("click", () => {
+        const box = $("#previewAll");
+        box.hidden = !box.hidden;
+        if (!box.hidden && !box.children.length) AFFIX_DEFINITIONS.forEach((a) => box.append(buildAffixScrollCard(buildAffixScrollViewModel({ affixId: a.id, tradeable: true }))));
+      });
+      $("#uniformCheck").addEventListener("click", () => {
+        const box = $("#previewAll"); box.hidden = false;
+        if (!box.children.length) AFFIX_DEFINITIONS.forEach((a) => box.append(buildAffixScrollCard(buildAffixScrollViewModel({ affixId: a.id, tradeable: true }))));
+        const cards = [...box.children];
+        const sig = (card) => { const cs = getComputedStyle(card); return [cs.backgroundColor, cs.borderTopColor, cs.borderTopWidth, cs.boxShadow, getComputedStyle(card.querySelector(".scroll-title")).color, [...card.classList].filter((c) => /^q-/.test(c)).join(",")].join("|"); };
+        const set = new Set(cards.map(sig));
+        const textHit = cards.filter((c) => /\b(T[1-5]|Common|Rare|Epic|Legendary|Mythic|God)\b/.test(c.textContent) && !/Rare/.test("")).length;
+        $("#uniformResult").textContent = `${cards.length} karet · ${set.size} unikátní vzhled(y) · karet s T1–T5/quality textem: ${textHit}`;
+        $("#uniformResult").className = `dev-count ${set.size === 1 && textHit === 0 ? "pos" : "neg"}`;
+      });
+
+      // --- Sandbox -----------------------------------------------------------
+      function midStats(template) {
+        const stats = {};
+        for (const [key, range] of Object.entries(template.rolls ?? {})) stats[key] = Math.round(((range[0] + range[1]) / 2) * 10) / 10;
+        return stats;
+      }
+      function buildSandbox(root, title, defaults) {
+        const sb = { templateId: defaults.templateId, item: { slot: null, prefix: null, suffix: null }, messages: [], title };
+        const templates = ITEM_TEMPLATES.filter((t) => AFFIX_EQUIPMENT_SLOTS.includes(t.slot));
+        const select = (id, options, value) => { const s = el("select", { id }); options.forEach(([v, t]) => s.append(el("option", { value: v, text: t }))); s.value = value; return s; };
+        root.replaceChildren(el("h3", { text: title }));
+        const baseSel = select(`${root.id}-base`, templates.map((t) => [t.templateId, `${t.name} (${AFFIX_SLOT_LABELS[t.slot]})`]), sb.templateId);
+        const preSel = el("select", { id: `${root.id}-prefix` }); const sufSel = el("select", { id: `${root.id}-suffix` });
+        const rollsBox = el("div"); const result = el("div", { class: "sb-result" }); const msgs = el("ul", { class: "msg-list" });
+        const actions = el("div", { class: "sb-actions" });
+        const mkBtn = (label, handler) => el("button", { class: "btn", type: "button", text: label }, null);
+        const addBtn = (label, handler) => { const b = mkBtn(label); b.addEventListener("click", handler); actions.append(b); };
+        root.append(
+          el("div", { class: "sb-row" }, el("span", { text: "Base item" }), baseSel),
+          el("div", { class: "sb-row" }, el("span", { text: "Prefix" }), preSel),
+          el("div", { class: "sb-row" }, el("span", { text: "Suffix" }), sufSel),
+          actions, rollsBox, msgs, result,
+        );
+        const template = () => ITEM_TEMPLATES.find((t) => t.templateId === baseSel.value);
+        const baseItem = () => ({ slot: template().slot, name: template().name, stats: midStats(template()), prefix: sb.item.prefix, suffix: sb.item.suffix, tags: template().tags ?? [] });
+        const say = (text, kind = "") => msgs.append(el("li", { class: kind, text }));
+        function fillOptions() {
+          const slot = template().slot;
+          for (const [type, selectEl] of [["prefix", preSel], ["suffix", sufSel]]) {
+            const current = sb.item[type]?.affixId ?? "";
+            selectEl.replaceChildren(el("option", { value: "", text: "— žádný —" }));
+            listAffixes(type).forEach((a) => {
+              const compatible = a.allowedSlots.includes(slot);
+              selectEl.append(el("option", { value: a.id, text: `${a.displayName}${compatible ? "" : " ✕ slot"} · T${a.tier}`, disabled: !compatible }));
+            });
+            selectEl.value = current;
+          }
+        }
+        function applyChoice(type, affixId, opts = {}) {
+          msgs.replaceChildren();
+          if (!affixId) { sb.item = removeAffixFromItem(sb.item, type); refresh(); return; }
+          const without = removeAffixFromItem(baseItem(), type);
+          without.prefix = type === "prefix" ? null : sb.item.prefix; without.suffix = type === "suffix" ? null : sb.item.suffix;
+          const result = applyAffixToItem(without, affixId, { fraction: opts.fraction ?? 0.5, boundFamily: "moth" });
+          if (!result.ok) { result.errors.forEach((e) => say(`BLOKOVÁNO: ${e}`)); (type === "prefix" ? preSel : sufSel).value = sb.item[type]?.affixId ?? ""; return; }
+          sb.item = { ...sb.item, [type]: result.item[type] };
+          result.warnings.forEach((w) => say(w, "info"));
+          refresh();
+        }
+        function renderRolls() {
+          rollsBox.replaceChildren();
+          for (const type of ["prefix", "suffix"]) {
+            const inst = sb.item[type]; if (!inst) continue;
+            const def = getAffix(inst.affixId);
+            rollsBox.append(el("p", { class: "eyebrow", text: `${type.toUpperCase()} rolls — ${def.displayName} (definitionVersion ${inst.definitionVersion})` }));
+            const all = [...def.modifiers.map((m) => [m, false]), ...def.drawbacks.map((m) => [m, true])];
+            all.forEach(([m, isDrawback], index) => {
+              const rolled = inst.rolledModifiers[index];
+              const fixed = m.minValue === m.maxValue;
+              const step = Number.isInteger(m.minValue) && Number.isInteger(m.maxValue) ? 1 : 0.05;
+              const label = el("span", { text: `${STATS[m.statId].id}${m.params?.family ? `:${m.params.family}` : ""} (${m.minValue}…${m.maxValue})` });
+              const num = el("input", { type: "number", step, min: m.minValue, max: m.maxValue, value: rolled.value, "aria-label": `Roll ${m.statId}`, disabled: fixed });
+              const range = el("input", { type: "range", step, min: m.minValue, max: m.maxValue, value: rolled.value, "aria-label": `Posuvník ${m.statId}`, disabled: fixed });
+              const set = (value) => {
+                const v = Math.min(m.maxValue, Math.max(m.minValue, Number(value)));
+                inst.rolledModifiers[index] = { ...rolled, value: v }; sb.item = { ...sb.item, [type]: { ...inst, rolledModifiers: [...inst.rolledModifiers] } };
+                renderResult(); onChange();
+              };
+              num.addEventListener("change", () => { range.value = num.value; set(num.value); });
+              range.addEventListener("input", () => { num.value = range.value; set(range.value); });
+              rollsBox.append(el("div", { class: "sb-roll" }, label, num, range));
+            });
+          }
+        }
+        function renderResult() {
+          const item = baseItem();
+          const t = template();
+          result.replaceChildren(el("p", { class: "sb-name", text: composeAffixedName(t.name, item) }));
+          const lines = buildItemAffixLines(item);
+          const stats = Object.entries(item.stats).map(([k, v]) => `${k}: ${v}`).join(" · ");
+          result.append(el("p", { text: `Základ (střed rollu): ${stats || "—"}` }));
+          if (!lines.length) result.append(el("p", { class: "inactive", text: "Žádný affix — prázdné affix sloty." }));
+          lines.forEach((g) => {
+            result.append(el("p", { class: "eyebrow", text: `${g.label}: ${g.name}` }));
+            g.lines.forEach((l) => result.append(el("div", { class: `${l.negative ? "neg" : "pos"}${l.inactive ? " inactive" : ""}`, text: `${l.text}${l.inactive ? "  [inactive — bez živého výpočtu]" : ""}` })));
+          });
+          const totals = computeAffixTotals([item]);
+          if (totals.ignored.length) result.append(el("p", { class: "neg", text: `Ignorováno: ${totals.ignored.map((i) => `${i.affixId} (${i.reason})`).join(", ")}` }));
+        }
+        let onChange = () => {};
+        function refresh() { fillOptions(); renderRolls(); renderResult(); onChange(); }
+        baseSel.addEventListener("change", () => {
+          msgs.replaceChildren();
+          const slot = template().slot;
+          for (const type of ["prefix", "suffix"]) { const inst = sb.item[type]; if (inst && !getAffix(inst.affixId).allowedSlots.includes(slot)) { say(`${getAffix(inst.affixId).displayName} odebrán — slot ${AFFIX_SLOT_LABELS[slot]} není povolen`, "info"); sb.item = removeAffixFromItem(sb.item, type); } }
+          refresh();
+        });
+        preSel.addEventListener("change", () => applyChoice("prefix", preSel.value));
+        sufSel.addEventListener("change", () => applyChoice("suffix", sufSel.value));
+        const reroll = (mode) => {
+          for (const type of ["prefix", "suffix"]) {
+            const inst = sb.item[type]; if (!inst) continue;
+            const fraction = mode === "min" ? 0 : mode === "max" ? 1 : mode === "mid" ? 0.5 : null;
+            sb.item = { ...sb.item, [type]: rollAffix(inst.affixId, { fraction, boundFamily: "moth" }) };
+          }
+          refresh();
+        };
+        addBtn("Roll min", () => reroll("min")); addBtn("Roll střed", () => reroll("mid")); addBtn("Roll max", () => reroll("max")); addBtn("Náhodný roll", () => reroll(null));
+        addBtn("Odebrat prefix", () => applyChoice("prefix", "")); addBtn("Odebrat suffix", () => applyChoice("suffix", ""));
+        addBtn("Přidat vybraný z katalogu", () => { const a = getAffix(selectedId); applyChoice(a.type, a.id); });
+        sb.getItem = baseItem; sb.setOnChange = (fn) => { onChange = fn; }; sb.refresh = refresh; sb.applyChoice = applyChoice; sb.baseSel = baseSel; sb.template = template;
+        refresh();
+        return sb;
+      }
+      const weaponTemplates = ITEM_TEMPLATES.filter((t) => t.slot === "weapon");
+      const sbA = buildSandbox($("#sbA"), "Kandidát (nový item)", { templateId: weaponTemplates[0].templateId });
+      const sbB = buildSandbox($("#sbB"), "Nasazený item (srovnání)", { templateId: weaponTemplates[0].templateId });
+
+      function renderCompare() {
+        const box = $("#compareBox");
+        const a = sbA.getItem(); const b = sbB.getItem();
+        box.replaceChildren(el("h3", { text: "Porovnání kandidáta s nasazeným itemem (podle statId, ne podle textu)" }));
+        if (a.slot !== b.slot) box.append(el("p", { class: "neg", text: `Pozor: sloty se liší (${AFFIX_SLOT_LABELS[a.slot]} vs ${AFFIX_SLOT_LABELS[b.slot]}) — v živé hře by kandidát nahradil jiný slot.` }));
+        const ids = new Set();
+        Object.keys(a.stats).concat(Object.keys(b.stats)).forEach((k) => ids.add(`base:${k}`));
+        const cmp = compareAffixTotals([b], [a]);
+        const rows = [];
+        const liveKeys = Object.fromEntries(STAT_DEFINITIONS.filter((s) => s.liveKey).map((s) => [s.liveKey, s.id]));
+        const merged = {};
+        const addTotal = (label, statId, vA, vB) => { merged[statId] ??= { statId, a: 0, b: 0 }; merged[statId].a += vA; merged[statId].b += vB; };
+        Object.entries(a.stats).forEach(([k, v]) => liveKeys[k] && addTotal("", liveKeys[k], v, 0));
+        Object.entries(b.stats).forEach(([k, v]) => liveKeys[k] && addTotal("", liveKeys[k], 0, v));
+        const ta = computeAffixTotals([a]).totals; const tb = computeAffixTotals([b]).totals;
+        new Set([...Object.keys(ta), ...Object.keys(tb)]).forEach((key) => addTotal("", key, ta[key] ?? 0, tb[key] ?? 0));
+        const table = el("table", { class: "dev" }, el("thead", {}, el("tr", {}, ...["Stat ID", "Název", "Nasazeno", "Kandidát", "Změna", "Stav"].map((h) => el("th", { text: h })))));
+        const body = el("tbody");
+        Object.values(merged).sort((x, y) => x.statId.localeCompare(y.statId)).forEach((row) => {
+          const statId = row.statId.split(":")[0]; const stat = STATS[statId];
+          const delta = Math.round((row.a - row.b) * 100) / 100;
+          const good = delta === 0 ? null : (stat?.comparison === "lowerIsBetter" ? delta < 0 : delta > 0);
+          const fmt = (v) => (stat && stat.valueType !== "triggered" ? formatStatValue(statId, v) : String(v));
+          body.append(el("tr", {},
+            el("td", {}, el("code", { text: row.statId })), el("td", { text: stat ? `${stat.displayName}${stat.condition ? ` (${stat.condition})` : ""}` : "?" }),
+            el("td", { text: fmt(row.b) }), el("td", { text: fmt(row.a) }), el("td", { class: good == null ? "" : good ? "pos" : "neg", text: delta === 0 ? "0" : `${delta > 0 ? "+" : ""}${delta}` }),
+            el("td", {}, statTag(statId)),
+          ));
+        });
+        table.append(body);
+        box.append(el("div", { class: "tbl-wrap" }, table));
+        const eq = [a, b].map((i) => computeAffixTotals([i]).ignored);
+        box.append(el("p", { class: "inactive", text: "Záporná změna u statů s comparison=lowerIsBetter (hledání, revive, damage_taken) je lepší. Nevýhody (drawbacks) jsou v součtu zahrnuty a vyhodnoceny až po bonusech." }));
+      }
+      sbA.setOnChange(renderCompare); sbB.setOnChange(renderCompare); renderCompare();
+
+      // --- Skenování konfliktů -------------------------------------------------
+      $("#scanBtn").addEventListener("click", () => {
+        const slot = $("#scanSlot").value;
+        const base = { slot, prefix: null, suffix: null, tags: [] };
+        const out = []; let ok = 0; let blocked = 0;
+        for (const p of listAffixes("prefix").filter((x) => x.allowedSlots.includes(slot))) {
+          const withPrefix = applyAffixToItem(base, p.id, { fraction: 1 });
+          if (!withPrefix.ok) continue;
+          for (const s of listAffixes("suffix").filter((x) => x.allowedSlots.includes(slot))) {
+            const r = checkAffixOnItem(withPrefix.item, s.id);
+            if (r.ok) ok += 1; else { blocked += 1; out.push(`${p.id} + ${s.id}: ${r.errors.join("; ")}`); }
+          }
+        }
+        $("#scanOut").textContent = `Slot ${AFFIX_SLOT_LABELS[slot]}: povoleno ${ok}, blokováno ${blocked}\n\n${out.join("\n")}`;
+      });
+
+      // --- Capy -----------------------------------------------------------------
+      $("#capBtn").addEventListener("click", () => {
+        const val = (id) => Number($(`#${id}`).value);
+        const rows = [
+          ["crit_chance", val("capCrit"), "%"], ["dodge_chance", val("capDodge"), "%"], ["magic_find", val("capMf"), "%"],
+        ].map(([id, raw, unit]) => { const r = applyStatCap(id, raw); return [id, `${raw}${unit}`, `${Math.round(r.effective * 100) / 100}${unit}`, r.capped]; });
+        const times = computeEffectiveTimes({ attack_speed: val("capAs"), search_time: val("capSearch"), revive_time: val("capRevive") });
+        const t = (label, x) => [label, `${Math.round(x.raw * 1000) / 1000} s`, `${x.effective} s`, x.floored];
+        const all = [...rows, t("attack interval (základ 1,6 s)", times.attackInterval), t("search time (základ 3 s)", times.searchTime), t("revive time (základ 5 s)", times.reviveTime)];
+        const table = el("table", { class: "dev" }, el("thead", {}, el("tr", {}, ...["Hodnota", "Surově", "Efektivně", "Cap/min"].map((h) => el("th", { text: h })))));
+        const body = el("tbody"); all.forEach(([a, b, c, d]) => body.append(el("tr", {}, el("td", { text: a }), el("td", { text: b }), el("td", { text: c }), el("td", {}, el("span", { class: `tag ${d ? "warn" : "ok"}`, text: d ? "OMEZENO" : "ok" })))));
+        table.append(body); $("#capOut").replaceChildren(table);
+      });
+      $("#capBtn").click();
+
+      // --- Negativní modifiery -----------------------------------------------------
+      const negCases = [
+        ["Reckless + Bulwark (zrušení nevýhody)", "armor", "prefix_reckless", "suffix_of_the_bulwark"],
+        ["Reckless + Waste Heap (jen částečně)", "gloves", "prefix_reckless", "suffix_of_the_waste_heap"],
+        ["Glassbound + Vigor", "helmet", "prefix_glassbound", "suffix_of_vigor"],
+        ["Bloodthirsty + Reaper", "weapon", "prefix_bloodthirsty", "suffix_of_the_reaper"],
+        ["Worldscarred + Black Magma", "weapon", "prefix_worldscarred", "suffix_of_black_magma"],
+        ["Dustborn + Waste Heap (lokace)", "armor", "prefix_dustborn", "suffix_of_the_waste_heap"],
+        ["Sanctified + Final Memory (signature)", "armor", "prefix_sanctified", "suffix_of_final_memory"],
+      ];
+      negCases.forEach(([label, slot, p, s]) => {
+        const b = el("button", { class: "btn", type: "button", text: label });
+        b.addEventListener("click", () => {
+          const base = { slot, prefix: null, suffix: null, tags: [] };
+          const r1 = applyAffixToItem(base, p, { fraction: 0 });
+          const out = $("#negOut"); out.replaceChildren();
+          if (!r1.ok) { out.append(el("ul", { class: "msg-list" }, ...r1.errors.map((e) => el("li", { text: `${p}: ${e}` })))); return; }
+          const r2 = applyAffixToItem(r1.item, s, { fraction: 1 });
+          if (!r2.ok) { out.append(el("p", { text: `${getAffix(p).displayName} (slot ${AFFIX_SLOT_LABELS[slot]}) + ${getAffix(s).displayName}` }), el("ul", { class: "msg-list" }, ...r2.errors.map((e) => el("li", { text: `BLOKOVÁNO: ${e}` })))); return; }
+          out.append(el("p", { class: "sb-name", text: composeAffixedName("Item", r2.item) }));
+          buildItemAffixLines(r2.item).forEach((g) => { out.append(el("p", { class: "eyebrow", text: `${g.label}: ${g.name}` })); g.lines.forEach((l) => out.append(el("div", { class: l.negative ? "neg" : "pos", text: l.text }))); });
+          out.append(el("ul", { class: "msg-list" }, el("li", { class: "good", text: "Kombinace je povolena." })));
+        });
+        $("#negPresets").append(b);
+      });
+
+      // --- Defense --------------------------------------------------------------
+      $("#defBtn").addEventListener("click", () => {
+        const target = Number($("#defTarget").value); const pen = Number($("#defPen").value); const mine = Number($("#defPlayer").value);
+        $("#defOut").innerHTML = `Obrana cíle po průrazu: <strong>${effectiveTargetDefense(target, pen)}</strong> (nikdy záporná) · efektivní obrana hráče: <strong>${effectivePlayerDefense(mine)}</strong> (nikdy záporná)`;
+      });
+      $("#defBtn").click();
+
+      // --- Drop readiness -----------------------------------------------------------
+      const enemiesWithScrolls = Object.values(ENEMIES).filter((e) => e.scrollPool || e.scrollDropChance != null);
+      $("#liveStatus").innerHTML = `Affixů s <code>enabledInLiveDrops: true</code>: <strong>${getLiveDropAffixIds().length}</strong><br>Nepřátel s <code>scrollPool</code>/<code>scrollDropChance</code>: <strong>${enemiesWithScrolls.length}</strong><br>Schválených source poolů: <strong>${Object.values(SCROLL_SOURCE_POOLS).filter((p) => p.approved).length}</strong> z ${Object.keys(SCROLL_SOURCE_POOLS).length}<br>Pro zapnutí affixu do dropů musí splnit všechny podmínky (viz validace níže).`;
+      const fixture = SCROLL_DROP_TEST_FIXTURE;
+      const fxVal = validateScrollDropConfig(fixture, { poolId: "general_scrolls", source: { enemyId: "e01", enemyType: "common" } });
+      const fxBox = $("#fixtureOut");
+      fxBox.append(el("p", { text: `scrollDropChance = ${fixture.scrollDropChance}` }));
+      const ft = el("table", { class: "dev" }, el("thead", {}, el("tr", {}, ...["affixId", "weight", "specifická šance"].map((h) => el("th", { text: h })))));
+      const fb = el("tbody"); fixture.scrollPool.forEach((e) => fb.append(el("tr", {}, el("td", { text: e.affixId }), el("td", { text: e.weight }), el("td", { text: `${(scrollSpecificChance(fixture, e.affixId) * 100).toFixed(3)} %` })))); ft.append(fb);
+      fxBox.append(el("div", { class: "tbl-wrap" }, ft));
+      fxBox.append(el("p", { text: "Validace pro živý drop (očekávaně NEPROJDE — nic není schválené ani zapnuté):" }), el("ul", { class: "msg-list" }, ...(fxVal.ok ? [el("li", { class: "bad", text: "PROŠLO — to by nemělo!" })] : [...new Set(fxVal.errors)].slice(0, 12).map((e) => el("li", { class: "info", text: e })))));
+      $("#simBtn").addEventListener("click", () => {
+        const counts = {}; let none = 0; const n = 20000;
+        for (let i = 0; i < n; i += 1) { const id = pickScrollFromPool(fixture); if (id) counts[id] = (counts[id] ?? 0) + 1; else none += 1; }
+        $("#simOut").textContent = `${n} killů: bez svitku ${none}\n${Object.entries(counts).map(([k, v]) => `${k}: ${v}`).join("\n")}`;
+      });
+
+      // --- Registr statů ----------------------------------------------------------------
+      STAT_DEFINITIONS.forEach((s) => {
+        const cap = s.cap ? (s.cap.type === "hard" ? `hard ${s.cap.max}` : s.cap.type === "soft" ? `soft po ${s.cap.softAfter}, hard ${s.cap.hardMax}` : `min ${s.cap.min} ${s.cap.unit}`) : "—";
+        $("#statTable tbody").append(el("tr", {}, el("td", {}, el("code", { text: s.id })), el("td", { text: s.displayName }), el("td", { text: s.valueType }), el("td", { text: s.operation }), el("td", { text: s.format }), el("td", { text: s.stackingRule }), el("td", { text: cap }), el("td", { text: s.condition ?? "—" }), el("td", {}, statTag(s.id)), el("td", { text: String(s.enabled) }), el("td", { text: s.version })));
+      });
+
+      // --- Test migrace ---------------------------------------------------------------------
+      $("#saveBtn").addEventListener("click", () => {
+        const oldItem = { id: "old-1", name: "Starý meč", slot: "weapon", quality: "rare", stats: { damageMin: 3, damageMax: 5 } };
+        const newItem = { id: "new-1", name: "Nový meč", slot: "weapon", quality: "rare", stats: { damageMin: 3, damageMax: 5 }, prefix: { affixId: "prefix_serrated", definitionVersion: 1, rolledModifiers: [{ statId: "damage_min", value: 1 }, { statId: "damage_max", value: 1 }] }, suffix: null };
+        const rolledForOld = { id: "old-def", prefix: { affixId: "prefix_removed_in_future", definitionVersion: 0, rolledModifiers: [{ statId: "defense", value: 2 }] } };
+        const dirtyScrolls = [{ instanceId: "s1", itemType: "affix_scroll", affixId: "suffix_of_vigor", quality: "legendary", rarity: "god", tier: 5 }, { instanceId: "bad", affixId: "nope" }];
+        const report = {
+          "Starý item (≤0.5.1) → sloty": sanitizeItemAffixes(oldItem),
+          "Nový item (v5) → rolly zachovány": sanitizeItemAffixes(newItem),
+          "Item s affixem, který z katalogu zmizel → uchován beze změny": sanitizeItemAffixes(rolledForOld),
+          "Svitky se zbytečnými poli → pole quality/rarity/tier zahozena, neplatný affix odstraněn": sanitizeAffixScrolls(dirtyScrolls),
+          "Starý save bez affixScrolls → prázdný inventář svitků": sanitizeAffixScrolls(undefined),
+        };
+        $("#saveOut").textContent = JSON.stringify(report, null, 2);
+      });
+
+      renderAffixTable();
+      renderPreviewOne();
+    </script>
+  </body>
+</html>

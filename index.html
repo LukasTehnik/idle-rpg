@@ -172,7 +172,7 @@
                     <span class="field-label">Typ</span>
                     <select id="invType"></select>
                   </label>
-                  <label class="field">
+                  <label class="field" id="invQualityField">
                     <span class="field-label">Quality</span>
                     <select id="invQuality">
                       <option value="all">Všechny</option>
@@ -241,7 +241,7 @@
                   <p id="inventoryEmptyText">Porážej nepřátele. Každý může zanechat vybavení nebo materiál.</p>
                 </div>
 
-                <div class="quality-legend" aria-label="Kvality">
+                <div class="quality-legend" id="qualityLegend" aria-label="Kvality">
                   <span><i class="q-dot q-common"></i>COMMON</span>
                   <span><i class="q-dot q-rare"></i>RARE</span>
                   <span><i class="q-dot q-epic"></i>EPIC</span>
@@ -628,6 +628,10 @@
     <script src="economy-data.js"></script>
     <script src="material-data.js"></script>
     <script src="world-data.js"></script>
+    <script src="stat-data.js"></script>
+    <script src="affix-data.js"></script>
+    <script src="affix-logic.js"></script>
+    <script src="scroll-ui.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

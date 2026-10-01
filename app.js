@@ -69,6 +69,8 @@ const initialState = () => ({
   coreFragments: 0,
   elapsedSeconds: 0,
   inventory: [], // equipment only (capacity CONFIG.inventoryCapacity)
+  // Prototype 0.6: svitky prefixů/suffixů (obchodovatelné entity bez quality/rarity). Zatím je nic nedropuje.
+  affixScrolls: [],
   // Prototype 0.5: kořist, která se nevešla do plného inventáře. Nikdy se tiše
   // neztratí -- čeká zde, dokud hráč neuvolní místo (viz claimUnclaimed).
   unclaimed: [],
@@ -441,7 +443,7 @@ function loadState() {
   const fresh = initialState();
   try {
     const saved = JSON.parse(localStorage.getItem(CONFIG.saveKey));
-    if (!saved || (saved.version !== 2 && saved.version !== 3 && saved.version !== 4)) return fresh;
+    if (!saved || (saved.version !== 2 && saved.version !== 3 && saved.version !== 4 && saved.version !== 5)) return fresh;
     // currentEnemyId is new -- only trust it if it names a real, still-valid
     // enemy (protects against a corrupted save or a future removed enemy id
     // crashing the app on load).
@@ -479,6 +481,7 @@ function loadState() {
       bestiary: saved.bestiary ? sanitizeBestiary(saved.bestiary) : backfillBestiary(saved, owned, materials, currentEnemyId, run),
       elapsedSeconds: saved.elapsedSeconds ?? fresh.elapsedSeconds,
       inventory: cleanInventory, materials, unclaimed,
+      affixScrolls: sanitizeAffixScrolls(saved.affixScrolls), // v ≤4 chybí → prázdný inventář svitků
       recentDrops: sanitizeRecentDrops(saved.recentDrops),
       equipment,
       player: { ...fresh.player, ...(saved.player ?? {}) },
@@ -490,12 +493,12 @@ function loadState() {
 
 function saveState() {
   const payload = {
-    version: 4, level: state.level, xp: state.xp, kills: state.kills, drops: state.drops,
+    version: 5, level: state.level, xp: state.xp, kills: state.kills, drops: state.drops,
     carriedGold: state.carriedGold, bankGold: state.bankGold, coreFragments: state.coreFragments, currentEnemyId: state.currentEnemyId,
     buyback: state.buyback, lootRules: state.lootRules, lootLog: state.lootLog, stats: state.stats, collection: state.collection, bestiary: state.bestiary,
     activeLocationId: state.activeLocationId, run: state.run,
     elapsedSeconds: state.elapsedSeconds, inventory: state.inventory, equipment: state.equipment,
-    materials: state.materials, recentDrops: state.recentDrops, unclaimed: state.unclaimed,
+    materials: state.materials, recentDrops: state.recentDrops, unclaimed: state.unclaimed, affixScrolls: state.affixScrolls,
     player: {
       hp: state.player.hp, baseMaxHp: state.player.baseMaxHp,
       baseMinDamage: state.player.baseMinDamage, baseMaxDamage: state.player.baseMaxDamage,
@@ -538,6 +541,8 @@ function sanitizeItem(raw) {
     sourceEnemyId: enemy?.id ?? null,
     sourceLocationId: LOCATIONS[raw.sourceLocationId] ? raw.sourceLocationId : (enemy?.locationId ?? null),
     isNew: raw.isNew === true, isFavorite: raw.isFavorite === true, isLocked: raw.isLocked === true,
+    // Prototype 0.6: affixové sloty. Starší itemy (≤ 0.5.1) je mají prázdné; nic se nepřepisuje.
+    ...sanitizeItemAffixes(raw),
   };
 }
 
@@ -568,7 +573,8 @@ function findItemAnywhere(id) {
 // `equipment` lze přepsat, aby šlo spočítat výsledné staty postavy PO výměně
 // itemu (porovnání v detailu) -- bez jakékoli změny skutečného stavu.
 function getPlayerStats(equipment = state.equipment) {
-  return Object.values(equipment).filter(Boolean).reduce(
+  const items = Object.values(equipment).filter(Boolean);
+  const base = items.reduce(
     (stats, item) => ({
       maxHp: stats.maxHp + getItemBonus(item, "maxHp"),
       minDamage: stats.minDamage + getItemBonus(item, "damageMin"),
@@ -577,6 +583,16 @@ function getPlayerStats(equipment = state.equipment) {
     }),
     { maxHp: state.player.baseMaxHp, minDamage: state.player.baseMinDamage, maxDamage: state.player.baseMaxDamage, critChance: state.player.baseCritChance },
   );
+  // Prototype 0.6: affixy z nasazených itemů. Počítají se jen staty s živým výpočtem (calc:"active");
+  // staty bez základu (obrana, elementy, trigger efekty …) zůstávají jen jako data.
+  // Součty řeší computeAffixTotals (unikátní affixy, signature skupiny, nevýhody po bonusech) a registr (capy).
+  if (!items.some((item) => item.prefix || item.suffix)) return base;
+  const { totals } = computeAffixTotals(items);
+  const crit = applyStatCap("crit_chance", base.critChance * 100 + (totals.crit_chance ?? 0)).effective / 100;
+  const maxHp = Math.max(1, base.maxHp + (totals.max_hp ?? 0));
+  const minDamage = Math.max(0, base.minDamage + (totals.damage_min ?? 0));
+  const maxDamage = Math.max(minDamage, base.maxDamage + (totals.damage_max ?? 0));
+  return { maxHp, minDamage, maxDamage, critChance: Math.max(0, crit) };
 }
 
 function render() {
@@ -836,6 +852,7 @@ function createItem(enemyCfg, fixed = null) {
     isNew: true, isFavorite: false, isLocked: false,
     tradeable: template.tradeable ?? true,
     flavorText: template.flavorText ?? null,
+    prefix: null, suffix: null, // Prototype 0.6: běžné dropy zatím žádné affixy nenesou
   };
 }
 
@@ -1077,10 +1094,21 @@ function getInventoryEntries() {
       time: -1, originLocationId: material.sourceLocationId ?? null, value: 0, power: 0, flags: {},
     });
   });
+  // Prototype 0.6: svitky prefixů/suffixů. Žádná quality/rarity — jednotný vzhled pro všech 64.
+  state.affixScrolls.forEach((scroll, index) => {
+    const affix = getAffix(scroll.affixId);
+    if (!affix) return;
+    entries.push({
+      kind: "scroll", key: `scr:${scroll.instanceId}`, id: scroll.instanceId, name: affix.displayName, affixType: scroll.affixType,
+      quality: null, slot: null, category: "scrolls", qty: 1, order: 2000 + index, iconSource: null, visual: null,
+      time: -1, originLocationId: null, value: 0, power: 0, flags: {},
+    });
+  });
   return entries;
 }
 
 function entryAriaLabel(entry) {
+  if (entry.kind === "scroll") return `${entry.name}, ${AFFIX_SCROLL_SUBTYPE_LABEL[entry.affixType]?.toLowerCase() ?? "affix scroll"}`;
   const quality = qualityLabel(entry.quality);
   const slot = SLOT_META[entry.slot]?.label;
   const qty = entry.kind === "material" ? `, ${entry.qty} ks` : "";
@@ -1097,7 +1125,7 @@ function filterEntries(entries) {
   const gear = gearFiltersApply();
   return entries.filter((entry) => {
     if (ui.tab !== "all" && entry.category !== ui.tab) return false;
-    if (ui.quality !== "all" && entry.quality !== ui.quality) return false;
+    if (ui.quality !== "all" && entry.quality !== ui.quality) return false; // svitky quality nemají → při filtru kvality se nezobrazí
     if (gear && ui.type !== "all" && entry.slot !== ui.type) return false;
     if (gear && ui.flag !== "all" && !entry.flags?.[ui.flag]) return false;
     if (ui.origin !== "all" && entry.originLocationId !== ui.origin) return false;
@@ -1131,6 +1159,7 @@ function selectionKey() {
   if (!s) return null;
   if (s.kind === "item") return `item:${s.id}`;
   if (s.kind === "material") return `mat:${s.id}`;
+  if (s.kind === "scroll") return `scr:${s.id}`;
   return null;
 }
 
@@ -1146,6 +1175,9 @@ function resolveSelection() {
   } else if (s.kind === "equipped") {
     const item = state.equipment[s.slot];
     if (item) resolved = { kind: "equipped", slot: s.slot, item };
+  } else if (s.kind === "scroll") {
+    const scroll = state.affixScrolls.find((entry) => entry.instanceId === s.id);
+    if (scroll && getAffix(scroll.affixId)) resolved = { kind: "scroll", scroll };
   } else if (s.kind === "material") {
     const { templateId, quality } = parseStackKey(s.id);
     const material = MATERIALS[templateId];
@@ -1226,7 +1258,8 @@ function renderInventory() {
     const cell = document.createElement("button");
     cell.type = "button";
     cell.className = "inv-cell";
-    applyQualityVisuals(cell, entry.visual, { surface: false });
+    if (entry.kind === "scroll") applyAffixScrollVisuals(cell);
+    else applyQualityVisuals(cell, entry.visual, { surface: false });
     cell.dataset.key = entry.key;
     const marked = deleteMode && entry.kind === "item" && selectedForDeletion.has(entry.id);
     const selected = !deleteMode && entry.key === selectedKeyValue;
@@ -1237,15 +1270,19 @@ function renderInventory() {
     cell.setAttribute("aria-pressed", String(deleteMode ? marked : selected));
     if (locked) cell.setAttribute("aria-disabled", "true");
     cell.setAttribute("aria-label", deleteMode ? `${locked ? "Uzamčeno, nelze vybrat" : "Vybrat"}: ${entryAriaLabel(entry)}` : `${entryAriaLabel(entry)} — zobrazit detail`);
-    cell.title = entry.kind === "item" ? `${entry.name} · ${qualityLabel(entry.quality)} · ${entry.value} gold` : `${entry.name} · ${qualityLabel(entry.quality)}`;
+    cell.title = entry.kind === "scroll" ? `${entry.name} · ${AFFIX_SCROLL_SUBTYPE_LABEL[entry.affixType]}` : entry.kind === "item" ? `${entry.name} · ${qualityLabel(entry.quality)} · ${entry.value} gold` : `${entry.name} · ${qualityLabel(entry.quality)}`;
     const flags = [
       entry.flags?.new ? "<span class='flag flag-new'>NOVÉ</span>" : "",
       entry.flags?.favorite ? "<span class='flag flag-fav' title='Oblíbené'>★</span>" : "",
       entry.flags?.locked ? `<span class='flag flag-lock' title='Uzamčeno'>${LOCK_ICON}</span>` : "",
     ].join("");
     cell.innerHTML = `<span class="cell-check" aria-hidden="true"></span><span class="cell-icon" aria-hidden="true"></span>${entry.kind === "material" ? `<span class="cell-qty">×${entry.qty}</span>` : (flags ? `<span class="cell-flags" aria-hidden="true">${flags}</span>` : "")}<span class="cell-name"></span>`;
-    renderItemIcon(cell.querySelector(".cell-icon"), entry.iconSource);
-    applyQualityVisuals(cell.querySelector(".cell-icon"), entry.visual);
+    if (entry.kind === "scroll") {
+      renderAffixScrollIcon(applyAffixScrollVisuals(cell.querySelector(".cell-icon")), entry.affixType);
+    } else {
+      renderItemIcon(cell.querySelector(".cell-icon"), entry.iconSource);
+      applyQualityVisuals(cell.querySelector(".cell-icon"), entry.visual);
+    }
     cell.querySelector(".cell-name").textContent = entry.name;
     grid.append(cell);
   });
@@ -1427,12 +1464,33 @@ function renderCompare(item) {
   box.classList.remove("hidden");
 }
 
+// Detail svitku: jednotný vzhled, obsah výhradně z allowlist view modelu (žádný tier/rarity/build).
+function renderScrollDetail(scroll) {
+  const model = buildAffixScrollViewModel(scroll);
+  const panel = elements.itemDetail;
+  applyAffixScrollVisuals(panel);
+  elements.detailIcon.className = "detail-icon";
+  applyAffixScrollVisuals(elements.detailIcon);
+  elements.detailCompare.classList.add("hidden");
+  elements.detailSecondary.classList.add("hidden");
+  elements.detailFlavor.classList.add("hidden");
+  elements.detailActionButton.classList.add("hidden");
+  elements.detailNote.classList.add("hidden");
+  elements.detailQuality.className = "detail-quality";
+  renderAffixScrollDetail(model, {
+    badge: elements.detailQuality, icon: elements.detailIcon, title: elements.detailTitle, type: elements.detailType,
+    stats: elements.detailStats, meta: elements.detailMeta,
+  });
+}
+
 function renderDetail() {
   const resolved = resolveSelection();
   const panel = elements.itemDetail;
   elements.detailEmpty.classList.toggle("hidden", Boolean(resolved));
   elements.detailBody.classList.toggle("hidden", !resolved);
   if (!resolved) { closeSheet({ restoreFocus: false }); return; }
+
+  if (resolved.kind === "scroll") { renderScrollDetail(resolved.scroll); return; }
 
   const isMaterial = resolved.kind === "material";
   const source = isMaterial ? resolved.material : resolved.item;
@@ -1481,6 +1539,11 @@ function renderDetail() {
   applyQualityVisuals(elements.detailIcon, visual);
   elements.detailType.textContent = `${SLOT_META[item.slot]?.label ?? "Ostatní"}${equippedNow ? " · právě vybaveno" : ""}`;
   statRows(item).forEach(([label, value]) => elements.detailStats.append(kvRow(label, value)));
+  // Prototype 0.6: prefix a suffix jsou zvláštní řádky, oddělené od kvality a základních statů.
+  buildItemAffixLines(item).forEach((group) => {
+    elements.detailStats.append(mk("div", { class: "kv-row affix-heading" }, mk("span", { text: `${group.label}: ${group.name}` })));
+    group.lines.forEach((line) => elements.detailStats.append(mk("div", { class: `kv-row affix-line${line.negative ? " negative" : ""}` }, mk("span", { text: line.text }))));
+  });
   if (!equippedNow) renderCompare(item);
 
   const flavorText = item.flavorText ?? template?.flavorText ?? null;
@@ -1614,7 +1677,7 @@ function onInventoryCell(key) {
     const item = state.inventory.find((entry) => entry.id === id);
     if (item?.isNew) { item.isNew = false; saveState(); }
   }
-  selectEntity(kind === "item" ? { kind: "item", id } : { kind: "material", id }); // id materiálu = klíč stacku `templateId:quality`
+  selectEntity(kind === "item" ? { kind: "item", id } : kind === "scr" ? { kind: "scroll", id } : { kind: "material", id }); // id materiálu = klíč stacku `templateId:quality`
 }
 
 function onDollSlot(slot) {
@@ -1629,7 +1692,7 @@ function onDollSlot(slot) {
 
 function toggleItemFlag(flag) {
   const resolved = resolveSelection();
-  if (!resolved || resolved.kind === "material") return;
+  if (!resolved || resolved.kind === "material" || resolved.kind === "scroll") return;
   resolved.item[flag] = !resolved.item[flag];
   renderLoot(); saveState();
 }
@@ -1665,12 +1728,18 @@ function syncInventoryControls() {
   elements.invFlag.value = ui.flag;
   elements.invOrigin.value = ui.origin;
   elements.invSort.value = ui.sort;
+  // Prototype 0.6: svitky nemají quality ani sílu — na jejich záložce se filtr/legenda kvality a řazení podle síly nenabízí.
+  const scrollsTab = ui.tab === "scrolls";
+  $("#invQualityField")?.classList.toggle("hidden", scrollsTab);
+  $("#qualityLegend")?.classList.toggle("hidden", scrollsTab);
+  $$("#invSort option").forEach((option) => { option.disabled = scrollsTab && ["quality", "value", "power", "slot"].includes(option.value); });
   elements.invTypeField.classList.toggle("hidden", !gearFiltersApply());
   elements.invFlagField.classList.toggle("hidden", !gearFiltersApply());
 }
 
 function setInventoryTab(tab) {
   ui.tab = ["all", "equipment", "materials", "scrolls"].includes(tab) ? tab : "all";
+  if (ui.tab === "scrolls") { ui.quality = "all"; if (["quality", "value", "power", "slot"].includes(ui.sort)) ui.sort = "newest"; }
   if ((ui.tab === "materials" || ui.tab === "scrolls") && deleteMode) setDeleteMode(false);
   syncInventoryControls();
   renderInventory();
@@ -2979,6 +3048,29 @@ function applyTestItems() {
   history.replaceState(null, "", location.pathname + (location.hash || "#/inventar"));
 }
 applyTestItems();
+
+// Vývojová pomůcka (0.6): `index.html?testscrolls#/inventar` přidá do inventáře po jednom svitku ze všech
+// 64 affixů a pár itemů s prefixem/suffixem. Ve hře jinak nikde nevzniká — svitky zatím nedropují.
+function applyTestScrolls() {
+  if (!/[?&]testscrolls\b/.test(location.search)) return;
+  AFFIX_DEFINITIONS.forEach((affix) => {
+    if (!state.affixScrolls.some((scroll) => scroll.affixId === affix.id)) state.affixScrolls.push(createAffixScroll(affix.id));
+  });
+  const enemy = getCurrentEnemy();
+  const weapon = ITEM_TEMPLATES.find((template) => template.slot === "weapon" && template.image);
+  const chest = ITEM_TEMPLATES.find((template) => template.slot === "armor" && template.image);
+  [[weapon, "prefix_serrated", "suffix_of_precision"], [weapon, "prefix_reckless", "suffix_of_hunger"], [chest, "prefix_wardens", null]].forEach(([template, prefix, suffix]) => {
+    if (!template || state.inventory.length >= CONFIG.inventoryCapacity) return;
+    let item = createItem(enemy, { templateId: template.templateId, quality: "rare" });
+    if (prefix) item = applyAffixToItem(item, prefix).item;
+    if (suffix) item = applyAffixToItem(item, suffix).item;
+    recordItemAcquired(item);
+    state.inventory.unshift(item);
+  });
+  saveState();
+  history.replaceState(null, "", location.pathname + (location.hash || "#/inventar"));
+}
+applyTestScrolls();
 
 initCombatWidgets();
 applyCharacterPreview();

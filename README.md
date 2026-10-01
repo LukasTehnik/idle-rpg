@@ -1,6 +1,6 @@
-# Idle RPG — Prototype 0.5.1 (Loot, Economy & Collection + Quality System)
+# Idle RPG — Prototype 0.6 (Stat & Affix Foundation)
 
-Pátý hratelný prototyp prohlížečového idle RPG. Ověřuje otázku: **dává smysl smyčka boj → loot → porovnání → nasadit / nechat / prodat → zlato → farmení → sbírka?** Podrobnosti: [`docs/prototype-0.5.md`](docs/prototype-0.5.md). Historie: [`docs/prototype-0.4.md`](docs/prototype-0.4.md).
+Pátý hratelný prototyp prohlížečového idle RPG. Ověřuje otázku: **dává smysl smyčka boj → loot → porovnání → nasadit / nechat / prodat → zlato → farmení → sbírka?** **0.6** přidává registr statů, katalog 64 affixů (30 prefixů + 34 suffixů), svitky s jednotným vzhledem a dev nástroj `affix-catalog.html` — žádný affix zatím nepadá ve hře, viz [`docs/prototype-0.6.md`](docs/prototype-0.6.md). Podrobnosti o loot smyčce: [`docs/prototype-0.5.md`](docs/prototype-0.5.md). Historie: [`docs/prototype-0.4.md`](docs/prototype-0.4.md).
 
 ## Spuštění
 
@@ -57,6 +57,12 @@ quality-data.js     (0.5.1) centrální kvality, normalizace, odvození vizuáln
 item-data.js        šablony vybavení (templateId), ikony, composeItem()
 material-data.js    materiály (jedna definice, kvalita je hodnota dropu/stacku)
 item-catalog.html / material-catalog.html   katalogy + QUALITY PREVIEW
+stat-data.js        (0.6) centrální registr statů
+affix-data.js       (0.6) 64 affixů, zdrojové pooly
+affix-logic.js      (0.6) rolly, pravidla, capy, view model, validace, migrace affixů
+scroll-ui.js        (0.6) jednotná komponenta svitku
+affix-catalog.html  (0.6) DEV nástroj (není pro hráče)
+tests/              (0.6) node tests/affix-tests.js, node tests/ui-tests.js
 world-data.js       lokace a nepřátelé (zdroj pravdy i pro bestiář a sbírku)
 styles.css          styly
 docs/               prototype-0.2 … 0.5, navrh-hry.md, UI reference
