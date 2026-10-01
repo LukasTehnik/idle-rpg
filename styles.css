@@ -1519,25 +1519,25 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
   opacity: var(--shine-a);
   animation: q-shine-pulse 2.4s steps(6, end) infinite;
 }
-/* jiskry: dvě rozostřené, nepravidelně rozptýlené vrstvy (shluky), které se střídavě rozsvěcují */
+/* jiskry = čtvercové pixelové částice ze sprite sheetu assets/frames/glow_sheet.png (z dodaného videa, 16 snímků);
+   barvu určuje kvalita (maska), druhá vrstva je zrcadlená a posunutá ve fázi */
 .q-slot:not(.q-compact) > .q-shine::before, .q-slot:not(.q-compact) > .q-shine::after {
-  position: absolute; inset: 0; content: ""; background: var(--shine-spark, var(--shine-c));
-  -webkit-mask: url(assets/frames/spark_a.png) center / 100% 100% no-repeat; mask: url(assets/frames/spark_a.png) center / 100% 100% no-repeat;
-  animation: q-spark-a 3.2s steps(8, end) infinite;
+  position: absolute; inset: 0; content: ""; background: var(--shine-spark, color-mix(in srgb, var(--shine-c) 45%, #fff));
+  -webkit-mask: url(assets/frames/glow_sheet.png) 0 0 / 1600% 100% no-repeat; mask: url(assets/frames/glow_sheet.png) 0 0 / 1600% 100% no-repeat;
+  animation: q-glow-sheet 5.3s steps(16, jump-none) infinite;
+  filter: brightness(1.4);
 }
 .q-slot:not(.q-compact) > .q-shine::after {
-  -webkit-mask-image: url(assets/frames/spark_b.png); mask-image: url(assets/frames/spark_b.png);
-  background: var(--shine-spark2, #fff); animation: q-spark-b 3.2s steps(8, end) infinite;
+  background: var(--shine-spark2, #fff); transform: scaleX(-1); animation-duration: 6.7s; animation-delay: -2.1s; opacity: .7;
 }
 .q-stack:not(.q-compact) > .q-shine { --shine-a: .3; }
-.q-legendary > .q-shine { --shine-a: .65; }
-.q-mythic > .q-shine { --shine-a: .75; }
+.q-legendary > .q-shine { --shine-a: .85; }
+.q-mythic > .q-shine { --shine-a: .9; }
 .q-god > .q-shine {
   --shine-a: .85; --shine-spark: linear-gradient(135deg, #16d9ca, #d23fb5 55%, #ff454f); --shine-spark2: linear-gradient(45deg, #ff454f, #fff 50%, #16d9ca);
   background: linear-gradient(135deg, rgba(22, 217, 202, .32), rgba(210, 63, 181, .32) 50%, rgba(255, 69, 79, .32));
 }
-@keyframes q-spark-a { 0%, 100% { opacity: .9; } 50% { opacity: .15; } }
-@keyframes q-spark-b { 0%, 100% { opacity: .15; } 50% { opacity: .9; } }
+@keyframes q-glow-sheet { from { -webkit-mask-position: 0 0; mask-position: 0 0; } to { -webkit-mask-position: 100% 0; mask-position: 100% 0; } }
 @keyframes q-shine-pulse { 0%, 100% { opacity: calc(var(--shine-a) * .35); } 50% { opacity: var(--shine-a); } }
 @media (prefers-reduced-motion: reduce) { .q-slot > .q-shine, .q-slot > .q-shine::before, .q-slot > .q-shine::after { animation: none; } .q-slot > .q-shine::after { opacity: 0; } }
 
