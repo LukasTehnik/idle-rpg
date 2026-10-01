@@ -102,7 +102,14 @@ function applyQualityVisuals(element, source, { surface = true } = {}) {
   // Drobné ikony ve výpisech zůstávají ploché (rámeček s popiskem by tam nebyl čitelný).
   if (surface && element.matches?.(QUALITY_COMPACT_SELECTOR)) element.classList.add("q-compact");
   element.dataset.quality = normalizeQuality(source?.quality, { stackable: source?.stackable === true });
-  element.querySelectorAll(":scope > .q-upg, :scope > .q-max-corners").forEach((node) => node.remove());
+  element.querySelectorAll(":scope > .q-upg, :scope > .q-max-corners, :scope > .q-shine").forEach((node) => node.remove());
+  // Pulzující „vlastní zář“ itemu přes ikonu (jen Legendary+, jen u slotů s rámečkem).
+  if (surface && !element.classList.contains("q-compact") && classes.some((name) => name.startsWith("q-glow-"))) {
+    const shine = document.createElement("span");
+    shine.className = "q-shine";
+    shine.setAttribute("aria-hidden", "true");
+    element.append(shine);
+  }
   const level = Math.floor(Number(source?.upgradeLevel) || 0);
   if (surface && (level > 0 || max)) {
     const mark = document.createElement("span");
