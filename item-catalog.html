@@ -152,6 +152,7 @@
         const t = mixTemplates[(qi * 3 + k) % mixTemplates.length];
         previewItems.push({ ...composeItem(t.templateId, { quality }), previewKey: `mix-${quality}-${k}` });
       }));
+      previewItems.push({ ...composeItem("stained-glass-pendant", { quality: "legendary" }), previewKey: "pendant-legendary" });
       previewItems.push({ ...composeItem(baseWeapon.templateId, { quality: "common", upgradeLevel: 10, maxUpgradeLevel: 10, isMaxUpgraded: true }), previewKey: "max-common", name: `${baseWeapon.name} (MAX)` });
       previewItems.push({ ...composeItem(baseWeapon.templateId, { quality: "epic", upgradeLevel: 4, maxUpgradeLevel: 10 }), previewKey: "plus-epic", name: `${baseWeapon.name} (+4)` });
       previewItems.forEach((item, i) => { previewItems[i] = withRolls(item); previewGrid.appendChild(buildCatalogCard(previewItems[i])); });
