@@ -62,8 +62,9 @@
                 <div class="bar xp-bar" role="presentation"><div class="bar-fill" data-bar="xp"></div></div>
               </div>
             </li>
-            <li class="status-item status-gold" title="Zlato u postavy — při smrti ztratíš 5 %"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M2 0h4v1H2zM1 1h6v6H1zM2 7h4v1H2zM3 2h2v4H3z"/></svg><span>Nesené</span><strong data-bind="gold">0</strong></li>
-            <li class="status-item status-bank" title="Zlato v bance je v bezpečí"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M3 0h2v1H3zM2 1h4v1H2zM0 2h8v1H0zM1 3h1v4H1zM3 3h2v4H3zM6 3h1v4H6zM0 7h8v1H0z"/></svg><span>Banka</span><strong data-bind="bankGold">0</strong></li>
+            <li class="status-item status-gold" title="Zlato u postavy — při smrti ztratíš 5 %"><img class="ui-icon" src="assets/icons/ui/ui_icon_gold_inventory.png" alt="" width="28" height="28"><span>Nesené</span><strong data-bind="gold">0</strong></li>
+            <li class="status-item status-bank" title="Zlato v bance je v bezpečí"><img class="ui-icon" src="assets/icons/ui/ui_icon_gold_bank.png" alt="" width="28" height="28"><span>Banka</span><strong data-bind="bankGold">0</strong></li>
+            <li class="status-item status-core" title="Úlomky jádra"><img class="ui-icon" src="assets/icons/ui/ui_icon_core_fragment_inventory.png" alt="" width="28" height="28"><span>Úlomky</span><strong data-bind="coreFragments">0</strong></li>
             <li class="status-item status-state"><i class="status-dot" data-bind-dot></i><strong data-bind="status" aria-live="polite">Připraveno</strong></li>
             <li class="status-item status-target"><svg class="px-icon" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M3 0h2v2H3zM0 3h2v2H0zM6 3h2v2H6zM3 6h2v2H3z"/></svg><span>Cíl</span><strong data-bind="enemyName">Goblin</strong></li>
           </ul>
@@ -447,9 +448,12 @@
                   </div>
                 </div>
                 <dl class="bank-cards">
-                  <div class="bank-card"><dt>U sebe</dt><dd data-bind="gold">0</dd></div>
-                  <div class="bank-card bank-card-safe"><dt>V bance</dt><dd data-bind="bankGold">0</dd></div>
+                  <div class="bank-card"><dt><img class="ui-icon" src="assets/icons/ui/ui_icon_gold_inventory.png" alt="" width="28" height="28">U sebe</dt><dd data-bind="gold">0</dd></div>
+                  <div class="bank-card bank-card-safe"><dt><img class="ui-icon" src="assets/icons/ui/ui_icon_gold_bank.png" alt="" width="28" height="28">V bance</dt><dd data-bind="bankGold">0</dd></div>
                   <div class="bank-card"><dt>Celkem</dt><dd data-bind="totalGold">0</dd></div>
+                </dl>
+                <dl class="bank-cards">
+                  <div class="bank-card"><dt><img class="ui-icon" src="assets/icons/ui/ui_icon_core_fragment_inventory.png" alt="" width="28" height="28">Úlomky jádra</dt><dd data-bind="coreFragments">0</dd></div>
                 </dl>
                 <p class="bank-warning">Při smrti ztratíš 5 % zlata, které máš u sebe. Zlato uložené v bance je v bezpečí.</p>
                 <p class="muted">Při smrti bys nyní ztratil: <strong data-bind="deathLoss">0</strong> gold.</p>

@@ -1306,3 +1306,8 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
   .collect-bar { grid-template-columns: 96px minmax(0, 1fr) auto; }
   .collect-toolbar select { width: 100%; }
 }
+
+/* UI ikony (zlato, banka, úlomky jádra) */
+.ui-icon { display: inline-block; width: 28px; height: 28px; flex: none; object-fit: contain; }
+.bank-card dt { display: flex; align-items: center; gap: 6px; }
+.bank-card dt .ui-icon { width: 24px; height: 24px; }

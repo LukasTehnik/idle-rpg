@@ -65,6 +65,8 @@ const initialState = () => ({
   // při migraci savu převádí do `carriedGold`.
   carriedGold: 0,
   bankGold: 0,
+  // Úlomky jádra: nová měna (zatím bez zdroje — zobrazuje se, ale nezískává se).
+  coreFragments: 0,
   elapsedSeconds: 0,
   inventory: [], // equipment only (capacity CONFIG.inventoryCapacity)
   // Prototype 0.5: kořist, která se nevešla do plného inventáře. Nikdy se tiše
@@ -463,7 +465,7 @@ function loadState() {
       ...fresh,
       level: saved.level ?? fresh.level, xp: saved.xp ?? fresh.xp,
       kills: saved.kills ?? fresh.kills, drops: saved.drops ?? fresh.drops,
-      carriedGold, bankGold: goldInt(saved.bankGold),
+      carriedGold, bankGold: goldInt(saved.bankGold), coreFragments: goldInt(saved.coreFragments),
       buyback: sanitizeBuyback(saved.buyback), lootRules: sanitizeLootRules(saved.lootRules), lootLog: sanitizeLootLog(saved.lootLog),
       stats, collection: saved.collection ? sanitizeCollection(saved.collection) : backfillCollection(owned),
       bestiary: saved.bestiary ? sanitizeBestiary(saved.bestiary) : backfillBestiary(saved, owned, materials, currentEnemyId, run),
@@ -481,7 +483,7 @@ function loadState() {
 function saveState() {
   const payload = {
     version: 3, level: state.level, xp: state.xp, kills: state.kills, drops: state.drops,
-    carriedGold: state.carriedGold, bankGold: state.bankGold, currentEnemyId: state.currentEnemyId,
+    carriedGold: state.carriedGold, bankGold: state.bankGold, coreFragments: state.coreFragments, currentEnemyId: state.currentEnemyId,
     buyback: state.buyback, lootRules: state.lootRules, lootLog: state.lootLog, stats: state.stats, collection: state.collection, bestiary: state.bestiary,
     activeLocationId: state.activeLocationId, run: state.run,
     elapsedSeconds: state.elapsedSeconds, inventory: state.inventory, equipment: state.equipment,
@@ -564,6 +566,7 @@ function render() {
   setText("drops", state.drops);
   setText("gold", fmtGold(state.carriedGold));
   setText("bankGold", fmtGold(state.bankGold));
+  setText("coreFragments", fmtGold(state.coreFragments));
   setText("totalGold", fmtGold(state.carriedGold + state.bankGold));
   setText("deathLoss", fmtGold(deathGoldLoss()));
   setText("runTime", formatTime(state.elapsedSeconds));
