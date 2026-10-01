@@ -1542,4 +1542,4 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 @media (prefers-reduced-motion: reduce) { .q-slot > .q-shine, .q-slot > .q-shine::before, .q-slot > .q-shine::after { animation: none; } .q-slot > .q-shine::after { opacity: 0; } }
 
 /* stín pod itemem: ikona opticky „vystupuje“ z rámečku (tvrdý pixelový stín + měkký kontaktní stín) */
-.q-slot { --q-lift: drop-shadow(0 2px 0 rgba(0, 0, 0, .6)) drop-shadow(0 4px 3px rgba(0, 0, 0, .55)); }
+.q-slot { --q-lift: drop-shadow(0 3px 0 rgba(0, 0, 0, .8)) drop-shadow(0 6px 4px rgba(0, 0, 0, .7)); }
