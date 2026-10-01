@@ -1512,27 +1512,31 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
    Samostatný element .q-shine nad ikonou, jen v tmavém okně rámečku; smazání = odstranit tento blok. */
 .q-shine { display: none; }
 .q-slot:not(.q-compact) > .q-shine {
-  display: block; position: absolute; z-index: 4; pointer-events: none; mix-blend-mode: screen;
+  display: block; position: absolute; z-index: 4; pointer-events: none; mix-blend-mode: screen; overflow: hidden;
   left: var(--fw-l); top: var(--fw-t); right: var(--fw-r); bottom: var(--fw-b);
   --shine-c: var(--q-aura); --shine-a: .5;
-  background:
-    radial-gradient(circle, var(--shine-c) 0 1px, transparent 1.5px) 0 0 / 11px 9px,
-    radial-gradient(circle, #fff 0 1px, transparent 1.5px) 5px 4px / 17px 13px,
-    radial-gradient(ellipse 60% 55% at 50% 50%, color-mix(in srgb, var(--shine-c) 55%, transparent) 0, transparent 100%);
+  background: radial-gradient(ellipse 60% 55% at 50% 50%, color-mix(in srgb, var(--shine-c) 40%, transparent) 0, transparent 100%);
   opacity: var(--shine-a);
-  animation: q-shine-pulse 2.4s steps(6, end) infinite, q-shine-twinkle 1.6s steps(4, end) infinite;
+  animation: q-shine-pulse 2.4s steps(6, end) infinite;
+}
+/* jiskry: dvě rozostřené, nepravidelně rozptýlené vrstvy (shluky), které se střídavě rozsvěcují */
+.q-slot:not(.q-compact) > .q-shine::before, .q-slot:not(.q-compact) > .q-shine::after {
+  position: absolute; inset: 0; content: ""; background: var(--shine-spark, var(--shine-c));
+  -webkit-mask: url(assets/frames/spark_a.png) center / 100% 100% no-repeat; mask: url(assets/frames/spark_a.png) center / 100% 100% no-repeat;
+  animation: q-spark-a 3.2s steps(8, end) infinite;
+}
+.q-slot:not(.q-compact) > .q-shine::after {
+  -webkit-mask-image: url(assets/frames/spark_b.png); mask-image: url(assets/frames/spark_b.png);
+  background: var(--shine-spark2, #fff); animation: q-spark-b 3.2s steps(8, end) infinite;
 }
 .q-stack:not(.q-compact) > .q-shine { --shine-a: .3; }
-.q-legendary > .q-shine { --shine-a: .38; }
-.q-mythic > .q-shine { --shine-a: .5; }
+.q-legendary > .q-shine { --shine-a: .65; }
+.q-mythic > .q-shine { --shine-a: .75; }
 .q-god > .q-shine {
-  --shine-a: .6;
-  background:
-    radial-gradient(circle, #16d9ca 0 1px, transparent 1.5px) 0 0 / 11px 9px,
-    radial-gradient(circle, #ff454f 0 1px, transparent 1.5px) 5px 4px / 13px 11px,
-    radial-gradient(circle, #fff 0 1px, transparent 1.5px) 2px 6px / 17px 13px,
-    linear-gradient(135deg, rgba(22, 217, 202, .45), rgba(210, 63, 181, .45) 50%, rgba(255, 69, 79, .45));
+  --shine-a: .85; --shine-spark: linear-gradient(135deg, #16d9ca, #d23fb5 55%, #ff454f); --shine-spark2: linear-gradient(45deg, #ff454f, #fff 50%, #16d9ca);
+  background: linear-gradient(135deg, rgba(22, 217, 202, .32), rgba(210, 63, 181, .32) 50%, rgba(255, 69, 79, .32));
 }
+@keyframes q-spark-a { 0%, 100% { opacity: .9; } 50% { opacity: .15; } }
+@keyframes q-spark-b { 0%, 100% { opacity: .15; } 50% { opacity: .9; } }
 @keyframes q-shine-pulse { 0%, 100% { opacity: calc(var(--shine-a) * .35); } 50% { opacity: var(--shine-a); } }
-@keyframes q-shine-twinkle { 0% { background-position: 0 0, 5px 4px, 2px 6px, 0 0; } 50% { background-position: 3px 2px, 8px 7px, 6px 1px, 0 0; } }
-@media (prefers-reduced-motion: reduce) { .q-slot > .q-shine { animation: none; opacity: calc(var(--shine-a) * .6); } }
+@media (prefers-reduced-motion: reduce) { .q-slot > .q-shine, .q-slot > .q-shine::before, .q-slot > .q-shine::after { animation: none; } .q-slot > .q-shine::after { opacity: 0; } }
