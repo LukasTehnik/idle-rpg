@@ -99,22 +99,6 @@ const ITEM_TEMPLATE_DEFS = [
     flavorText: "Malý přívěsek hřeje na dotek a jeho záře nikdy úplně nezhasne, ani ve tmě.",
   },
 
-  // Testovací kus (pixel-art styl): zatím jen v katalogu (QUALITY PREVIEW) a nepadá z žádného nepřítele.
-  {
-    name: "Vitrážový přívěsek", slot: "charm", icon: "stained-glass-pendant",
-    image: "assets/icons/items/stained-glass-pendant.png",
-    rolls: { critChance: [1, 2.4], maxHp: [6, 12] },
-    flavorText: "Střípky barevného skla uvězněné v pavučině zašlého zlata. Uprostřed se občas zablýskne.",
-  },
-
-  // Testovací křídla (pixel-art styl): zatím jen v katalogu a nepadají z žádného nepřítele.
-  {
-    name: "Vitrážová křídla", slot: "wings", icon: "stained-glass-wings", wingGlow: "none",
-    image: "assets/icons/items/stained-glass-wings.png",
-    rolls: { maxHp: [8, 14], critChance: [0.4, 1] },
-    flavorText: "Křídla ze střípků barevného skla ve zrezivělé pavučině kovu. Mezi střepy občas přeskočí blesk.",
-  },
-
   // "Chitinová" sada — kořist z lokace Pustina ticha (viz world-data.js pro
   // nepřátele/drop tabulky). Jde o BĚŽNOU kořist s vlastním artworkem, ne o
   // signature sadu jako andělské kusy výše: nemá vlastní glowColor (jejich
