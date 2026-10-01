@@ -85,6 +85,8 @@ function isMaxUpgraded(source) {
   return Number(source?.maxUpgradeLevel) > 0 && Number(source?.upgradeLevel) >= Number(source.maxUpgradeLevel);
 }
 
+const QUALITY_COMPACT_SELECTOR = ".recent-drop-icon, .loot-chip-icon, .map-loot-icon, .collection-icon, .merchant-icon";
+
 // Nastaví kvalitu na prvku, který představuje slot/ikonu. `source` = item (instance + šablona)
 // nebo { quality, stackable }. `surface:true` přidá třídu .q-slot (plné pozadí, rám, glow).
 function applyQualityVisuals(element, source, { surface = true } = {}) {
@@ -97,15 +99,10 @@ function applyQualityVisuals(element, source, { surface = true } = {}) {
   });
   if (surface) classes.push("q-slot");
   element.classList.add(...classes);
+  // Drobné ikony ve výpisech zůstávají ploché (rámeček s popiskem by tam nebyl čitelný).
+  if (surface && element.matches?.(QUALITY_COMPACT_SELECTOR)) element.classList.add("q-compact");
   element.dataset.quality = normalizeQuality(source?.quality, { stackable: source?.stackable === true });
-  element.querySelectorAll(":scope > .q-upg, :scope > .q-max-corners, :scope > .q-aura").forEach((node) => node.remove());
-  // Zář je samostatný element (ne pseudo-element), aby se nepřetloukl se značkami slotu.
-  if (surface && classes.some((name) => name.startsWith("q-glow-") || name === "q-wings-glow")) {
-    const aura = document.createElement("span");
-    aura.className = "q-aura";
-    aura.setAttribute("aria-hidden", "true");
-    element.append(aura);
-  }
+  element.querySelectorAll(":scope > .q-upg, :scope > .q-max-corners").forEach((node) => node.remove());
   const level = Math.floor(Number(source?.upgradeLevel) || 0);
   if (surface && (level > 0 || max)) {
     const mark = document.createElement("span");

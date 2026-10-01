@@ -1447,3 +1447,63 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 .catalog-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
 .catalog-tags span { padding: 1px 7px; border: 1px solid var(--color-border-strong); color: var(--color-text-secondary); font-family: var(--font-display); font-size: var(--fs-small); letter-spacing: .08em; text-transform: uppercase; }
 .catalog-desc { color: var(--color-text-secondary); font-size: var(--fs-small); line-height: 1.5; }
+
+/* ======================================================================
+   0.5.1 — OBRÁZKOVÉ RÁMEČKY ITEMŮ (assets/frames/item_frame_<quality>.png)
+   Rámeček = pozadí slotu (celý obrázek, vč. popisku kvality). Item leží v jeho tmavém
+   okně (--fw-* = odsazení okna v %), za itemem je barevná zář (radiální přechod
+   + drop-shadow na ikoně). Vše statické. Drobné ikony (.q-compact) zůstávají ploché.
+   ====================================================================== */
+.q-common    { --q-frame-url: url(assets/frames/item_frame_common.png);    --fw-l: 18%; --fw-r: 19%; --fw-t: 18%; --fw-b: 21%; --fw-cy: 49%; --q-glow-a: 22%; --q-glow-px: 3px; }
+.q-rare      { --q-frame-url: url(assets/frames/item_frame_rare.png);      --fw-l: 20%; --fw-r: 20%; --fw-t: 18%; --fw-b: 25%; --fw-cy: 47%; --q-glow-a: 30%; --q-glow-px: 4px; }
+.q-epic      { --q-frame-url: url(assets/frames/item_frame_epic.png);      --fw-l: 17%; --fw-r: 17%; --fw-t: 17%; --fw-b: 23%; --fw-cy: 47%; --q-glow-a: 34%; --q-glow-px: 4px; }
+.q-legendary { --q-frame-url: url(assets/frames/item_frame_legendary.png); --fw-l: 17%; --fw-r: 17%; --fw-t: 15%; --fw-b: 24%; --fw-cy: 46%; --q-glow-a: 44%; --q-glow-px: 5px; }
+.q-mythic    { --q-frame-url: url(assets/frames/item_frame_mythic.png);    --fw-l: 18%; --fw-r: 18%; --fw-t: 16%; --fw-b: 24%; --fw-cy: 46%; --q-glow-a: 50%; --q-glow-px: 5px; }
+.q-god       { --q-frame-url: url(assets/frames/item_frame_god.png);       --fw-l: 22%; --fw-r: 22%; --fw-t: 20%; --fw-b: 28%; --fw-cy: 43%; --q-glow-a: 55%; --q-glow-px: 6px; --q-aura: #ff7ad9; }
+.q-wings     { --q-frame-url: url(assets/frames/item_frame_wings.png);     --fw-l: 18%; --fw-r: 19%; --fw-t: 18%; --fw-b: 21%; --fw-cy: 49%; --q-glow-a: 40%; --q-glow-px: 4px; --q-aura: #ffd45d; }
+.q-stack { --q-glow-a: 18%; --q-glow-px: 2px; }
+.q-stack.q-legendary, .q-stack.q-mythic { --q-glow-a: 26%; --q-glow-px: 3px; }
+
+.q-slot.q-slot:not(.q-compact) {
+  box-sizing: border-box; border: 0; overflow: visible; box-shadow: none;
+  padding: 0;
+  background:
+    radial-gradient(ellipse 38% 36% at 50% var(--fw-cy), color-mix(in srgb, var(--q-aura) var(--q-glow-a), transparent) 0, transparent 100%),
+    var(--q-frame-url) center / 100% 100% no-repeat;
+  image-rendering: auto;
+}
+.q-slot.q-slot:not(.q-compact) img,
+.q-slot.q-slot:not(.q-compact) svg {
+  filter: drop-shadow(1px 0 0 rgba(8, 6, 4, .7)) drop-shadow(-1px 0 0 rgba(8, 6, 4, .7)) drop-shadow(0 0 var(--q-glow-px) color-mix(in srgb, var(--q-aura) 85%, transparent));
+}
+.q-slot.q-slot:not(.q-compact):hover { box-shadow: none; filter: brightness(1.12); }
+.q-slot.q-slot.selected:not(.q-compact) { outline-offset: 0; }
+.q-slot:not(.q-compact) .cell-icon, .cell-icon.q-slot { overflow: visible; }
+.q-slot:not(.q-compact) > img, .q-slot:not(.q-compact) > svg {
+  position: absolute; left: var(--fw-l); top: var(--fw-t); width: calc(100% - var(--fw-l) - var(--fw-r)); height: calc(100% - var(--fw-t) - var(--fw-b)); object-fit: contain;
+}
+.q-slot:not(.q-compact) .q-upg { right: 20%; bottom: 24%; }
+
+/* inventář: rámeček je jen čtvercová ikona, název leží pod ním */
+.inv-cell { aspect-ratio: auto; padding: 4px 4px 5px; border: 1px solid var(--color-border); gap: 2px; }
+.inv-cell .cell-icon { flex: none; width: 100%; aspect-ratio: 1; }
+.inv-cell .cell-name { height: 32px; color: var(--q-frame); }
+.inv-cell .cell-qty { top: 8px; bottom: auto; right: 9%; }
+.inv-cell .cell-flags { top: 8%; right: 12%; }
+.inv-cell::before { display: none; }
+/* drobné ikony ve výpisech: plochý styl (rámeček s popiskem by tam nebyl čitelný) */
+.drop-toast-icon.q-slot { width: 64px; height: 64px; }
+
+/* vybavení na postavě: rámeček přebíjí plochý styl .pd-slot.filled */
+.pd-slot.filled.q-slot:not(.q-compact), .pd-slot.filled.q-slot:not(.q-compact):hover {
+  border: 0; box-shadow: none;
+  background:
+    radial-gradient(ellipse 38% 36% at 50% var(--fw-cy), color-mix(in srgb, var(--q-aura) var(--q-glow-a), transparent) 0, transparent 100%),
+    var(--q-frame-url) center / 100% 100% no-repeat;
+}
+.pd-slot.filled.q-slot:not(.q-compact) .pd-type { display: none; }
+.pd-slot.filled.q-slot:not(.q-compact) .pd-icon { position: absolute; left: var(--fw-l); top: var(--fw-t); width: calc(100% - var(--fw-l) - var(--fw-r)); height: calc(100% - var(--fw-t) - var(--fw-b)); flex: none; overflow: visible; }
+.pd-slot.filled.q-slot:not(.q-compact) .pd-icon img { filter: drop-shadow(1px 0 0 rgba(8,6,4,.7)) drop-shadow(-1px 0 0 rgba(8,6,4,.7)) drop-shadow(0 0 var(--q-glow-px) color-mix(in srgb, var(--q-aura) 85%, transparent)); }
+.pd-slot.filled.q-slot:not(.q-compact)::before { display: none; }
+.pd-slot.selected.q-slot:not(.q-compact) { outline: 2px solid var(--color-accent-gold-light); outline-offset: -14%; }
+.catalog-icon.q-slot:not(.q-compact) { width: 150px; height: 150px; }

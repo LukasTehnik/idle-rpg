@@ -44,3 +44,7 @@ Neznámá quality, God u stackovatelných, chybějící šablona v drop tabulce,
 ## Testovací položky
 
 Zbraň `iron-sword` (Železný meč) ve všech 6 kvalitách; materiál `wing-dust` (Prach z křídel) v 5 kvalitách. Oba jsou v katalozích v sekci QUALITY PREVIEW.
+
+## Rámečky itemů (obrázky)
+
+Sloty používají obrázkové rámečky `assets/frames/item_frame_<quality>.png` (zmenšeno z originálů na 384 px; křídla: `item_frame_wings.png` — zlatý rám odvozený z common s popiskem WINGS). Rámeček je pozadí slotu, item leží v jeho tmavém okně (`--fw-*` v `styles.css`), za ním je statická barevná zář (radiální přechod + `drop-shadow`; slabší u stackovatelných). Drobné ikony (`.q-compact`, seznam v `QUALITY_COMPACT_SELECTOR` v `quality-data.js`) zůstávají ploché. Nový rámeček = přepsat PNG se stejným názvem a případně upravit `--fw-*` u dané kvality.

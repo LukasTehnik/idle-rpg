@@ -1226,7 +1226,7 @@ function renderInventory() {
     const cell = document.createElement("button");
     cell.type = "button";
     cell.className = "inv-cell";
-    applyQualityVisuals(cell, entry.visual);
+    applyQualityVisuals(cell, entry.visual, { surface: false });
     cell.dataset.key = entry.key;
     const marked = deleteMode && entry.kind === "item" && selectedForDeletion.has(entry.id);
     const selected = !deleteMode && entry.key === selectedKeyValue;
@@ -1245,6 +1245,7 @@ function renderInventory() {
     ].join("");
     cell.innerHTML = `<span class="cell-check" aria-hidden="true"></span><span class="cell-icon" aria-hidden="true"></span>${entry.kind === "material" ? `<span class="cell-qty">×${entry.qty}</span>` : (flags ? `<span class="cell-flags" aria-hidden="true">${flags}</span>` : "")}<span class="cell-name"></span>`;
     renderItemIcon(cell.querySelector(".cell-icon"), entry.iconSource);
+    applyQualityVisuals(cell.querySelector(".cell-icon"), entry.visual);
     cell.querySelector(".cell-name").textContent = entry.name;
     grid.append(cell);
   });
