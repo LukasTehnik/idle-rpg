@@ -2959,6 +2959,27 @@ function validateDropTables() {
 }
 validateDropTables();
 
+// Testovací sada do inventáře: otevři hru s `?testitems` (např. index.html?testitems#/inventar).
+// Přidá po 2 itemech od každé kvality + testovací křídla, uloží a parametr z adresy odstraní
+// (neopakuje se při dalším načtení). Jen pro ladění vzhledu; kvalita zatím nemění staty.
+function applyTestItems() {
+  if (!/[?&]testitems\b/.test(location.search)) return;
+  const enemy = getCurrentEnemy();
+  const withArt = ITEM_TEMPLATES.filter((t) => t.slot !== "wings" && t.image);
+  const picks = [];
+  QUALITY_IDS.forEach((quality, qi) => [0, 1].forEach((k) => picks.push({ templateId: withArt[(qi * 2 + k * 5) % withArt.length].templateId, quality })));
+  picks.push({ templateId: "pixel-glass-wings", quality: "legendary" }, { templateId: "pixel-glass-wings", quality: "mythic" }, { templateId: "moth-wings", quality: "epic" });
+  for (const fixed of picks) {
+    if (!findTemplateById(fixed.templateId) || state.inventory.length >= CONFIG.inventoryCapacity) continue;
+    const item = createItem(enemy, fixed);
+    recordItemAcquired(item);
+    state.inventory.unshift(item);
+  }
+  saveState();
+  history.replaceState(null, "", location.pathname + (location.hash || "#/inventar"));
+}
+applyTestItems();
+
 initCombatWidgets();
 applyCharacterPreview();
 populateTypeFilter();
