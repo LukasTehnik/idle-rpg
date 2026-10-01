@@ -99,14 +99,6 @@ const ITEM_TEMPLATE_DEFS = [
     flavorText: "Malý přívěsek hřeje na dotek a jeho záře nikdy úplně nezhasne, ani ve tmě.",
   },
 
-  // Testovací křídla (výrazně pixelový styl): zatím jen v katalogu a nepadají z žádného nepřítele.
-  {
-    name: "Pixelová vitrážová křídla", slot: "wings", icon: "pixel-glass-wings", wingGlow: "none",
-    image: "assets/icons/items/pixel-glass-wings.png",
-    rolls: { maxHp: [8, 14], critChance: [0.4, 1] },
-    flavorText: "Křídla z hrubých střepů barevného skla ve zrezivělé mříži.",
-  },
-
   // "Chitinová" sada — kořist z lokace Pustina ticha (viz world-data.js pro
   // nepřátele/drop tabulky). Jde o BĚŽNOU kořist s vlastním artworkem, ne o
   // signature sadu jako andělské kusy výše: nemá vlastní glowColor (jejich

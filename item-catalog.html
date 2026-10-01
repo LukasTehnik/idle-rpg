@@ -141,7 +141,7 @@
       const withRolls = (item) => ({ ...item, rolls: findTemplateById(item.templateId).rolls });
       const baseWeapon = ITEM_TEMPLATES.find((t) => t.slot === "weapon" && !t.image) ?? ITEM_TEMPLATES.find((t) => t.slot === "weapon");
       QUALITY_IDS.forEach((quality) => previewItems.push({ ...composeItem(baseWeapon.templateId, { quality }), previewKey: `weapon-${quality}` }));
-      const wingTemplate = ITEM_TEMPLATES.find((t) => t.templateId === "moth-wings");
+      const wingTemplate = ITEM_TEMPLATES.find((t) => t.slot === "wings");
       if (wingTemplate) {
         ["common", "legendary", "god"].forEach((quality) => previewItems.push({ ...composeItem(wingTemplate.templateId, { quality }), previewKey: `wings-${quality}` }));
         previewItems.push({ ...composeItem(wingTemplate.templateId, { quality: "mythic", wingGlow: "gold" }), previewKey: "wings-glow", name: `${wingTemplate.name} (wingGlow: gold)` });
@@ -152,7 +152,6 @@
         const t = mixTemplates[(qi * 3 + k) % mixTemplates.length];
         previewItems.push({ ...composeItem(t.templateId, { quality }), previewKey: `mix-${quality}-${k}` });
       }));
-      previewItems.push({ ...composeItem("pixel-glass-wings", { quality: "legendary" }), previewKey: "pwings-legendary" });
       previewItems.push({ ...composeItem(baseWeapon.templateId, { quality: "common", upgradeLevel: 10, maxUpgradeLevel: 10, isMaxUpgraded: true }), previewKey: "max-common", name: `${baseWeapon.name} (MAX)` });
       previewItems.push({ ...composeItem(baseWeapon.templateId, { quality: "epic", upgradeLevel: 4, maxUpgradeLevel: 10 }), previewKey: "plus-epic", name: `${baseWeapon.name} (+4)` });
       previewItems.forEach((item, i) => { previewItems[i] = withRolls(item); previewGrid.appendChild(buildCatalogCard(previewItems[i])); });
