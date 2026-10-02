@@ -19,10 +19,9 @@ const CLOUD_SESSION_KEY = "idle-rpg-cloud-session";
 const cloudSync = (() => {
   const params = new URLSearchParams(location.search);
   // Automatické testy (Playwright) a ?nocloud cloud nepoužívají.
-  const enabled = !params.has("nocloud") && (!navigator.webdriver || params.has("cloud"));
-  // Přihlašovací brána: vypnutá jen při lokálním vývoji (localhost) a v automatických testech.
-  const devHost = ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname);
-  const gated = !devHost && !(navigator.webdriver && !params.has("cloud"));
+  const enabled = !params.has("nocloud") && !params.has("nologin") && (!navigator.webdriver || params.has("cloud"));
+  // Přihlašovací brána: vypnutá jen v automatických testech a s ?nologin (vývoj bez cloudu).
+  const gated = !params.has("nologin") && !(navigator.webdriver && !params.has("cloud"));
   let session = null;
   let timer = null;
   let pending = null;
