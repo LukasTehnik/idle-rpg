@@ -10,3 +10,9 @@
 - Vypnutí: `?nocloud`. Automatické testy (webdriver) cloud nepoužívají, pokud není `?cloud`.
 - Reset hry smaže i cloudový řádek.
 - Omezení: skutečně soukromý hosting (přístup k souborům) vyžaduje ochranu na úrovni hostingu.
+
+## Hosting (Netlify)
+- Web: https://idle-rpg-lt7k2q.netlify.app (Netlify projekt `idle-rpg-lt7k2q`, repo `LukasTehnik/idle-rpg`, větev `main`, bez build příkazu, publikuje se kořen).
+- Každý push do `main` web automaticky přenasadí.
+- Projekt je v Netlify nastaven jako **Private** (zobrazí ho jen přihlášený majitel Netlify). Tlačítko „Make public“ nebylo použito.
+- Supabase Site URL je nastavená na adresu webu (odkazy z e-mailů už nevedou na localhost).
