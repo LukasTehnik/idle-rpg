@@ -1,6 +1,6 @@
-# Idle RPG — Prototype 0.6 (Stat & Affix Foundation)
+# Idle RPG — Prototype 0.7 (World & Location Expansion)
 
-Pátý hratelný prototyp prohlížečového idle RPG. Ověřuje otázku: **dává smysl smyčka boj → loot → porovnání → nasadit / nechat / prodat → zlato → farmení → sbírka?** **0.6** přidává registr statů, katalog 64 affixů (30 prefixů + 34 suffixů), svitky s jednotným vzhledem a dev nástroj `affix-catalog.html` — žádný affix zatím nepadá ve hře, viz [`docs/prototype-0.6.md`](docs/prototype-0.6.md). Podrobnosti o loot smyčce: [`docs/prototype-0.5.md`](docs/prototype-0.5.md). Historie: [`docs/prototype-0.4.md`](docs/prototype-0.4.md).
+Šestý hratelný prototyp prohlížečového idle RPG. **0.7** rozšiřuje svět o oblasti uvnitř lokací, hratelné Odpadkové hory, cílené farmení konkrétního nepřítele a sdílené craftingové materiály. Vybraný nepřítel se po porážce vrací na stejný spot. Pracovní balance je popsán v [`docs/balance-framework.md`](docs/balance-framework.md); rozsah verze v [`docs/prototype-0.7.md`](docs/prototype-0.7.md).
 
 ## Spuštění
 

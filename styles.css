@@ -647,6 +647,12 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
     linear-gradient(var(--color-border) 0 0) left 0 top 64% / 100% 2px no-repeat,
     linear-gradient(var(--color-bg-deep) 0 64%, #1d1710 64%);
 }
+.arena-fx { position: absolute; z-index: 5; inset: 0; overflow: hidden; pointer-events: none; }
+.combat-spark { position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; opacity: 0; background: var(--color-parchment-light); box-shadow: 4px 0 0 currentColor, 0 4px 0 currentColor; color: var(--color-parchment-light); animation: combat-spark 360ms steps(4, end) var(--spark-delay) forwards; }
+.combat-spark.enemy { left: 71%; color: var(--color-accent-gold-light); }
+.combat-spark.player { left: 29%; color: var(--color-health-light); }
+.combat-spark.critical { width: 6px; height: 6px; color: var(--color-accent-gold-light); }
+@keyframes combat-spark { 0% { opacity: 0; transform: translate(0, 0); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--spark-x), var(--spark-y)); } }
 .fighter { display: flex; min-width: 0; flex-direction: column; align-items: center; text-align: center; }
 .fighter-art { position: relative; display: grid; width: 220px; height: 230px; margin: 14px 0 10px; place-items: center; transition: 150ms ease; }
 .player-art { background: var(--character-art) center bottom / contain no-repeat; }
@@ -669,6 +675,10 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 @keyframes hit { 0%, 100% { transform: translateX(0); } 40% { transform: translateX(8px); filter: brightness(1.5); } }
 
 .encounter-message { min-height: 24px; margin-top: 16px; color: var(--color-text-primary); font-size: var(--fs-item); text-align: center; }
+.drop-toast--rare { overflow: hidden; }
+.drop-toast--rare::after { position: absolute; top: 6px; right: 8px; width: 18px; height: 18px; content: ""; opacity: .8; background: radial-gradient(circle, var(--q-frame, var(--color-accent-gold-light)) 0 2px, transparent 2.5px) 0 0 / 9px 9px; animation: rare-twinkle 900ms steps(2, end) infinite; pointer-events: none; }
+.drop-toast--premium::after { width: 28px; height: 28px; animation-duration: 620ms; }
+@keyframes rare-twinkle { 50% { opacity: .18; transform: translateY(2px); } }
 .controls { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
 .controls .btn-primary { flex: 1 1 260px; }
 .control-hint { margin: 10px 0 0; color: var(--color-text-muted); font-size: var(--fs-small); text-align: center; }
@@ -709,7 +719,7 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 /* ------------------------------------------------------------- toasty */
 .drop-toast-stack { position: fixed; right: 16px; bottom: 16px; z-index: 30; display: flex; width: min(340px, calc(100vw - 32px)); flex-direction: column-reverse; gap: 8px; pointer-events: none; }
 .drop-toast {
-  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+  position: relative; display: flex; align-items: center; gap: 12px; padding: 10px 12px;
   border: 1px solid var(--color-border-strong); border-left: 4px solid var(--q-frame, var(--quality-common-frame)); background: var(--color-surface-3);
   box-shadow: inset 0 0 0 1px var(--color-surface-1), var(--shadow-hard);
   opacity: 0; transform: translateX(8px); transition: opacity 120ms linear, transform 120ms linear;
@@ -980,6 +990,9 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 .ld-enemy-copy strong { overflow: hidden; font-family: var(--font-display); font-size: var(--fs-item); text-overflow: ellipsis; white-space: nowrap; }
 .ld-enemy-copy span { color: var(--color-accent-gold); font-family: var(--font-display); font-size: var(--fs-small); letter-spacing: .06em; text-transform: uppercase; }
 .ld-pick { align-self: center; min-height: 44px; }
+.ld-area-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px dashed var(--color-border); color: var(--color-accent-gold-light); font-family: var(--font-display); font-size: var(--fs-small); letter-spacing: .07em; text-transform: uppercase; }
+.ld-area-head .btn { flex: none; }
+.ld-areas .ld-enemy-copy span { max-width: 38rem; overflow: visible; white-space: normal; line-height: 1.45; }
 .ld-target-tag { align-self: center; border-color: var(--color-accent-gold); color: var(--color-accent-gold-light); }
 .ld-group { margin: 6px 0 0; padding-bottom: 4px; border-bottom: 1px dashed var(--color-border); color: var(--color-text-secondary); font-size: var(--fs-small); letter-spacing: .1em; text-transform: uppercase; }
 .ld-loot { margin: 0; padding: 0; list-style: none; }

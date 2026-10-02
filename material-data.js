@@ -21,6 +21,71 @@
 // proti drop tabulkám (viz validateMaterialSources v app.js). Do budoucna
 // (crafting) slouží materiály jako vstupy receptů přes stabilní `id`.
 
+// Prototype 0.7: obecné craftingové materiály. Asset nemá v názvu quality —
+// common/rare/epic… je vlastnost konkrétního stacku, nikoliv samostatný item.
+// Většina je zatím pouze v katalogu a čeká na budoucí crafting/recepty. Materiály
+// s uvedeným zdrojem jsou zapojené do cíleného farmení Odpadkových hor.
+const GLOBAL_MATERIAL_META = Object.freeze([
+  ["agate", "Agate", "common", "Layered stone used for simple inlays."],
+  ["amber", "Amber", "rare", "Hardened resin with something trapped inside."],
+  ["amethyst", "Amethyst", "rare", "A violet crystal cut for later enchantment work."],
+  ["binding-glue", "Binding Glue", "common", "Industrial adhesive scraped from old packaging."],
+  ["bone", "Bone", "common", "Clean, dense bone suitable for handles and charms."],
+  ["chitin-plate", "Chitin Plate", "common", "A broad armored plate from a hardened shell."],
+  ["chitin-shard", "Chitin Shard", "common", "A sharp broken piece of chitin."],
+  ["cloth-padding", "Cloth Padding", "common", "Compressed layers used beneath armor."],
+  ["coal", "Coal", "common", "Dry black fuel for a future forge."],
+  ["copper-ingot", "Copper Ingot", "common", "A soft metal bar with many practical uses."],
+  ["copper-wire", "Copper Wire", "common", "Coiled conductive wire, still flexible."],
+  ["cyan-crystal-dust", "Cyan Crystal Dust", "rare", "Fine blue crystal powder."],
+  ["dark-leather", "Dark Leather", "common", "Treated leather resistant to dirt and heat."],
+  ["dark-log", "Dark Log", "common", "Heavy timber darkened from the inside."],
+  ["diamond", "Diamond", "epic", "A hard clear stone reserved for exceptional work."],
+  ["emerald", "Emerald", "rare", "A vivid green gemstone with deep internal fractures."],
+  ["garnet", "Garnet", "rare", "A dark red stone with a warm glow."],
+  ["iron-ingot", "Iron Ingot", "common", "A reliable bar of worked iron."],
+  ["iron-ore", "Iron Ore", "common", "Unrefined ore carrying usable iron."],
+  ["iron-plate", "Iron Plate", "common", "A flat plate for armor repairs and fittings."],
+  ["iron-rivets", "Iron Rivets", "common", "A small bundle of heavy rivets."],
+  ["jade", "Jade", "rare", "A smooth green stone used in precise ornament work."],
+  ["leather-padding", "Leather Padding", "common", "Dense leather layers for durable protection."],
+  ["leather-roll", "Leather Roll", "common", "A roll of usable leather."],
+  ["light-log", "Light Log", "common", "Dry pale timber, easy to shape."],
+  ["linen-cloth", "Linen Cloth", "common", "Plain woven cloth for bandages and linings."],
+  ["metal-buckle", "Metal Buckle", "common", "A salvageable fastening from old equipment."],
+  ["obsidian", "Obsidian", "rare", "Volcanic glass with an edge like a blade."],
+  ["onyx", "Onyx", "rare", "A black polished stone with quiet depth."],
+  ["opal", "Opal", "rare", "A milky gem that shifts color in the light."],
+  ["pearl", "Pearl", "rare", "A pale sphere with a soft inner shine."],
+  ["polishing-compound", "Polishing Compound", "common", "A gritty paste used to finish metal and glass."],
+  ["quartz", "Quartz", "common", "A clear crystal for basic sockets and reagents."],
+  ["raw-hide", "Raw Hide", "common", "Untreated hide awaiting preparation."],
+  ["rope", "Rope", "common", "A strong coil of braided rope."],
+  ["ruby", "Ruby", "rare", "A deep red gemstone used in high-value craft."],
+  ["sapphire", "Sapphire", "rare", "A blue gemstone with a cold clear core."],
+  ["sharpening-stone", "Sharpening Stone", "common", "A rough stone that restores a cutting edge."],
+  ["silver-ingot", "Silver Ingot", "rare", "A bright metal bar for fine work."],
+  ["sinew", "Sinew", "common", "Strong dried tendon for bindings."],
+  ["steel-chain", "Steel Chain", "rare", "Interlocking steel links that survived the scrap heap."],
+  ["steel-ingot", "Steel Ingot", "common", "A refined bar ready for forging."],
+  ["steel-plate", "Steel Plate", "common", "A hardened plate for serious armor work."],
+  ["thread-spool", "Thread Spool", "common", "A weathered spool of durable thread."],
+  ["topaz", "Topaz", "rare", "A warm golden gemstone."],
+  ["wooden-handle", "Wooden Handle", "common", "A shaped handle awaiting a tool head."],
+]);
+
+const GLOBAL_MATERIAL_SOURCES = Object.freeze({
+  "cloth-padding": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e01"] },
+  "thread-spool": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e01"] },
+  "binding-glue": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e01"] },
+  "leather-padding": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e02"] },
+  "metal-buckle": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e02"] },
+  "sharpening-stone": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e02"] },
+  "iron-rivets": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e03"] },
+  "steel-chain": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e03"] },
+  "polishing-compound": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e03"] },
+});
+
 const MATERIALS = Object.freeze({
   "wing-dust": {
     id: "wing-dust", name: "Prach z křídel", asset: "assets/materials/wing-dust.png",
@@ -124,6 +189,15 @@ const MATERIALS = Object.freeze({
     sourceLocationId: "elektrika", sourceEnemyIds: ["elektrika-e05"],
     description: "Pevné vlákno z útrob Matky jádra.",
   },
+  ...Object.fromEntries(GLOBAL_MATERIAL_META.map(([id, name, defaultQuality, description]) => {
+    const source = GLOBAL_MATERIAL_SOURCES[id] ?? { locationId: null, enemyIds: [] };
+    return [id, Object.freeze({
+      id, name, asset: `assets/materials/global/global_material_${id.replaceAll("-", "_")}.png`,
+      defaultQuality, category: "material", stackable: true, tradeable: true,
+      sourceLocationId: source.locationId, sourceEnemyIds: source.enemyIds,
+      description,
+    })];
+  })),
 });
 
 const MATERIAL_CATEGORY_LABELS = Object.freeze({
@@ -138,6 +212,7 @@ const MATERIAL_ORDER = Object.freeze([
   "human-memory-fragment", "mother-eye", "scroll-of-oblivion",
   "ember-coal", "slag-chunk", "scorched-cloth-bundle", "magma-crystal", "furnace-core",
   "cracked-crt-membrane", "nerve-cable-bundle", "overgrown-data-chip", "bile-capacitor", "kernel-fiber",
+  ...GLOBAL_MATERIAL_META.map(([id]) => id),
 ]);
 
 // Historické/generické ikony materiálů (Prototype 0.3 měl jen stackovací

@@ -133,7 +133,7 @@ function setBar(name, percent) {
 
 const ELEMENT_IDS = [
   "sidebar", "sidebarBackdrop", "menuButton", "pageTitle", "main",
-  "arena", "enemyPortrait", "goblinFigure", "enemyImage", "enemyLevel", "currentLocationName", "encounterMessage",
+  "arena", "arenaFx", "enemyPortrait", "goblinFigure", "enemyImage", "enemyLevel", "currentLocationName", "encounterMessage",
   "fightButton", "fightButtonText", "fightButtonIcon", "resetButton", "clearLogButton", "combatLog",
   "recentDropsList", "dropToastStack", "equipmentOverview",
   "inventoryGrid", "inventoryEmpty", "inventoryEmptyTitle", "inventoryEmptyText", "inventoryCount", "inventoryCapacity", "equippedCount",
@@ -178,6 +178,7 @@ const ui = {
   tab: "all", // all | equipment | materials | scrolls
   search: "", type: "all", quality: "all", flag: "all", origin: "all", sort: "newest",
   selectedMapLocationId: null, // jen náhled na mapě; aktivní lokace je state.activeLocationId
+  selectedMapAreaId: null, // filtr oblasti v detailu mapy; nikdy se neukládá do savu
   locTab: "info", // info | enemies | loot
   highlightEnemyId: null,
   merchantSelected: new Set(), // výběr na stránce Obchodník (jen UI, neukládá se)
@@ -690,6 +691,19 @@ function animateHit(target) {
   window.setTimeout(() => elements.arena.classList.remove(className), 260);
 }
 
+function spawnCombatBurst(target, critical = false) {
+  const count = critical ? 8 : 5;
+  for (let index = 0; index < count; index += 1) {
+    const spark = document.createElement("i");
+    spark.className = `combat-spark ${target}${critical ? " critical" : ""}`;
+    spark.style.setProperty("--spark-x", `${(Math.random() - 0.5) * 62}px`);
+    spark.style.setProperty("--spark-y", `${-12 - Math.random() * 44}px`);
+    spark.style.setProperty("--spark-delay", `${index * 18}ms`);
+    elements.arenaFx.append(spark);
+    spark.addEventListener("animationend", () => spark.remove(), { once: true });
+  }
+}
+
 // Refreshes every bit of UI that names/shows the currently selected enemy:
 // the arena heading, its portrait (raster image for the new location
 // enemies, or the original hand-drawn figure for Goblin), the location
@@ -700,7 +714,8 @@ function updateArenaHeader() {
   const location = LOCATIONS[enemyCfg.locationId];
   setText("enemyName", enemyCfg.name);
   elements.enemyLevel.textContent = `Úroveň ${enemyCfg.level}${enemyCfg.type ? ` · ${ENEMY_TYPE_LABELS[enemyCfg.type] ?? ""}` : ""}`;
-  elements.currentLocationName.textContent = (location?.name ?? "").toUpperCase();
+  const area = getAreaByEnemyId(enemyCfg.id);
+  elements.currentLocationName.textContent = `${location?.name ?? ""}${area ? ` · ${area.name}` : ""}`.toUpperCase();
   elements.enemyPortrait.setAttribute("aria-label", enemyCfg.name);
   if (enemyCfg.image) {
     elements.enemyImage.src = enemyCfg.image;
@@ -738,6 +753,7 @@ function playerAttack() {
   state.enemy.hp = Math.max(0, state.enemy.hp - damage);
   addLog(critical ? `Kritický zásah! Poutník zasáhl nepřítele (${enemyCfg.name}) za ${damage}.` : `Poutník zasáhl nepřítele (${enemyCfg.name}) za ${damage}.`, critical ? "critical" : "player");
   animateHit("enemy");
+  spawnCombatBurst("enemy", critical);
   if (state.enemy.hp <= 0) defeatEnemy();
 }
 
@@ -747,6 +763,7 @@ function enemyAttack() {
   state.player.hp = Math.max(0, state.player.hp - damage);
   addLog(`${enemyCfg.name} zasáhl Poutníka za ${damage}.`, "enemy");
   animateHit("player");
+  spawnCombatBurst("player");
   if (state.player.hp <= 0) defeatPlayer();
 }
 
@@ -763,8 +780,9 @@ function defeatEnemy() {
   state.run.xpEarned += enemyCfg.xp;
   state.run.goldEarned += enemyCfg.gold ?? 0;
   state.phase = "searching";
-  state.phaseEndsAt = performance.now() + CONFIG.enemyRespawnMs;
-  elements.encounterMessage.textContent = `Hledám dalšího nepřítele (${enemyCfg.name})… 3 s`;
+  const searchMs = enemySearchMs(enemyCfg);
+  state.phaseEndsAt = performance.now() + searchMs;
+  elements.encounterMessage.textContent = `Hledám další výskyt: ${enemyCfg.name}… ${Math.ceil(searchMs / 1000)} s`;
   addLog(`${enemyCfg.name} padl. Získáváš ${enemyCfg.xp} XP a ${enemyCfg.gold ?? 0} gold.`, "victory");
   applyLevelUps();
   const stats = getPlayerStats();
@@ -996,7 +1014,7 @@ function statSummary(item) { return statRows(item).map(([label, value]) => `${la
 // or log panel (see .drop-toast-stack / .drop-toast in styles.css).
 function showDropToast(item, note = null) {
   const toast = document.createElement("div");
-  toast.className = "drop-toast";
+  toast.className = `drop-toast${qualityRank(item.quality) >= 1 ? " drop-toast--rare" : ""}${qualityRank(item.quality) >= 3 ? " drop-toast--premium" : ""}`;
   const visual = itemVisual(item);
   applyQualityVisuals(toast, visual, { surface: false });
   toast.innerHTML = `<span class="drop-toast-icon" aria-hidden="true"></span><div class="drop-toast-copy"><strong></strong><span></span></div>`;
@@ -1014,7 +1032,7 @@ function showDropToast(item, note = null) {
 // Toast for a material/scroll drop: "Získáno: Prach z křídel ×2".
 function showMaterialToast(material, quantity, total, quality) {
   const toast = document.createElement("div");
-  toast.className = "drop-toast";
+  toast.className = `drop-toast${qualityRank(quality) >= 1 ? " drop-toast--rare" : ""}${qualityRank(quality) >= 3 ? " drop-toast--premium" : ""}`;
   const visual = materialVisual(quality);
   applyQualityVisuals(toast, visual, { surface: false });
   toast.innerHTML = `<span class="drop-toast-icon" aria-hidden="true"></span><div class="drop-toast-copy"><strong></strong><span></span></div>`;
@@ -1766,7 +1784,7 @@ function setInventoryTab(tab) {
 function updateCountdown(now) {
   const secondsLeft = Math.max(0, Math.ceil((state.phaseEndsAt - now) / 1000));
   if (state.phase === "searching") {
-    elements.encounterMessage.textContent = `Hledám dalšího nepřítele (${getCurrentEnemy().name})… ${secondsLeft} s`;
+    elements.encounterMessage.textContent = `Hledám další výskyt: ${getCurrentEnemy().name}… ${secondsLeft} s`;
     if (now >= state.phaseEndsAt) beginFight(now);
   } else if (state.phase === "dead") {
     elements.encounterMessage.textContent = `Návrat k výpravě za ${secondsLeft} s`;
@@ -2315,7 +2333,7 @@ function bankTransfer(direction, all = false) {
 // jediná, takže tu nevzniká žádný další interval.
 
 const mqLocSheet = window.matchMedia("(max-width: 1099px)");
-const LOC_TABS = Object.freeze([["info", "Informace"], ["enemies", "Nepřátelé"], ["loot", "Kořist"]]);
+const LOC_TABS = Object.freeze([["info", "Informace"], ["areas", "Oblasti"], ["enemies", "Nepřátelé"], ["loot", "Kořist"]]);
 let mapStageReady = false;
 let pendingEnterId = null;
 
@@ -2412,7 +2430,17 @@ function renderMapPage() {
   }
 }
 
-function getLocationEnemies(location) { return location.enemyIds.map((id) => ENEMIES[id]).filter(Boolean); }
+function getLocationEnemies(location, areaId = null) {
+  const ids = areaId && AREAS[areaId]?.locationId === location.id ? AREAS[areaId].enemyIds : location.enemyIds;
+  return ids.map((id) => ENEMIES[id]).filter(Boolean);
+}
+function selectedAreaForLocation(location) {
+  const areas = getAreasForLocation(location.id);
+  const selected = AREAS[ui.selectedMapAreaId];
+  if (selected?.locationId === location.id) return selected;
+  const active = getAreaByEnemyId(state.run.targetEnemyId);
+  return active?.locationId === location.id ? active : areas[0] ?? null;
+}
 
 // Kořist lokace rozdělená do skupin. Bez procent a vah -- jen co v lokaci padat může.
 function getLocationLootGroups(location) {
@@ -2459,6 +2487,7 @@ function renderInfoPanel(location, isActive) {
   list.append(
     kvRow("Doporučený level", String(location.recommendedLevel)),
     kvRow("Stav", locationStatusText(location)),
+    kvRow("Oblasti", String(location.areaIds.length)),
     kvRow("Nepřátelé", String(enemies.length)),
   );
   if (bosses.length) list.append(kvRow(bosses.length > 1 ? "Bossové" : "Boss", bosses.join(", ")));
@@ -2469,12 +2498,30 @@ function renderInfoPanel(location, isActive) {
   ];
 }
 
+function renderAreasPanel(location, isActive) {
+  const areas = getAreasForLocation(location.id);
+  if (!areas.length) return [mk("p", { class: "ld-hint", text: "Oblasti lokace zatím nejsou definované." })];
+  const activeAreaId = getAreaByEnemyId(state.run.targetEnemyId)?.id;
+  const list = mk("ul", { class: "ld-enemies ld-areas" });
+  areas.forEach((area) => {
+    const row = mk("li", { class: "ld-enemy-row" });
+    row.append(mk("span", { class: "ld-enemy-copy" },
+      mk("strong", { text: area.name }),
+      mk("span", { text: `${area.shortDescription} · ${area.enemyIds.length} ${pluralizeNepritel(area.enemyIds.length)}` })));
+    if (isActive && activeAreaId === area.id) row.append(mk("span", { class: "tag ld-target-tag", text: "AKTIVNÍ OBLAST" }));
+    row.append(mk("button", { class: "btn ld-area", type: "button", "data-area-id": area.id, text: "Zobrazit nepřátele" }));
+    list.append(row);
+  });
+  return [mk("p", { class: "ld-hint", text: "Vyber oblast a potom konkrétního nepřítele. Vybraný cíl se po porážce vždy vrací na stejný spot." }), list];
+}
+
 function renderEnemiesPanel(location, isActive) {
-  const enemies = getLocationEnemies(location);
+  const area = selectedAreaForLocation(location);
+  const enemies = getLocationEnemies(location, area?.id);
   const canPick = isActive && canEnterLocation(location);
-  const nodes = [];
+  const nodes = [area ? mk("div", { class: "ld-area-head" }, mk("strong", { text: area.name }), mk("button", { class: "btn ld-area-back", type: "button", "data-tab": "areas", text: "Změnit oblast" })) : null].filter(Boolean);
   if (canPick && !state.run.targetEnemyId) nodes.push(mk("p", { class: "ld-banner", text: "VYBER NEPŘÍTELE — automatický boj začne až po výběru cíle." }));
-  else if (canPick) nodes.push(mk("p", { class: "ld-hint", text: "Výběrem jiného nepřítele začneš nové farmení." }));
+  else if (canPick) nodes.push(mk("p", { class: "ld-hint", text: "Výběrem jiného nepřítele začneš nové farmení. Cíl se nebude náhodně střídat." }));
   else if (canEnterLocation(location)) nodes.push(mk("p", { class: "ld-hint", text: "Nepřítele si vybereš po vstupu do lokace." }));
   if (!enemies.length) { nodes.push(mk("p", { class: "ld-hint", text: "V lokaci zatím nejsou žádní nepřátelé." })); return nodes; }
   const list = mk("ul", { class: "ld-enemies" });
@@ -2560,7 +2607,8 @@ function renderLocationDetail() {
       "aria-selected": String(ui.locTab === key), "aria-controls": "ld-tabpanel", tabindex: ui.locTab === key ? "0" : "-1", text: label,
     }));
   });
-  const panelNodes = ui.locTab === "enemies" ? renderEnemiesPanel(location, isActive)
+  const panelNodes = ui.locTab === "areas" ? renderAreasPanel(location, isActive)
+    : ui.locTab === "enemies" ? renderEnemiesPanel(location, isActive)
     : ui.locTab === "loot" ? renderLootPanel(location) : renderInfoPanel(location, isActive);
   const panel = mk("div", { class: "ld-tabpanel", role: "tabpanel", id: "ld-tabpanel", "aria-labelledby": `ld-tab-${ui.locTab}`, tabindex: "0" }, ...panelNodes);
   const footer = mk("div", { class: "ld-footer" });
@@ -2590,7 +2638,10 @@ function selectMapLocation(locationId, { moveFocus = true } = {}) {
   if (!LOCATIONS[locationId]) return;
   const changed = ui.selectedMapLocationId !== locationId;
   ui.selectedMapLocationId = locationId;
-  if (changed) { ui.locTab = "info"; ui.highlightEnemyId = null; }
+  if (changed) {
+    ui.locTab = "info"; ui.highlightEnemyId = null;
+    ui.selectedMapAreaId = selectedAreaForLocation(LOCATIONS[locationId])?.id ?? null;
+  }
   hideMapTooltip();
   updateMapPins();
   renderLocationDetail();
@@ -2614,9 +2665,19 @@ function setLocationTab(tab, { focusTab = true } = {}) {
   if (focusTab) $(`#ld-tab-${tab}`, elements.locDetail)?.focus({ preventScroll: true });
 }
 
+function selectMapArea(areaId) {
+  const area = AREAS[areaId];
+  if (!area || area.locationId !== ui.selectedMapLocationId) return;
+  ui.selectedMapAreaId = areaId;
+  ui.highlightEnemyId = null;
+  ui.locTab = "enemies";
+  renderLocationDetail();
+}
+
 // Otevře výběr nepřítele v aktivní lokaci (např. tlačítko Boj bez cíle).
 function openEnemyPicker() {
   ui.selectedMapLocationId = state.activeLocationId;
+  ui.selectedMapAreaId = getAreaByEnemyId(state.run.targetEnemyId)?.id ?? getAreasForLocation(state.activeLocationId)[0]?.id ?? null;
   ui.locTab = "enemies";
   navigate("mapa");
   if (ui.page === "mapa") renderMapPage();
@@ -2656,6 +2717,7 @@ function enterLocation(locationId) {
   elements.encounterMessage.textContent = "Vyber nepřítele v nové lokaci";
   addLog(`Vstoupil jsi do lokace: ${location.name}. Předchozí farmení skončilo, vyber nepřítele.`, "system");
   ui.selectedMapLocationId = locationId;
+  ui.selectedMapAreaId = getAreasForLocation(locationId)[0]?.id ?? null;
   ui.locTab = "enemies";
   ui.highlightEnemyId = null;
   updateArenaHeader();
@@ -2674,6 +2736,7 @@ function chooseTarget(enemyId) {
   state.currentEnemyId = enemyId;
   state.enemy = { hp: enemyCfg.maxHp, maxHp: enemyCfg.maxHp };
   state.run = createRun(enemyId);
+  ui.selectedMapAreaId = getAreaByEnemyId(enemyId)?.id ?? null;
   state.running = true;
   updateArenaHeader();
   addLog(`Cíl farmení nastaven na: ${enemyCfg.name}.`, "system");
@@ -2717,7 +2780,7 @@ function combatWidgetView() {
   if (!enemyCfg) return { mode: "none", status: "ŽÁDNÝ AKTIVNÍ BOJ", short: "ŽÁDNÝ AKTIVNÍ BOJ" };
   const now = performance.now();
   const searching = state.phase === "searching" || state.phase === "dead";
-  const total = state.phase === "dead" ? CONFIG.playerRespawnMs : CONFIG.enemyRespawnMs;
+  const total = state.phase === "dead" ? CONFIG.playerRespawnMs : enemySearchMs(enemyCfg);
   const reference = state.running ? now : (state.pausedAt ?? now);
   const msLeft = Math.max(0, state.phaseEndsAt - reference);
   const secondsLeft = Math.ceil(msLeft / 1000);
@@ -2970,6 +3033,8 @@ elements.locDetail.addEventListener("click", (event) => {
   if (event.target.closest(".ld-close")) { closeLocationDetail(); return; }
   const tab = event.target.closest("[role=tab][data-tab]");
   if (tab) { setLocationTab(tab.dataset.tab); return; }
+  const area = event.target.closest(".ld-area[data-area-id]");
+  if (area) { selectMapArea(area.dataset.areaId); return; }
   const pick = event.target.closest(".ld-pick[data-enemy-id]");
   if (pick) { chooseTarget(pick.dataset.enemyId); return; }
   const enemy = event.target.closest(".ld-enemy[data-enemy-id]");

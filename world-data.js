@@ -91,7 +91,7 @@ const LOCATION_DEFS = [
     recommendedLevel: 8,
     backgroundAsset: "assets/backgrounds/odpadkove-hory.webp",
     shortDescription: "Nekonečné haldy odpadu, ve kterých se něco hýbe.",
-    status: "preview", // má nepřátele, ale zatím žádnou kořist -- po doplnění drop tabulek přepnout na "available"
+    status: "available",
     enemyIds: ["odpadky-e01", "odpadky-e02", "odpadky-e03"],
     itemIds: [],
   },
@@ -246,21 +246,36 @@ const ENEMIES = Object.freeze({
     image: "assets/icons/enemies/odpadkove-hory-e01-odpadkovy-duch.png",
     maxHp: 184, minDamage: 17, maxDamage: 28, defense: 8, xp: 68, gold: 18,
     dropChance: 0, dropPool: [],
-    materialDrops: [],
+    // Primární cílený spot: textilie a pojiva pro budoucí crafting.
+    materialDrops: [
+      { templateId: "cloth-padding", quality: "common", chance: 0.65, quantity: [1, 2], tier: "common" },
+      { templateId: "thread-spool", quality: "common", chance: 0.28, quantity: [1, 1], tier: "uncommon" },
+      { templateId: "binding-glue", quality: "rare", chance: 0.05, quantity: [1, 1], tier: "rare" },
+    ],
   },
   "odpadky-e02": {
     id: "odpadky-e02", locationId: "odpadkove-hory", name: "Sběračský krtek", level: 9, type: "uncommon",
     image: "assets/icons/enemies/odpadkove-hory-e02-sberacsky-krtek.png",
     maxHp: 207, minDamage: 19, maxDamage: 32, defense: 9, xp: 76, gold: 21,
     dropChance: 0, dropPool: [],
-    materialDrops: [],
+    // Primární cílený spot: kůže a spojovací komponenty.
+    materialDrops: [
+      { templateId: "leather-padding", quality: "common", chance: 0.58, quantity: [1, 2], tier: "common" },
+      { templateId: "metal-buckle", quality: "common", chance: 0.35, quantity: [1, 1], tier: "uncommon" },
+      { templateId: "sharpening-stone", quality: "rare", chance: 0.08, quantity: [1, 1], tier: "rare" },
+    ],
   },
   "odpadky-e03": {
     id: "odpadky-e03", locationId: "odpadkove-hory", name: "Vězeň v kleci", level: 10, type: "rare",
     image: "assets/icons/enemies/odpadkove-hory-e03-vezen-v-kleci.png",
     maxHp: 230, minDamage: 21, maxDamage: 35, defense: 10, xp: 85, gold: 23,
     dropChance: 0, dropPool: [],
-    materialDrops: [],
+    // Primární cílený spot: kovové komponenty pro zbraně a zbroj.
+    materialDrops: [
+      { templateId: "iron-rivets", quality: "common", chance: 0.52, quantity: [1, 2], tier: "common" },
+      { templateId: "steel-chain", quality: "rare", chance: 0.22, quantity: [1, 1], tier: "uncommon" },
+      { templateId: "polishing-compound", quality: "rare", chance: 0.09, quantity: [1, 1], tier: "rare" },
+    ],
   },
   "magma-e01": {
     id: "magma-e01", locationId: "magma", name: "Uhelný lezec", level: 12, type: "common",
@@ -373,6 +388,30 @@ const ENEMIES = Object.freeze({
   },
 });
 
+// Prototype 0.7: oblast je lehká datová vrstva mezi lokací a nepřítelem.
+// Nepřítel zůstává jedním konkrétním cílem farmení; area pouze zpřehledňuje
+// mapu a obsah. Všechny oblasti jsou nyní dostupné, bez odemykání a poplatků.
+const AREA_DEFS = [
+  { id: "forest-edge", locationId: "okraj-stareho-lesa", name: "Okraj lesa", shortDescription: "První bezpečný spot u hranice lesa.", enemyIds: ["goblin"], order: 1 },
+  { id: "dust-flats", locationId: "pustina-ticha", name: "Prašná pláň", shortDescription: "Mělké díry a prach, odkud vylétávají první můry.", enemyIds: ["e01", "e02"], order: 1 },
+  { id: "burrow-fields", locationId: "pustina-ticha", name: "Pole děr", shortDescription: "Hustá síť nor pod rozpukanou zemí.", enemyIds: ["e03", "e04"], order: 2 },
+  { id: "deep-hollows", locationId: "pustina-ticha", name: "Hluboké dutiny", shortDescription: "Nejtišší část pustiny, kde hnízdo hlídá Matka děr.", enemyIds: ["e05", "e06"], order: 3 },
+  { id: "rag-slopes", locationId: "odpadkove-hory", name: "Svahy hadrů", shortDescription: "Mokré vrstvy oblečení, které se občas samy pohnou.", enemyIds: ["odpadky-e01"], order: 1 },
+  { id: "salvager-pits", locationId: "odpadkove-hory", name: "Sběračské jámy", shortDescription: "Propadlé kapsy odpadu, ve kterých sběrači hledají kov a kůži.", enemyIds: ["odpadky-e02"], order: 2 },
+  { id: "cage-run", locationId: "odpadkove-hory", name: "Klecová stezka", shortDescription: "Úzký koridor mezi haldami, kde se kutálí rezavé klece.", enemyIds: ["odpadky-e03"], order: 3 },
+  { id: "church-of-embers", locationId: "magma", name: "Kostel žhavení", shortDescription: "Zčernalá svatyně u prvních proudů žhavého uhlí.", enemyIds: ["magma-e01", "magma-e02"], order: 1 },
+  { id: "the-chasm", locationId: "magma", name: "Propast", shortDescription: "Šachta plná kouře, strusky a vzdáleného zvonění.", enemyIds: ["magma-e03", "magma-e04"], order: 2 },
+  { id: "fire-mountain", locationId: "magma", name: "Ohnivá hora", shortDescription: "Vrchol zhroucené výhně, v jejímž středu hoří srdce komplexu.", enemyIds: ["magma-e05"], order: 3 },
+  { id: "scrap-relay", locationId: "elektrika", name: "Sběrný relay", shortDescription: "Zasunuté kabely a mrtvé cache kolem starého uzlu.", enemyIds: ["elektrika-e01", "elektrika-e02"], order: 1 },
+  { id: "dead-circuit", locationId: "elektrika", name: "Mrtvý obvod", shortDescription: "Přerušené vodiče, kde se drží zbytek proudu.", enemyIds: ["elektrika-e03", "elektrika-e04"], order: 2 },
+  { id: "core-nursery", locationId: "elektrika", name: "Líheň jádra", shortDescription: "Nejhlubší komora zarostlého serveru.", enemyIds: ["elektrika-e05"], order: 3 },
+];
+
+const AREAS = Object.freeze(Object.fromEntries(AREA_DEFS.map((area) => [area.id, Object.freeze({ ...area, status: area.status ?? "available" })])));
+const ENEMY_AREA_IDS = Object.freeze(Object.fromEntries(AREA_DEFS.flatMap((area) => area.enemyIds.map((enemyId) => [enemyId, area.id]))));
+function getAreasForLocation(locationId) { return Object.values(AREAS).filter((area) => area.locationId === locationId).sort((a, b) => a.order - b.order); }
+function getAreaByEnemyId(enemyId) { return AREAS[ENEMY_AREA_IDS[enemyId]] ?? null; }
+
 const DEFAULT_ENEMY_ID = "goblin";
 
 // Dopočítá materialIds a bossIds z tabulek nepřátel a zmrazí lokace.
@@ -386,6 +425,7 @@ function finalizeLocations(defs) {
     }
     result[def.id] = Object.freeze({
       ...def,
+      areaIds: getAreasForLocation(def.id).map((area) => area.id),
       materialIds,
       bossIds: enemies.filter((enemy) => enemy.type === "boss").map((enemy) => enemy.id),
     });
