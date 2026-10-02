@@ -493,7 +493,7 @@ function loadState() {
 
 function saveState() {
   const payload = {
-    version: 5, level: state.level, xp: state.xp, kills: state.kills, drops: state.drops,
+    version: 5, savedAt: Date.now(), level: state.level, xp: state.xp, kills: state.kills, drops: state.drops,
     carriedGold: state.carriedGold, bankGold: state.bankGold, coreFragments: state.coreFragments, currentEnemyId: state.currentEnemyId,
     buyback: state.buyback, lootRules: state.lootRules, lootLog: state.lootLog, stats: state.stats, collection: state.collection, bestiary: state.bestiary,
     activeLocationId: state.activeLocationId, run: state.run,
@@ -506,6 +506,24 @@ function saveState() {
     },
   };
   localStorage.setItem(CONFIG.saveKey, JSON.stringify(payload));
+  cloudSync.schedulePush(payload);
+}
+
+// Při startu: pokud je cloudový save novější než lokální, převezme se a stránka
+// se jednou načte znovu (jednoduché a bezpečné; hra se nepřepisuje za běhu).
+async function syncFromCloud() {
+  const cloud = await cloudSync.pull();
+  if (!cloud || !(cloud.savedAt > 0)) { cloudSync.schedulePush(JSON.parse(localStorage.getItem(CONFIG.saveKey) || "null")); return; }
+  let local = null;
+  try { local = JSON.parse(localStorage.getItem(CONFIG.saveKey)); } catch { /* ignore */ }
+  if (!local || !(local.savedAt > 0) || cloud.savedAt > local.savedAt) {
+    if (sessionStorage.getItem("idle-rpg-cloud-reloaded")) return;
+    sessionStorage.setItem("idle-rpg-cloud-reloaded", "1");
+    localStorage.setItem(CONFIG.saveKey, JSON.stringify(cloud));
+    location.reload();
+  } else if (local.savedAt > cloud.savedAt) {
+    cloudSync.schedulePush(local);
+  }
 }
 
 function xpNeeded(level = state.level) { return Math.round(50 * Math.pow(level, 1.35)); }
@@ -1801,6 +1819,7 @@ function toggleFight() {
 
 function resetGame() {
   localStorage.removeItem(CONFIG.saveKey);
+  cloudSync.remove();
   state = initialState();
   elements.combatLog.innerHTML = "";
   ui.selection = null;
@@ -3083,3 +3102,4 @@ updateArenaHeader();
 render();
 renderLoot();
 showPage(pageFromHash());
+syncFromCloud();

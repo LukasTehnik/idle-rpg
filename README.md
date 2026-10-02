@@ -140,3 +140,6 @@ Od verze 0.5 používá rozhraní teplé retro RPG téma (hnědé povrchy, zlat�
 Item i materiál nese jen sémantickou hodnotu `quality` (`common`, `rare`, `epic`, `legendary`, `mythic`, `god`). Barvy, rámy a glow odvozuje výhradně `applyQualityVisuals()` ze `quality-data.js`; v datech nejsou žádné CSS třídy. God je zakázaný u materiálů a dalších stackovatelných předmětů (spadne na common s varováním v dev režimu). Kvalita zatím **nemění staty, ceny ani drop rate**. Křídla jsou vždy zlatá; zlatá aura jen s explicitním `wingGlow: "gold"`. Maximálně vylepšený item (`isMaxUpgraded`) má neutrální MAX vrstvu, která nemění barvu kvality.
 
 Podrobný popis a návody jak přidat dropy je v [`docs/prototype-0.5.1.md`](docs/prototype-0.5.1.md).
+
+## Cloudové ukládání
+Supabase (anonymní účet + tabulka `saves` s RLS). Podrobnosti: `docs/cloud-save.md`. Vypnutí: `?nocloud`.
