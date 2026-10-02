@@ -378,7 +378,7 @@ function createAffixScroll(affixId) {
   if (!affix) return null;
   affixScrollCounter += 1;
   return {
-    instanceId: `scr_${Date.now().toString(36)}_${affixScrollCounter.toString(36)}${Math.floor(Math.random() * 1296).toString(36)}`,
+    instanceId: `scr_${Date.now().toString(36)}_${affixScrollCounter.toString(36)}_${Math.floor(Math.random() * 1296).toString(36)}`,
     itemType: "affix_scroll",
     affixType: affix.type,
     affixId,
