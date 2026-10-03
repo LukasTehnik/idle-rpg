@@ -239,3 +239,17 @@ function normalizeMaterialDrop(drop, where = "") {
     quality: normalizeQuality(drop.quality ?? material.defaultQuality, { stackable: true, where: `materialDrops ${drop.templateId}` }),
   };
 }
+
+// Znovupoužitelná inline ikona materiálu (Prototype 0.8.1). JEDINÉ místo, které z definice
+// materiálu skládá malou ikonu vedle názvu (kovář: požadavky, upgrade, oprava, výsledek tavby).
+// Vrací HTML řetězec: <span class="mat-inline"> ikona 22×22 (asset ~18×18) + text </span>.
+// Cesta k assetu se bere výhradně z MATERIALS[id].asset. Když materiál asset nemá, vrátí se
+// jen text (viz docs/item-visual-rarity-rules.md). `text` přepíše zobrazený název (např.
+// "Rare Iron Rivets" nebo "Iron Rivets ×3"); jinak se použije název materiálu.
+function materialInlineHtml(materialId, { text = null } = {}) {
+  const esc = (value) => String(value).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+  const material = MATERIALS[materialId];
+  const label = esc(text ?? material?.name ?? materialId);
+  if (!material?.asset) return `<span class="mat-inline"><span class="mat-name">${label}</span></span>`;
+  return `<span class="mat-inline"><span class="mat-icon" aria-hidden="true"><img src="${esc(material.asset)}" alt="" /></span><span class="mat-name">${label}</span></span>`;
+}

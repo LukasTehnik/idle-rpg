@@ -363,3 +363,15 @@ This document does not define:
 - final color calibration for every monitor and asset.
 
 Those systems may use the visual quality definitions established here, but they must be specified separately.
+
+## Material Icons Next to Names (Prototype 0.8.1)
+
+Players should recognise crafting materials by their icon first and by the name second.
+
+1. **Wherever a material is shown as a requirement, a result, or a known drop, a small icon of that exact material sits right next to its name.** This covers the Smith (forge recipe requirements, upgrade cost, repair cost, smelt result and smelt history), loot chips and known drops, location material lists, toasts and the inventory.
+2. **A material is shown as plain text without an icon only when no asset actually exists for it** (`MATERIALS[id].asset` missing). Never leave the icon out for convenience.
+3. **Use the shared helper `materialInlineHtml(materialId, { text })` from `material-data.js`.** It builds the markup from `MATERIALS[id].asset`; screens must not hand-write asset paths.
+4. **Inline icon size:** frame 22 × 22 px, asset about 18 × 18 px, `object-fit: contain`, `image-rendering: pixelated`, gap of 6 px to the name. No large icons, no extra cards, no layout change.
+5. **Quantity and name stay readable.** The available / missing state keeps its colour (`.ok` / `.missing`: text colour and the icon frame colour); the icon itself is never recoloured and quality colour is not applied to the inline frame.
+6. Where the surrounding UI already uses a larger quality-coloured slot (loot chips, inventory, location lists), do not add a second inline icon.
+

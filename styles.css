@@ -1579,6 +1579,13 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 .smith-requirements li, .smith-info li { display: flex; justify-content: space-between; gap: 12px; padding-bottom: 3px; border-bottom: 1px dotted var(--color-border); font-size: var(--fs-small); }
 .smith-requirements p { margin: 6px 0 14px; }
 .ok { color: var(--color-success, #87be71); }.missing { color: var(--color-danger, #e0645c); }
+/* Inline ikona materiálu: 22×22 rámeček, asset ~18×18, těsně vedle názvu. Barva ok/missing se dědí. */
+.mat-inline { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.mat-icon { display: inline-grid; flex: none; width: 22px; height: 22px; place-items: center; box-sizing: border-box; border: 1px solid var(--color-border); background: var(--color-bg-deep); }
+.mat-icon img { width: 18px; height: 18px; object-fit: contain; image-rendering: pixelated; }
+.ok .mat-icon { border-color: var(--color-success, #87be71); }
+.missing .mat-icon { border-color: var(--color-danger, #e0645c); }
+.mat-name { min-width: 0; }
 .smith-affixes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
 .smith-probability { margin: 0 0 12px; color: var(--color-text-secondary); font-size: var(--fs-small); }.smith-probability strong { color: #f6d68f; }
 .smith-preview { display: grid; align-content: start; justify-items: start; }.smith-preview-icon { display: grid; width: 132px; height: 132px; place-items: center; margin: 4px 0 12px; }.smith-preview-icon svg, .smith-preview-icon img { width: 78%; height: 78%; object-fit: contain; }
