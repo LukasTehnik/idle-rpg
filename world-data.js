@@ -175,6 +175,7 @@ const ENEMIES = Object.freeze({
     materialDrops: [
       { templateId: "wing-dust", quality: "common", chance: 0.80, quantity: [1, 3], tier: "common" },
       { templateId: "torn-membrane", quality: "common", chance: 0.25, quantity: [1, 1], tier: "uncommon" },
+      { templateId: "chitin-shard", quality: "common", chance: 0.30, quantity: [1, 2], tier: "uncommon" },
     ],
   },
   e02: {
@@ -224,6 +225,7 @@ const ENEMIES = Object.freeze({
       { templateId: "underground-fiber", quality: "common", chance: 0.45, quantity: [1, 3], tier: "common" },
       { templateId: "polymer-nest-piece", quality: "common", chance: 0.20, quantity: [1, 2], tier: "uncommon" },
       { templateId: "human-memory-fragment", quality: "rare", chance: 0.12, quantity: [1, 1], tier: "rare" },
+      { templateId: "chitin-plate", quality: "common", chance: 0.24, quantity: [1, 1], tier: "uncommon" },
     ],
   },
   e06: {
@@ -237,6 +239,7 @@ const ENEMIES = Object.freeze({
       { templateId: "scroll-of-oblivion", quality: "rare", chance: 0.10, quantity: [1, 1], tier: "rare" },
       // Oko Matky padá VÝHRADNĚ z Matky děr.
       { templateId: "mother-eye", quality: "epic", chance: 0.05, quantity: [1, 1], tier: "veryRare" },
+      { templateId: "chitin-plate", quality: "rare", chance: 0.32, quantity: [1, 2], tier: "uncommon" },
     ],
   },
 
@@ -251,6 +254,7 @@ const ENEMIES = Object.freeze({
       { templateId: "cloth-padding", quality: "common", chance: 0.65, quantity: [1, 2], tier: "common" },
       { templateId: "thread-spool", quality: "common", chance: 0.28, quantity: [1, 1], tier: "uncommon" },
       { templateId: "binding-glue", quality: "rare", chance: 0.05, quantity: [1, 1], tier: "rare" },
+      { templateId: "quartz", quality: "common", chance: 0.18, quantity: [1, 1], tier: "uncommon" },
     ],
   },
   "odpadky-e02": {
@@ -263,6 +267,8 @@ const ENEMIES = Object.freeze({
       { templateId: "leather-padding", quality: "common", chance: 0.58, quantity: [1, 2], tier: "common" },
       { templateId: "metal-buckle", quality: "common", chance: 0.35, quantity: [1, 1], tier: "uncommon" },
       { templateId: "sharpening-stone", quality: "rare", chance: 0.08, quantity: [1, 1], tier: "rare" },
+      { templateId: "bone", quality: "common", chance: 0.30, quantity: [1, 2], tier: "common" },
+      { templateId: "sinew", quality: "common", chance: 0.20, quantity: [1, 1], tier: "uncommon" },
     ],
   },
   "odpadky-e03": {
@@ -275,6 +281,7 @@ const ENEMIES = Object.freeze({
       { templateId: "iron-rivets", quality: "common", chance: 0.52, quantity: [1, 2], tier: "common" },
       { templateId: "steel-chain", quality: "rare", chance: 0.22, quantity: [1, 1], tier: "uncommon" },
       { templateId: "polishing-compound", quality: "rare", chance: 0.09, quantity: [1, 1], tier: "rare" },
+      { templateId: "wooden-handle", quality: "common", chance: 0.25, quantity: [1, 1], tier: "uncommon" },
     ],
   },
   "magma-e01": {
@@ -296,6 +303,7 @@ const ENEMIES = Object.freeze({
     materialDrops: [
       { templateId: "ember-coal", quality: "common", chance: 0.5, quantity: [1, 2], tier: "common" },
       { templateId: "slag-chunk", quality: "common", chance: 0.45, quantity: [1, 2], tier: "common" },
+      { templateId: "steel-ingot", quality: "common", chance: 0.20, quantity: [1, 1], tier: "uncommon" },
     ],
   },
   "magma-e03": {
@@ -319,6 +327,7 @@ const ENEMIES = Object.freeze({
       { templateId: "slag-chunk", quality: "common", chance: 0.4, quantity: [1, 3], tier: "common" },
       { templateId: "scorched-cloth-bundle", quality: "common", chance: 0.3, quantity: [1, 2], tier: "uncommon" },
       { templateId: "magma-crystal", quality: "rare", chance: 0.15, quantity: [1, 1], tier: "rare" },
+      { templateId: "steel-ingot", quality: "common", chance: 0.28, quantity: [1, 2], tier: "uncommon" },
     ],
   },
   "magma-e05": {

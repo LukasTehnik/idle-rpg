@@ -84,6 +84,13 @@ const GLOBAL_MATERIAL_SOURCES = Object.freeze({
   "iron-rivets": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e03"] },
   "steel-chain": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e03"] },
   "polishing-compound": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e03"] },
+  "wooden-handle": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e03"] },
+  "bone": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e02"] },
+  "sinew": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e02"] },
+  "quartz": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e01"] },
+  "chitin-plate": { locationId: "pustina-ticha", enemyIds: ["e05", "e06"] },
+  "chitin-shard": { locationId: "pustina-ticha", enemyIds: ["e01", "e02", "e03"] },
+  "steel-ingot": { locationId: "magma", enemyIds: ["magma-e02", "magma-e04"] },
 });
 
 const MATERIALS = Object.freeze({

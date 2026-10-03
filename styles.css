@@ -1554,6 +1554,42 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 @keyframes q-shine-pulse { 0%, 100% { opacity: calc(var(--shine-a) * .35); } 50% { opacity: var(--shine-a); } }
 @media (prefers-reduced-motion: reduce) { .q-slot > .q-shine, .q-slot > .q-shine::before, .q-slot > .q-shine::after { animation: none; } .q-slot > .q-shine::after { opacity: 0; } }
 
+/* ==========================================================================
+   PROTOTYPE 0.8 — KOVÁŘSTVÍ
+   ========================================================================== */
+.smith-page { display: grid; gap: 14px; max-width: 1480px; }
+.smith-hero { display: flex; align-items: end; justify-content: space-between; gap: 24px; border-color: var(--color-accent, #d6a54a); }
+.smith-hero .section-title { margin-bottom: 4px; }
+.smith-hero p { max-width: 700px; margin: 0; }
+.smith-hero-stats { display: flex; flex-wrap: wrap; gap: 8px; justify-content: end; }
+.smith-hero-stats span { display: grid; gap: 2px; min-width: 105px; padding: 8px 10px; border: 1px solid var(--color-border); color: var(--color-text-secondary); font-size: var(--fs-label); }
+.smith-hero-stats strong { color: var(--color-ink); font-size: var(--fs-body); }
+.smith-tabs { margin: 0; }
+.smith-grid { display: grid; grid-template-columns: minmax(210px, .78fr) minmax(360px, 1.3fr) minmax(210px, .72fr); gap: 14px; align-items: start; }
+.smith-grid.single { grid-template-columns: minmax(340px, 1fr) minmax(280px, .72fr); max-width: 980px; }
+.smith-recipes, .smith-work, .smith-preview, .smith-info, .smith-tool, .smith-scrolls { min-height: 100%; }
+.smith-recipes .section-title, .smith-work .section-title, .smith-preview h3, .smith-info .section-title, .smith-tool .section-title, .smith-scrolls .section-title { margin: 0 0 12px; }
+.smith-recipe { display: grid; width: 100%; gap: 3px; padding: 10px; border: 1px solid var(--color-border); border-bottom: 0; background: var(--color-panel, #171512); color: var(--color-ink); text-align: left; font: inherit; cursor: pointer; }
+.smith-recipe:last-child { border-bottom: 1px solid var(--color-border); }
+.smith-recipe small { color: var(--color-text-secondary); font-size: var(--fs-label); }
+.smith-recipe:hover, .smith-recipe.active { border-color: var(--color-accent, #d6a54a); background: #242018; }
+.smith-recipe.active { color: #f6d68f; }
+.smith-requirements h4 { margin: 0 0 6px; font-size: var(--fs-label); letter-spacing: .1em; }
+.smith-requirements ul, .smith-info ul { display: grid; gap: 3px; margin: 0 0 12px; padding: 0; list-style: none; }
+.smith-requirements li, .smith-info li { display: flex; justify-content: space-between; gap: 12px; padding-bottom: 3px; border-bottom: 1px dotted var(--color-border); font-size: var(--fs-small); }
+.smith-requirements p { margin: 6px 0 14px; }
+.ok { color: var(--color-success, #87be71); }.missing { color: var(--color-danger, #e0645c); }
+.smith-affixes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+.smith-probability { margin: 0 0 12px; color: var(--color-text-secondary); font-size: var(--fs-small); }.smith-probability strong { color: #f6d68f; }
+.smith-preview { display: grid; align-content: start; justify-items: start; }.smith-preview-icon { display: grid; width: 132px; height: 132px; place-items: center; margin: 4px 0 12px; }.smith-preview-icon svg, .smith-preview-icon img { width: 78%; height: 78%; object-fit: contain; }
+.smith-preview h3 { font-size: var(--fs-h2); }.smith-preview p { margin: 0 0 8px; font-size: var(--fs-small); }
+.smith-log { padding-block: 12px; }.smith-log .section-title { margin: 0 0 8px; }.smith-history { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }.smith-history li { display: grid; grid-template-columns: 50px 1fr; gap: 8px; color: var(--color-text-secondary); font-size: var(--fs-small); }.smith-history time { color: var(--color-ink-muted); }
+.smith-item-card { display: grid; gap: 5px; margin: 14px 0; padding: 12px; border: 1px solid var(--color-border); background: #13110e; }.smith-item-card strong { color: var(--color-ink); }.smith-item-card span, .smith-item-card small { color: var(--color-text-secondary); font-size: var(--fs-small); }
+.smith-info > p { margin: 0 0 10px; }.smith-info .muted { margin-top: 14px; font-size: var(--fs-small); }.smith-tool .btn { margin-top: 14px; }
+.smith-known { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }.smith-known li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px; border: 1px solid var(--scroll-frame); background: var(--scroll-bg); }.smith-known div, .smith-known li > :first-child { display: grid; gap: 2px; }.smith-known strong { color: var(--scroll-ink); }.smith-known span { color: var(--scroll-line); font-size: var(--fs-label); letter-spacing: .1em; }.smith-known .btn { white-space: nowrap; }
+@media (max-width: 1050px) { .smith-grid { grid-template-columns: 1fr 1fr; }.smith-preview { grid-column: 1 / -1; grid-template-columns: 150px 1fr; column-gap: 16px; }.smith-preview > p { grid-column: 2; }.smith-grid.single { grid-template-columns: 1fr 1fr; }.smith-hero { align-items: start; flex-direction: column; }.smith-hero-stats { justify-content: start; } }
+@media (max-width: 680px) { .smith-grid, .smith-grid.single { grid-template-columns: 1fr; }.smith-preview { grid-column: auto; grid-template-columns: 110px 1fr; }.smith-preview-icon { width: 100px; height: 100px; }.smith-preview > p { grid-column: 2; }.smith-affixes { grid-template-columns: 1fr; }.smith-hero-stats span { min-width: 0; flex: 1; }.smith-history li { grid-template-columns: 44px 1fr; } }
+
 /* stín pod itemem: ikona opticky „vystupuje“ z rámečku (tvrdý pixelový stín + měkký kontaktní stín) */
 .q-slot { --q-lift: drop-shadow(0 3px 0 rgba(0, 0, 0, .8)) drop-shadow(0 6px 4px rgba(0, 0, 0, .7)); }
 

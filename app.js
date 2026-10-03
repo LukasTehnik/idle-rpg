@@ -71,6 +71,9 @@ const initialState = () => ({
   inventory: [], // equipment only (capacity CONFIG.inventoryCapacity)
   // Prototype 0.6: svitky prefixů/suffixů (obchodovatelné entity bez quality/rarity). Zatím je nic nedropuje.
   affixScrolls: [],
+  // Kovář: naučený svitek je trvalý recept, samotný svitek se při naučení spotřebuje.
+  knownAffixes: [],
+  smith: { serial: 0, history: [] },
   // Prototype 0.5: kořist, která se nevešla do plného inventáře. Nikdy se tiše
   // neztratí -- čeká zde, dokud hráč neuvolní místo (viz claimUnclaimed).
   unclaimed: [],
@@ -153,6 +156,7 @@ const ELEMENT_IDS = [
   "worldMap", "worldMapImg", "mapPins", "mapTooltip", "locDetail", "locBackdrop", "mapTempNote",
   "enterDialog", "enterDialogTarget", "enterCancel", "enterConfirm",
   "combatWidgetSidebar", "combatStripSlot", "combatStripToggle", "combatStripText", "combatStripPanel",
+  "smithTabs", "smithContent", "smithRecipeCount", "smithKnownCount", "smithSerial",
 ];
 const elements = Object.fromEntries(ELEMENT_IDS.map((id) => [id, document.getElementById(id)]));
 for (const [id, node] of Object.entries(elements)) if (!node) console.warn(`[ui] chybí element #${id}`);
@@ -178,6 +182,7 @@ const ui = {
   tab: "all", // all | equipment | materials | scrolls
   search: "", type: "all", quality: "all", flag: "all", origin: "all", sort: "newest",
   selectedMapLocationId: null, // jen náhled na mapě; aktivní lokace je state.activeLocationId
+  smithTab: "forge", smithRecipeId: "forge-iron-sword", smithPrefixId: "", smithSuffixId: "", smithItemId: "",
   selectedMapAreaId: null, // filtr oblasti v detailu mapy; nikdy se neukládá do savu
   locTab: "info", // info | enemies | loot
   highlightEnemyId: null,
@@ -285,6 +290,21 @@ function sanitizeMaterials(raw) {
     result[finalKey] = (result[finalKey] ?? 0) + n;
   }
   return result;
+}
+
+function sanitizeKnownAffixes(raw) {
+  if (!Array.isArray(raw)) return [];
+  return [...new Set(raw.filter((id) => typeof id === "string" && getAffix(id)))];
+}
+
+function sanitizeSmith(raw) {
+  const fallback = { serial: 0, history: [] };
+  if (!raw || typeof raw !== "object") return fallback;
+  const history = Array.isArray(raw.history) ? raw.history
+    .filter((entry) => entry && typeof entry.text === "string")
+    .map((entry) => ({ at: Number(entry.at) || Date.now(), kind: String(entry.kind ?? "forge"), text: entry.text }))
+    .slice(0, SMITH_CONFIG.maxHistory) : [];
+  return { serial: Math.max(0, Math.floor(Number(raw.serial) || 0)), history };
 }
 
 function sanitizeRecentDrops(raw) {
@@ -444,7 +464,7 @@ function loadState() {
   const fresh = initialState();
   try {
     const saved = JSON.parse(localStorage.getItem(CONFIG.saveKey));
-    if (!saved || (saved.version !== 2 && saved.version !== 3 && saved.version !== 4 && saved.version !== 5)) return fresh;
+    if (!saved || ![2, 3, 4, 5, 6, 7, 8].includes(saved.version)) return fresh;
     // currentEnemyId is new -- only trust it if it names a real, still-valid
     // enemy (protects against a corrupted save or a future removed enemy id
     // crashing the app on load).
@@ -483,6 +503,8 @@ function loadState() {
       elapsedSeconds: saved.elapsedSeconds ?? fresh.elapsedSeconds,
       inventory: cleanInventory, materials, unclaimed,
       affixScrolls: sanitizeAffixScrolls(saved.affixScrolls), // v ≤4 chybí → prázdný inventář svitků
+      knownAffixes: sanitizeKnownAffixes(saved.knownAffixes),
+      smith: sanitizeSmith(saved.smith),
       recentDrops: sanitizeRecentDrops(saved.recentDrops),
       equipment,
       player: { ...fresh.player, ...(saved.player ?? {}) },
@@ -494,12 +516,13 @@ function loadState() {
 
 function saveState() {
   const payload = {
-    version: 5, savedAt: Date.now(), level: state.level, xp: state.xp, kills: state.kills, drops: state.drops,
+    version: 8, savedAt: Date.now(), level: state.level, xp: state.xp, kills: state.kills, drops: state.drops,
     carriedGold: state.carriedGold, bankGold: state.bankGold, coreFragments: state.coreFragments, currentEnemyId: state.currentEnemyId,
     buyback: state.buyback, lootRules: state.lootRules, lootLog: state.lootLog, stats: state.stats, collection: state.collection, bestiary: state.bestiary,
     activeLocationId: state.activeLocationId, run: state.run,
     elapsedSeconds: state.elapsedSeconds, inventory: state.inventory, equipment: state.equipment,
     materials: state.materials, recentDrops: state.recentDrops, unclaimed: state.unclaimed, affixScrolls: state.affixScrolls,
+    knownAffixes: state.knownAffixes, smith: state.smith,
     player: {
       hp: state.player.hp, baseMaxHp: state.player.baseMaxHp,
       baseMinDamage: state.player.baseMinDamage, baseMaxDamage: state.player.baseMaxDamage,
@@ -536,7 +559,16 @@ function formatTime(seconds) {
   const remaining = (seconds % 60).toString().padStart(2, "0");
   return `${minutes}:${remaining}`;
 }
-function getItemBonus(item, stat) { return item?.stats?.[stat] ?? 0; }
+function getItemBonus(item, stat) {
+  const raw = item?.stats?.[stat] ?? 0;
+  const level = Math.max(0, Math.floor(Number(item?.upgradeLevel) || 0));
+  const max = Math.max(1, Number(item?.maxDurability) || SMITH_CONFIG.durabilityMax);
+  const savedDurability = Number(item?.durability);
+  const durability = Math.max(0, Math.min(max, Number.isFinite(savedDurability) ? savedDurability : max));
+  // Oprava nikdy neznehodnotí item: i zcela zanedbaný kus drží polovinu základu.
+  const condition = 0.5 + (durability / max) * 0.5;
+  return roundStat(raw * (1 + level * SMITH_CONFIG.upgradeStatPerLevel) * condition);
+}
 
 // --- Instance vybavení (Prototype 0.5) --------------------------------------
 // Každá instance nese: id, templateId, quality, stats, obtainedAt, sourceEnemyId,
@@ -551,6 +583,8 @@ function sanitizeItem(raw) {
   const enemy = ENEMIES[raw.sourceEnemyId] ?? Object.values(ENEMIES).find((candidate) => candidate.name === raw.source) ?? null;
   const time = Number.isFinite(raw.obtainedAt) ? raw.obtainedAt : (Number.isFinite(raw.acquiredAt) ? raw.acquiredAt : 0);
   const { rarity: legacyRarity, ...rest } = raw; // `rarity` ≤ 0.5 → `quality` (jediný kanonický název)
+  const normalizedMaxDurability = Math.max(1, Number(raw.maxDurability) || SMITH_CONFIG.durabilityMax);
+  const rawDurability = Number(raw.durability);
   return {
     ...rest,
     quality: normalizeQuality(raw.quality ?? legacyRarity, { where: `item ${raw.name ?? raw.icon ?? "?"}` }),
@@ -560,6 +594,11 @@ function sanitizeItem(raw) {
     sourceEnemyId: enemy?.id ?? null,
     sourceLocationId: LOCATIONS[raw.sourceLocationId] ? raw.sourceLocationId : (enemy?.locationId ?? null),
     isNew: raw.isNew === true, isFavorite: raw.isFavorite === true, isLocked: raw.isLocked === true,
+    durability: Math.max(0, Math.min(normalizedMaxDurability, Number.isFinite(rawDurability) ? rawDurability : normalizedMaxDurability)),
+    maxDurability: normalizedMaxDurability,
+    upgradeLevel: Math.max(0, Math.min(SMITH_CONFIG.maxUpgradeLevel, Math.floor(Number(raw.upgradeLevel) || 0))),
+    maxUpgradeLevel: Math.max(1, Number(raw.maxUpgradeLevel) || SMITH_CONFIG.maxUpgradeLevel),
+    isMaxUpgraded: Math.floor(Number(raw.upgradeLevel) || 0) >= (Number(raw.maxUpgradeLevel) || SMITH_CONFIG.maxUpgradeLevel),
     // Prototype 0.6: affixové sloty. Starší itemy (≤ 0.5.1) je mají prázdné; nic se nepřepisuje.
     ...sanitizeItemAffixes(raw),
   };
@@ -817,6 +856,14 @@ function defeatPlayer() {
   elements.encounterMessage.textContent = "Návrat k výpravě za 5 s";
   state.stats.deaths += 1;
   discoverEnemy(state.currentEnemyId).deaths += 1;
+  // Odolnost je záměrně pomalá a pouze eventová: žádný offline rozpad ani
+  // automatické sundání výbavy. Kovář ji umí kdykoli plně obnovit.
+  Object.entries(state.equipment).forEach(([slot, item]) => {
+    if (!item) return;
+    const max = Math.max(1, Number(item.maxDurability) || SMITH_CONFIG.durabilityMax);
+    const current = Number(item.durability);
+    state.equipment[slot] = { ...item, maxDurability: max, durability: Math.max(0, (Number.isFinite(current) ? current : max) - 8) };
+  });
   // Prototype 0.5: smrt stojí 5 % ZLATA U SEBE. Zlato v bance je chráněné.
   const lostGold = deathGoldLoss();
   if (lostGold > 0) {
@@ -867,7 +914,8 @@ function createItem(enemyCfg, fixed = null) {
   return {
     id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
     name: template.name, slot: template.slot ?? null, icon: template.icon, quality, stats,
-    upgradeLevel: 0, maxUpgradeLevel: null, isMaxUpgraded: false,
+    upgradeLevel: 0, maxUpgradeLevel: SMITH_CONFIG.maxUpgradeLevel, isMaxUpgraded: false,
+    durability: SMITH_CONFIG.durabilityMax, maxDurability: SMITH_CONFIG.durabilityMax,
     ...(template.wingGlow ? { wingGlow: template.wingGlow } : {}),
     // Carry over the template's own artwork/glow (if any) — without this,
     // signature items with unique art (item.image/item.glowColor) render as
@@ -1000,10 +1048,14 @@ function renderRecentDrops() {
 
 function statRows(item) {
   const rows = [];
-  if (item.stats?.damageMin) rows.push(["Minimální poškození", `+${item.stats.damageMin}`]);
-  if (item.stats?.damageMax) rows.push(["Maximální poškození", `+${item.stats.damageMax}`]);
-  if (item.stats?.maxHp) rows.push(["Maximální životy", `+${item.stats.maxHp}`]);
-  if (item.stats?.critChance) rows.push(["Kritický zásah", `+${fmtNum(item.stats.critChance)} %`]);
+  const display = (key, suffix = "") => {
+    const base = item.stats?.[key] ?? 0; const effective = getItemBonus(item, key);
+    return effective !== base ? `+${fmtNum(effective)}${suffix} (základ ${fmtNum(base)})` : `+${fmtNum(base)}${suffix}`;
+  };
+  if (item.stats?.damageMin) rows.push(["Minimální poškození", display("damageMin")]);
+  if (item.stats?.damageMax) rows.push(["Maximální poškození", display("damageMax")]);
+  if (item.stats?.maxHp) rows.push(["Maximální životy", display("maxHp")]);
+  if (item.stats?.critChance) rows.push(["Kritický zásah", display("critChance", " %")]);
   return rows;
 }
 
@@ -2864,7 +2916,171 @@ function initCombatWidgets() {
 // Všechny stránky zůstávají v DOM (jen se přepíná atribut hidden) a herní
 // smyčka běží mimo ně — přepnutí stránky proto boj nikdy nerestartuje.
 
-const PAGE_TITLES = Object.freeze({ postava: "Postava", inventar: "Inventář", obchodnik: "Obchodník", banka: "Banka", bestiar: "Bestiář", sbirka: "Sbírka", mapa: "Mapa", boj: "Boj" });
+// --- Prototype 0.8: Kovářství --------------------------------------------
+function smithNote(kind, text) {
+  state.smith.history.unshift({ at: Date.now(), kind, text });
+  state.smith.history.length = Math.min(state.smith.history.length, SMITH_CONFIG.maxHistory);
+}
+function materialQuantity(id, quality) { return state.materials[stackKey(id, quality)] ?? 0; }
+function bestMaterialQuality(id, required = 1) {
+  return [...QUALITY_IDS].reverse().find((quality) => materialQuantity(id, quality) >= required) ?? null;
+}
+function requirementsFor(recipe) {
+  return recipe.materials.map((entry) => ({ ...entry, quality: bestMaterialQuality(entry.id, entry.qty) }));
+}
+function hasRequirements(requirements) { return requirements.every((entry) => entry.quality && materialQuantity(entry.id, entry.quality) >= entry.qty); }
+function consumeRequirements(requirements) {
+  for (const entry of requirements) {
+    const key = stackKey(entry.id, entry.quality);
+    state.materials[key] -= entry.qty;
+    if (state.materials[key] <= 0) delete state.materials[key];
+  }
+}
+function qualityFromRequirements(requirements) {
+  const weighted = requirements.reduce((sum, entry) => sum + qualityRank(entry.quality) * entry.qty, 0) / Math.max(1, requirements.reduce((sum, entry) => sum + entry.qty, 0));
+  const base = Math.floor(weighted); const fraction = weighted - base;
+  const rank = Math.min(qualityRank("legendary"), base + (Math.random() < fraction ? 1 : 0));
+  return QUALITY_IDS[rank] ?? DEFAULT_QUALITY;
+}
+function materialRequirementText(entry) {
+  const material = MATERIALS[entry.id];
+  const have = entry.quality ? materialQuantity(entry.id, entry.quality) : 0;
+  const label = entry.quality ? `${qualityLabel(entry.quality)} ${material?.name ?? entry.id}` : (material?.name ?? entry.id);
+  return `<li class="${have >= entry.qty ? "ok" : "missing"}"><span>${label}</span><b>${have}/${entry.qty}</b></li>`;
+}
+function forgeBaseItem(recipe, quality) {
+  const template = findTemplateById(recipe.templateId);
+  const stats = {};
+  for (const [stat, range] of Object.entries(template.rolls ?? {})) stats[stat] = stat === "critChance" ? randomDecimal(range[0], range[1]) : randomInt(range[0], range[1]);
+  state.smith.serial += 1;
+  return composeItem(recipe.templateId, {
+    id: globalThis.crypto?.randomUUID?.() ?? `forge-${Date.now()}-${Math.random()}`,
+    name: template.name, quality, stats, itemLevel: recipe.tier * 10,
+    upgradeLevel: 0, maxUpgradeLevel: SMITH_CONFIG.maxUpgradeLevel, isMaxUpgraded: false,
+    durability: SMITH_CONFIG.durabilityMax, maxDurability: SMITH_CONFIG.durabilityMax,
+    source: "Kovářství", sourceEnemyId: null, sourceLocationId: null, obtainedAt: Date.now(), acquiredAt: Date.now(),
+    craftedAt: Date.now(), forgeSerial: state.smith.serial, isNew: true, isFavorite: false, isLocked: false,
+    prefix: null, suffix: null,
+  });
+}
+function knownAffixesFor(type, item) {
+  return state.knownAffixes.map((id) => getAffix(id)).filter((affix) => affix?.type === type && checkAffixOnItem(item, affix.id).ok);
+}
+function forgeSelectedRecipe() { return getForgeRecipe(ui.smithRecipeId) ?? FORGE_RECIPES[0]; }
+function doForge() {
+  const recipe = forgeSelectedRecipe(); const requirements = requirementsFor(recipe);
+  if (inventoryFreeSlots() === 0) return showNoticeToast("Kovář", "Inventář je plný.", "danger");
+  if (!hasRequirements(requirements)) return showNoticeToast("Kovář", "Chybí potřebné materiály.", "danger");
+  if (state.carriedGold < recipe.gold) return showNoticeToast("Kovář", "Nemáš dost neseného zlata.", "danger");
+  const prefixId = ui.smithPrefixId || null; const suffixId = ui.smithSuffixId || null;
+  const quality = qualityFromRequirements(requirements);
+  let item = forgeBaseItem(recipe, quality);
+  for (const id of [prefixId, suffixId].filter(Boolean)) {
+    const result = applyAffixToItem(item, id);
+    if (!result.ok) return showNoticeToast("Kovář", result.errors[0] ?? "Kombinace svitků není platná.", "danger");
+    item = result.item;
+  }
+  consumeRequirements(requirements); state.carriedGold -= recipe.gold;
+  const chance = forgeChance({ prefixId, suffixId });
+  if (Math.random() > chance) {
+    smithNote("forge", `Nepovedené kování: ${recipe.label}.`); addLog(`Kovářství: ${recipe.label} se při kování zničil.`, "enemy");
+    showNoticeToast("Kování selhalo", "Materiály i zlato byly spotřebovány.", "danger"); saveState(); renderSmith(); render(); return;
+  }
+  item.name = composeAffixedName(item.name, item);
+  state.inventory.unshift(item); state.drops += 1; recordItemAcquired(item);
+  pushRecentDrop({ type: "item", key: item.icon, name: item.name, quality: item.quality, qty: 1 });
+  smithNote("forge", `Ukuto #${String(item.forgeSerial).padStart(6, "0")}: ${item.name}.`);
+  addLog(`Kovářství: ukuto ${qualityLabel(item.quality)} ${item.name}.`, "level-up"); showDropToast(item, `Kovářství · #${String(item.forgeSerial).padStart(6, "0")}`);
+  saveState(); render(); renderLoot(); renderSmith();
+}
+function ownedSmithItem() { return findItemAnywhere(ui.smithItemId)?.item ?? null; }
+function replaceOwnedSmithItem(next) {
+  const found = findItemAnywhere(next.id); if (!found) return false;
+  if (found.where === "inventory") state.inventory = state.inventory.map((item) => item.id === next.id ? next : item);
+  else if (found.where === "equipped") state.equipment[found.slot] = next;
+  else return false;
+  return true;
+}
+function doUpgrade() {
+  const item = ownedSmithItem(); if (!item) return showNoticeToast("Vylepšení", "Vyber předmět.", "danger");
+  if (item.isLocked) return showNoticeToast("Vylepšení", "Nejdřív odemkni předmět v inventáři.", "danger");
+  if ((item.upgradeLevel ?? 0) >= SMITH_CONFIG.maxUpgradeLevel) return showNoticeToast("Vylepšení", "Předmět už má maximální úroveň.", "info");
+  const cost = upgradeCost(item); const requirements = cost.materials.map((entry) => ({ ...entry, quality: bestMaterialQuality(entry.id, entry.qty) }));
+  if (state.carriedGold < cost.gold || !hasRequirements(requirements)) return showNoticeToast("Vylepšení", "Chybí zlato nebo materiály.", "danger");
+  consumeRequirements(requirements); state.carriedGold -= cost.gold;
+  let next = { ...item };
+  if (Math.random() <= cost.chance) {
+    next.upgradeLevel = cost.nextLevel; next.maxUpgradeLevel = SMITH_CONFIG.maxUpgradeLevel; next.isMaxUpgraded = cost.nextLevel >= SMITH_CONFIG.maxUpgradeLevel;
+    smithNote("upgrade", `${item.name} → +${next.upgradeLevel}.`); addLog(`Kovářství: ${item.name} je nyní +${next.upgradeLevel}.`, "level-up"); showNoticeToast("Vylepšení úspěšné", `${item.name} · +${next.upgradeLevel}`, "success");
+  } else {
+    const old = Number(item.upgradeLevel) || 0; next.upgradeLevel = cost.nextLevel >= 10 ? Math.max(0, old - 1) : old;
+    smithNote("upgrade", `Neúspěšné vylepšení ${item.name} (+${old} → +${next.upgradeLevel}).`); showNoticeToast("Vylepšení selhalo", next.upgradeLevel < old ? `Úroveň klesla na +${next.upgradeLevel}.` : "Úroveň zůstala beze změny.", "danger");
+  }
+  replaceOwnedSmithItem(next); saveState(); render(); renderLoot(); renderSmith();
+}
+function doRepair() {
+  const item = ownedSmithItem(); if (!item) return showNoticeToast("Oprava", "Vyber předmět.", "danger");
+  const cost = repairCost(item); if (!cost.missing) return showNoticeToast("Oprava", "Předmět je v perfektním stavu.", "info");
+  const requirements = cost.materials.map((entry) => ({ ...entry, quality: bestMaterialQuality(entry.id, entry.qty) }));
+  if (state.carriedGold < cost.gold || !hasRequirements(requirements)) return showNoticeToast("Oprava", "Chybí zlato nebo lešticí směs.", "danger");
+  consumeRequirements(requirements); state.carriedGold -= cost.gold;
+  const next = { ...item, durability: item.maxDurability ?? SMITH_CONFIG.durabilityMax };
+  replaceOwnedSmithItem(next); smithNote("repair", `Opraveno: ${item.name}.`); addLog(`Kovářství: opraveno ${item.name}.`, "system"); saveState(); render(); renderLoot(); renderSmith();
+}
+function doSmelt() {
+  const item = ownedSmithItem(); const found = item && findItemAnywhere(item.id);
+  if (!item || found?.where !== "inventory") return showNoticeToast("Tavení", "Vyber nevybavený předmět z inventáře.", "danger");
+  if (item.isLocked || item.isFavorite) return showNoticeToast("Tavení", "Uzamčený nebo oblíbený předmět nelze tavit.", "danger");
+  const yieldInfo = smeltYield(item);
+  if (!window.confirm(`Roztavit ${item.name}? Předmět se nevratně zničí.`)) return;
+  state.inventory = state.inventory.filter((entry) => entry.id !== item.id);
+  const key = stackKey(yieldInfo.materialId, yieldInfo.quality); state.materials[key] = (state.materials[key] ?? 0) + yieldInfo.amount;
+  smithNote("smelt", `Roztaveno ${item.name} → ${MATERIALS[yieldInfo.materialId]?.name ?? yieldInfo.materialId} ×${yieldInfo.amount}.`);
+  addLog(`Kovářství: roztaven ${item.name}.`, "system"); showMaterialToast(MATERIALS[yieldInfo.materialId], yieldInfo.amount, state.materials[key], yieldInfo.quality);
+  ui.smithItemId = ""; saveState(); render(); renderLoot(); renderSmith();
+}
+function learnScroll(instanceId) {
+  const index = state.affixScrolls.findIndex((entry) => entry.instanceId === instanceId); const scroll = state.affixScrolls[index];
+  if (!scroll || !getAffix(scroll.affixId)) return;
+  if (state.knownAffixes.includes(scroll.affixId)) return showNoticeToast("Svitek", "Tento recept už kovář zná.", "info");
+  state.affixScrolls.splice(index, 1); state.knownAffixes.push(scroll.affixId); smithNote("recipe", `Naučen recept: ${getAffix(scroll.affixId).displayName}.`);
+  addLog(`Kovář se naučil svitek: ${getAffix(scroll.affixId).displayName}.`, "level-up"); saveState(); renderLoot(); renderSmith();
+}
+function smithItemOptions({ inventoryOnly = false } = {}) {
+  const items = inventoryOnly ? state.inventory : [...state.inventory, ...Object.values(state.equipment).filter(Boolean)];
+  return items.map((item) => `<option value="${item.id}" ${item.id === ui.smithItemId ? "selected" : ""}>${item.name} · +${item.upgradeLevel ?? 0} · ${Math.round(item.durability ?? 100)}%</option>`).join("");
+}
+function smithHistoryHtml() { return state.smith.history.length ? `<ul class="smith-history">${state.smith.history.slice(0, 5).map((entry) => `<li><time>${new Date(entry.at).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}</time>${entry.text}</li>`).join("")}</ul>` : `<p class="muted">Dílna zatím nemá záznam.</p>`; }
+function renderSmith() {
+  if (!elements.smithContent) return;
+  elements.smithRecipeCount.textContent = FORGE_RECIPES.length; elements.smithKnownCount.textContent = state.knownAffixes.length; elements.smithSerial.textContent = String(state.smith.serial).padStart(6, "0");
+  $$("[data-smith-tab]", elements.smithTabs).forEach((button) => { const active = button.dataset.smithTab === ui.smithTab; button.classList.toggle("active", active); button.setAttribute("aria-selected", String(active)); });
+  if (ui.smithTab === "forge") renderForgeSmith();
+  else if (ui.smithTab === "upgrade") renderUpgradeSmith();
+  else if (ui.smithTab === "repair") renderRepairSmith();
+  else if (ui.smithTab === "smelt") renderSmeltSmith();
+  else renderRecipeSmith();
+}
+function renderForgeSmith() {
+  const recipe = forgeSelectedRecipe(); const requirements = requirementsFor(recipe); const preview = forgeBaseItemPreview(recipe);
+  const prefixChoices = knownAffixesFor("prefix", preview); const withPrefix = ui.smithPrefixId ? (applyAffixToItem(preview, ui.smithPrefixId).item ?? preview) : preview;
+  const suffixChoices = knownAffixesFor("suffix", withPrefix);
+  const chance = forgeChance({ prefixId: ui.smithPrefixId, suffixId: ui.smithSuffixId });
+  elements.smithContent.innerHTML = `<div class="smith-grid"><section class="panel smith-recipes"><p class="eyebrow">BASE ITEM</p><h3 class="section-title">Recepty</h3>${FORGE_RECIPES.map((entry) => `<button class="smith-recipe ${entry.id === recipe.id ? "active" : ""}" data-smith-recipe="${entry.id}" type="button"><span>${entry.label}</span><small>TIER ${entry.tier} · ${entry.gold} gold</small></button>`).join("")}</section><section class="panel smith-work"><p class="eyebrow">KOVÁNÍ</p><h3 class="section-title">${recipe.label}</h3><div class="smith-requirements"><h4>Materiály</h4><ul>${requirements.map(materialRequirementText).join("")}</ul><p>Gold <b class="${state.carriedGold >= recipe.gold ? "ok" : "missing"}">${fmtGold(state.carriedGold)}/${recipe.gold}</b></p></div><div class="smith-affixes"><label class="field"><span class="field-label">Prefix (volitelný)</span><select data-smith-field="prefix"><option value="">Bez prefixu</option>${prefixChoices.map((affix) => `<option value="${affix.id}" ${ui.smithPrefixId === affix.id ? "selected" : ""}>${affix.displayName}</option>`).join("")}</select></label><label class="field"><span class="field-label">Suffix (volitelný)</span><select data-smith-field="suffix"><option value="">Bez suffixu</option>${suffixChoices.map((affix) => `<option value="${affix.id}" ${ui.smithSuffixId === affix.id ? "selected" : ""}>${affix.displayName}</option>`).join("")}</select></label></div><p class="smith-probability">Úspěch <strong>${Math.round(chance * 100)} %</strong> · quality se odvodí z nejlepších dostupných variant materiálů.</p><button class="btn primary" data-smith-action="forge" type="button">UKOVAT PŘEDMĚT</button></section><aside class="panel smith-preview"><p class="eyebrow">VÝSLEDEK</p><div class="smith-preview-icon q-slot q-common"></div><h3>${recipe.label}</h3><p class="muted">Sériové číslo po úspěchu: #${String(state.smith.serial + 1).padStart(6, "0")}</p><p class="muted">Všechny naučené svitky jsou použitelné opakovaně; při kování se nespotřebují.</p></aside></div><section class="panel smith-log"><h3 class="section-title">Poslední práce</h3>${smithHistoryHtml()}</section>`;
+  renderItemIcon($(".smith-preview-icon", elements.smithContent), preview); applyQualityVisuals($(".smith-preview-icon", elements.smithContent), { ...preview, quality: DEFAULT_QUALITY });
+}
+function forgeBaseItemPreview(recipe) { const template = findTemplateById(recipe.templateId); return composeItem(recipe.templateId, { ...template, quality: DEFAULT_QUALITY, stats: Object.fromEntries(Object.entries(template.rolls ?? {}).map(([key, range]) => [key, range[1]])), prefix: null, suffix: null }); }
+function renderSmithItemTool(title, action, inventoryOnly = false) {
+  const item = ownedSmithItem(); const options = smithItemOptions({ inventoryOnly });
+  return `<section class="panel smith-tool"><p class="eyebrow">VYBAVENÍ</p><h3 class="section-title">${title}</h3><label class="field"><span class="field-label">Předmět</span><select data-smith-field="item"><option value="">Vyber předmět…</option>${options}</select></label>${item ? smithItemCard(item) : `<p class="muted">Vyber předmět z inventáře${inventoryOnly ? " (nasazené kusy se tavit nedají)" : " nebo z výbavy"}.</p>`}<button class="btn primary" data-smith-action="${action}" type="button" ${item ? "" : "disabled"}>${action === "upgrade" ? "VYLEPŠIT" : action === "repair" ? "OPRAVIT" : "ROZTAVIT"}</button></section>`;
+}
+function smithItemCard(item) { const durability = Math.round((Number(item.durability) || 0) / Math.max(1, Number(item.maxDurability) || 100) * 100); return `<div class="smith-item-card"><strong>${item.name}</strong><span>+${item.upgradeLevel ?? 0} / +${SMITH_CONFIG.maxUpgradeLevel}</span><span>Stav ${durability} %</span><small>${statSummary(item) || "Bez základních bojových statů"}</small></div>`; }
+function renderUpgradeSmith() { const item = ownedSmithItem(); const cost = item ? upgradeCost(item) : null; elements.smithContent.innerHTML = `<div class="smith-grid single"><div>${renderSmithItemTool("Vylepšení", "upgrade")}</div><aside class="panel smith-info"><p class="eyebrow">PRAVIDLA</p><h3 class="section-title">+1 až +15</h3>${cost ? `<p>Další úroveň: <strong>+${cost.nextLevel}</strong></p><p>Šance: <strong>${Math.round(cost.chance * 100)} %</strong></p><ul>${cost.materials.map((entry) => materialRequirementText({ ...entry, quality: bestMaterialQuality(entry.id, entry.qty) })).join("")}</ul><p>Gold: ${cost.gold}</p>` : `<p class="muted">+1 až +3 jsou jisté. Později roste riziko; od +10 může při neúspěchu úroveň klesnout o jednu.</p>`}<p class="muted">Upgrade zvyšuje základní bojové staty o 6 % za úroveň. Quality se tím nemění.</p></aside></div>`; }
+function renderRepairSmith() { const item = ownedSmithItem(); const cost = item ? repairCost(item) : null; elements.smithContent.innerHTML = `<div class="smith-grid single"><div>${renderSmithItemTool("Oprava", "repair")}</div><aside class="panel smith-info"><p class="eyebrow">STAV PŘEDMĚTU</p><h3 class="section-title">Údržba bez trestu</h3>${cost ? `<p>Chybí odolnost: <strong>${cost.missing}</strong></p><p>Gold: <strong>${cost.gold}</strong></p>${cost.materials.length ? `<ul>${cost.materials.map((entry) => materialRequirementText({ ...entry, quality: bestMaterialQuality(entry.id, entry.qty) })).join("")}</ul>` : ""}` : ""}<p class="muted">Odolnost klesá jen při smrti. Výbava se nikdy sama nesundá ani nezastaví boj; při 0 % drží polovinu základních statů.</p></aside></div>`; }
+function renderSmeltSmith() { const item = ownedSmithItem(); const yieldInfo = item ? smeltYield(item) : null; elements.smithContent.innerHTML = `<div class="smith-grid single"><div>${renderSmithItemTool("Tavení", "smelt", true)}</div><aside class="panel smith-info"><p class="eyebrow">ZPĚTNÉ ZÍSKÁNÍ</p><h3 class="section-title">Tavba</h3>${yieldInfo ? `<p>Odhad výsledku:</p><p><strong>${MATERIALS[yieldInfo.materialId]?.name ?? yieldInfo.materialId} ×${yieldInfo.amount}</strong><br><span class="q-text q-${yieldInfo.quality}">${qualityLabel(yieldInfo.quality)}</span></p>` : ""}<p class="muted">Tavení je nevratné. Nasazené, oblíbené a uzamčené předměty chráníme před omylem.</p></aside></div>`; }
+function renderRecipeSmith() { const known = state.knownAffixes.map((id) => getAffix(id)).filter(Boolean); const unread = state.affixScrolls.map((scroll) => ({ scroll, affix: getAffix(scroll.affixId) })).filter((entry) => entry.affix); elements.smithContent.innerHTML = `<div class="smith-grid"><section class="panel smith-scrolls"><p class="eyebrow">KNIHA RECEPTŮ</p><h3 class="section-title">Naučené svitky (${known.length})</h3>${known.length ? `<ul class="smith-known">${known.map((affix) => `<li><strong>${affix.displayName}</strong><span>${affix.type === "prefix" ? "PREFIX" : "SUFFIX"}</span></li>`).join("")}</ul>` : `<p class="muted">Zatím žádný. Svitky se po naučení stanou trvalým receptem.</p>`}</section><section class="panel smith-scrolls"><p class="eyebrow">NENAČTENÉ</p><h3 class="section-title">Svitky v inventáři (${unread.length})</h3>${unread.length ? `<ul class="smith-known">${unread.map(({ scroll, affix }) => `<li><div><strong>${affix.displayName}</strong><span>${affix.type === "prefix" ? "PREFIX" : "SUFFIX"}</span></div><button class="btn" data-smith-learn="${scroll.instanceId}" type="button">NAUČIT</button></li>`).join("")}</ul>` : `<p class="muted">Žádný svitek k naučení. Jejich interní vzácnost ani doporučený build se hráči nezobrazuje.</p>`}</section></div><section class="panel smith-log"><h3 class="section-title">Dílenský záznam</h3>${smithHistoryHtml()}</section>`; }
+
+const PAGE_TITLES = Object.freeze({ postava: "Postava", inventar: "Inventář", kovarna: "Kovář", obchodnik: "Obchodník", banka: "Banka", bestiar: "Bestiář", sbirka: "Sbírka", mapa: "Mapa", boj: "Boj" });
 
 function pageFromHash() {
   const match = /^#\/?([a-z]+)/.exec(location.hash);
@@ -2894,6 +3110,7 @@ function showPage(page) {
   else if (page === "bestiar") renderBestiary();
   else if (page === "sbirka") renderCollection();
   else if (page === "postava") renderEquipmentOverview();
+  else if (page === "kovarna") renderSmith();
   window.scrollTo(0, 0);
 }
 
@@ -2915,6 +3132,24 @@ elements.resetButton.addEventListener("click", () => {
   if (window.confirm("Opravdu resetovat prototyp? Smaže se postup, inventář i materiály.")) resetGame();
 });
 elements.clearLogButton.addEventListener("click", () => { elements.combatLog.innerHTML = ""; addLog("Záznam byl vyčištěn.", "system"); });
+
+elements.smithTabs?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-smith-tab]"); if (!button) return;
+  ui.smithTab = button.dataset.smithTab; ui.smithItemId = ""; renderSmith();
+});
+elements.smithContent?.addEventListener("click", (event) => {
+  const recipe = event.target.closest("[data-smith-recipe]"); if (recipe) { ui.smithRecipeId = recipe.dataset.smithRecipe; ui.smithPrefixId = ""; ui.smithSuffixId = ""; renderSmith(); return; }
+  const learn = event.target.closest("[data-smith-learn]"); if (learn) { learnScroll(learn.dataset.smithLearn); return; }
+  const action = event.target.closest("[data-smith-action]")?.dataset.smithAction;
+  if ({ forge: doForge, upgrade: doUpgrade, repair: doRepair, smelt: doSmelt }[action]) ({ forge: doForge, upgrade: doUpgrade, repair: doRepair, smelt: doSmelt }[action])();
+});
+elements.smithContent?.addEventListener("change", (event) => {
+  const field = event.target.dataset.smithField; if (!field) return;
+  if (field === "prefix") { ui.smithPrefixId = event.target.value; ui.smithSuffixId = ""; }
+  else if (field === "suffix") ui.smithSuffixId = event.target.value;
+  else if (field === "item") ui.smithItemId = event.target.value;
+  renderSmith();
+});
 
 // Inventář: delegované události (grid se překresluje, listenery se tedy nikdy nezdvojují).
 elements.inventoryGrid.addEventListener("click", (event) => {

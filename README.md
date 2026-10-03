@@ -1,6 +1,6 @@
-# Idle RPG — Prototype 0.7 (World & Location Expansion)
+# Idle RPG — Prototype 0.8 (Blacksmithing)
 
-Šestý hratelný prototyp prohlížečového idle RPG. **0.7** rozšiřuje svět o oblasti uvnitř lokací, hratelné Odpadkové hory, cílené farmení konkrétního nepřítele a sdílené craftingové materiály. Vybraný nepřítel se po porážce vrací na stejný spot. Pracovní balance je popsán v [`docs/balance-framework.md`](docs/balance-framework.md); rozsah verze v [`docs/prototype-0.7.md`](docs/prototype-0.7.md).
+Sedmý hratelný prototyp prohlížečového idle RPG. **0.8** přidává první hratelný kovářský loop: cílené materiály → recept → vlastní item se sériovým číslem → upgrade, oprava nebo tavba. Vybraný nepřítel se po porážce vrací na stejný spot. Pracovní balance je popsán v [`docs/balance-framework.md`](docs/balance-framework.md); rozsah kovářství v [`docs/prototype-0.8-smithy.md`](docs/prototype-0.8-smithy.md).
 
 ## Spuštění
 
@@ -19,7 +19,8 @@ Rozcestník: otevři `dev-tools.html`. Obsahuje katalogy (`item-catalog.html`, `
 ## Co prototyp obsahuje
 
 - automatický souboj proti vybranému nepříteli,
-- mapu s lokacemi (Okraj starého lesa, Pustina ticha, Magma a Elektrika hratelné; Odpadkové hory jako náhled `preview` bez kořisti) a výběrem konkrétního nepřítele k farmení — viz `world-data.js`,
+- **(0.8)** Kovář: pět datových receptů, permanentní naučení svitků, volitelný prefix + suffix s existující validací konfliktů, jedinečné sériové číslo vyrobeného kusu, quality podle kvality použitých materiálů, riziko úspěchu, upgrade `+0` až `+15`, pomalá eventová odolnost/oprava a nevratná tavba přebytečné kořisti,
+- mapu s lokacemi (Okraj starého lesa, Pustina ticha, Odpadkové hory, Magma a Elektrika) a výběrem konkrétního nepřítele k farmení — viz `world-data.js`,
 - zahájení a pozastavení výpravy,
 - rozdílnou rychlost útoku postavy a nepřítele, obranu nepřítele snižující příchozí poškození,
 - náhodné poškození a 10% šanci na kritický zásah,

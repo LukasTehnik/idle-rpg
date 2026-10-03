@@ -111,7 +111,7 @@ const SAVE_KEY = "idle-rpg-prototype-v02";
     const after = await page.evaluate(() => state.inventory.filter((i) => i.prefix || i.suffix).map((i) => ({ id: i.id, prefix: i.prefix, suffix: i.suffix })));
     assert(JSON.stringify(before) === JSON.stringify(after), "rolly se po reloadu změnily");
     const saved = await page.evaluate((key) => { const s = JSON.parse(localStorage.getItem(key)); return { version: s.version, scrolls: s.affixScrolls.length, keys: Object.keys(s.affixScrolls[0]).sort().join(",") }; }, SAVE_KEY);
-    assert(saved.version === 5 && saved.scrolls === 64, JSON.stringify(saved));
+    assert(saved.version === 8 && saved.scrolls === 64, JSON.stringify(saved));
     assert(saved.keys === "affixId,affixType,instanceId,itemType,tradeable,visualClass", saved.keys);
     await page.click('[data-tab="equipment"]');
     const id = before[0].id;
@@ -149,7 +149,7 @@ const SAVE_KEY = "idle-rpg-prototype-v02";
     assert(r.eq[0] === null && r.eq[1] === null && r.scrolls.length === 0, "nasazený item/svitky");
     await page.evaluate(() => saveState());
     const version = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)).version, SAVE_KEY);
-    assert(version === 5, `verze ${version}`);
+    assert(version === 8, `verze ${version}`);
     assert(page.errors.length === 0, page.errors.join("; "));
   });
 
