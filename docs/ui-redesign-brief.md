@@ -78,3 +78,12 @@ Efekty jsou statické nebo velmi pomalé a respektují `prefers-reduced-motion`.
 ## Otevřené otázky
 - Má zůstat nějaký „herní" prvek (ikony, nadpisy), nebo čistě minimalistické?
 - Má se hra i na desktopu držet užšího sloupce, nebo využít celou šířku (grafy, víc sloupců)?
+
+
+## Stav implementace (0.9)
+
+- Světlé téma je nasazené pro celou hru jako samostatná vrstva `theme-light.css` (načítá se po `styles.css`, smazáním řádku v `index.html` se vrátí původní vzhled). Platí i pro katalogy a dev stránky.
+- Písmo Inter je uložené lokálně (`assets/fonts/inter-*.woff2`, licence `OFL-Inter.txt`).
+- Na šířce do 899 px nahrazuje levé menu spodní lišta (Boj, Inventář, Postava, Kovář, Další); „Další“ otevře původní menu.
+- Inventář: dlaždice podle kvality, filtry za tlačítkem „Filtry“ na mobilu, detail s hierarchií Základ → Vlastnosti → ostatní.
+- Logika, data a ukládání se nezměnily (save zůstává ve verzi 8). Testy: `tests/ui-tests.js` 10/10, `tests/affix-tests.js` 50/50.

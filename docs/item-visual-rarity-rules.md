@@ -375,3 +375,33 @@ Players should recognise crafting materials by their icon first and by the name 
 5. **Quantity and name stay readable.** The available / missing state keeps its colour (`.ok` / `.missing`: text colour and the icon frame colour); the icon itself is never recoloured and quality colour is not applied to the inline frame.
 6. Where the surrounding UI already uses a larger quality-coloured slot (loot chips, inventory, location lists), do not add a second inline icon.
 
+
+## Light Theme (UI Redesign 0.9)
+
+The game now ships with a light, warm theme (`theme-light.css`, loaded after `styles.css`). The dark retro frames above remain in `styles.css` as the fallback; the light theme overrides only presentation. Rules that do **not** change:
+
+- Quality scale and English quality names (`COMMON` … `GOD`) in details and tooltips. Color is never the only quality indicator.
+- Glow / sheen begins at **Legendary**. Common, Rare and Epic have no glow, no colored shadow.
+- Wings always use the gold surface and gold frame, regardless of quality. The gold aura exists only when `wingGlow: "gold"` is set explicitly in item data.
+- Affix scrolls keep one uniform presentation (parchment tile) without rarity.
+- Upgrade level never changes quality; the MAX mark stays a separate neutral layer.
+
+What the light theme changes:
+
+| Quality | Tile | Extra |
+| --- | --- | --- |
+| Common | Cream surface, gray frame | none |
+| Rare | Soft blue gradient, blue frame | none |
+| Epic | Soft violet gradient, violet frame | none |
+| Legendary | Turquoise → gold gradient, turquoise frame | colored shadow, slow sheen |
+| Mythic | Red → gold gradient, red frame | stronger colored shadow, slow sheen |
+| God | Multicolor gradient, white frame + violet double ring | colored shadow, slow sheen |
+| Wings | Gold gradient, gold frame | aura only with `wingGlow: "gold"` |
+
+The sheen is a slow diagonal highlight (4.5 s) and is disabled for `prefers-reduced-motion`. The old pixel auras (`.q-aura`) are hidden in the light theme. Pixel-art item assets are always rendered with `image-rendering: pixelated`.
+
+### Item detail hierarchy
+
+1. **Level 1 (large, top):** name, quality badge, **Základ** (base stats, damage shown as one range such as `200–250`), **Vlastnosti předmětu** (affix bonuses as separate tinted rows such as `Poškození +230 %`), comparison with the equipped item, actions.
+2. **Level 2 (medium):** flavor text, requirements.
+3. **Level 3 (small, muted, last):** quality, slot, source, origin location, acquired date.

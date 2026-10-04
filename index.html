@@ -3,17 +3,29 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#12100d" />
+    <meta name="theme-color" content="#f6f1e9" />
     <meta
       name="description"
       content="Prohlížečový idle RPG prototyp s aplikačním shellem, samostatnými stránkami a paper-doll inventářem."
     />
-    <title>Idle RPG — Prototype 0.8</title>
+    <title>Idle RPG — Prototype 0.9</title>
     <link rel="preload" href="assets/fonts/jersey-10-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="theme-light.css" />
   </head>
   <body>
     <a class="skip-link" href="#main">Přeskočit na obsah</a>
+
+
+    <!-- ============ SPODNÍ LIŠTA (jen mobil) ============ -->
+    <nav class="tabbar" aria-label="Rychlá navigace">
+      <a class="tab-link" href="#/boj" data-page-link="boj"><span class="tab-ico tab-ico-boj" aria-hidden="true"></span>Boj</a>
+      <a class="tab-link" href="#/inventar" data-page-link="inventar"><span class="tab-ico tab-ico-inv" aria-hidden="true"></span>Inventář</a>
+      <a class="tab-link" href="#/postava" data-page-link="postava"><span class="tab-ico tab-ico-post" aria-hidden="true"></span>Postava</a>
+      <a class="tab-link" href="#/kovarna" data-page-link="kovarna"><span class="tab-ico tab-ico-kov" aria-hidden="true"></span>Kovář</a>
+      <button class="tab-link" id="tabMore" type="button" aria-controls="sidebar"><span class="tab-ico tab-ico-more" aria-hidden="true"></span>Další</button>
+    </nav>
 
     <div class="game-shell">
       <!-- ============ LEVÝ SIDEBAR (na mobilu vysouvací) ============ -->
@@ -158,17 +170,20 @@
                 </div>
 
                 <div id="invTabs" class="inv-tabs" role="group" aria-label="Kategorie inventáře">
-                  <button class="inv-tab active" type="button" aria-pressed="true" data-tab="all">VŠE <span data-tab-count="all">0</span></button>
-                  <button class="inv-tab" type="button" aria-pressed="false" data-tab="equipment">VYBAVENÍ <span data-tab-count="equipment">0</span></button>
-                  <button class="inv-tab" type="button" aria-pressed="false" data-tab="materials">MATERIÁLY <span data-tab-count="materials">0</span></button>
-                  <button class="inv-tab" type="button" aria-pressed="false" data-tab="scrolls">SVITKY <span data-tab-count="scrolls">0</span></button>
+                  <button class="inv-tab active" type="button" aria-pressed="true" data-tab="all">Vše <span data-tab-count="all">0</span></button>
+                  <button class="inv-tab" type="button" aria-pressed="false" data-tab="equipment">Vybavení <span data-tab-count="equipment">0</span></button>
+                  <button class="inv-tab" type="button" aria-pressed="false" data-tab="materials">Materiály <span data-tab-count="materials">0</span></button>
+                  <button class="inv-tab" type="button" aria-pressed="false" data-tab="scrolls">Svitky <span data-tab-count="scrolls">0</span></button>
                 </div>
 
-                <div class="inv-toolbar">
+                <div class="inv-bar">
                   <label class="field field-search">
                     <span class="field-label">Hledat</span>
-                    <input id="invSearch" type="search" placeholder="Název nebo slot…" autocomplete="off" />
+                    <input id="invSearch" type="search" placeholder="Hledat předmět…" autocomplete="off" />
                   </label>
+                  <button id="invFiltersToggle" class="btn inv-filters-toggle" type="button" aria-expanded="false" aria-controls="invToolbar">Filtry</button>
+                </div>
+                <div id="invToolbar" class="inv-toolbar">
                   <label class="field" id="invTypeField">
                     <span class="field-label">Typ</span>
                     <select id="invType"></select>
@@ -307,6 +322,8 @@
                   <div class="detail-info">
                     <h3 id="detailTitle" class="detail-title">Předmět</h3>
                     <p id="detailType" class="detail-type"></p>
+                    <div id="detailStats" class="kv-list"></div>
+                    <div id="detailCompare" class="detail-compare hidden"></div>
                     <div class="detail-actions">
                       <button id="detailActionButton" class="btn btn-primary" type="button">VYBAVIT</button>
                       <div id="detailSecondary" class="detail-secondary">
@@ -316,8 +333,6 @@
                       </div>
                       <p id="detailNote" class="detail-note hidden"></p>
                     </div>
-                    <div id="detailStats" class="kv-list"></div>
-                    <div id="detailCompare" class="detail-compare hidden"></div>
                     <p id="detailFlavor" class="detail-flavor hidden"></p>
                     <div id="detailMeta" class="kv-list kv-list-meta"></div>
                   </div>

@@ -1059,6 +1059,35 @@ function statRows(item) {
   return rows;
 }
 
+// Zobrazení základu itemu v detailu: rozsah poškození jako jeden řádek (efektivní hodnoty včetně bonusů z vylepšení).
+function detailBaseRows(item) {
+  const rows = [];
+  const range = (minKey, maxKey) => ({ min: getItemBonus(item, minKey), max: getItemBonus(item, maxKey), baseMin: item.stats?.[minKey] ?? 0, baseMax: item.stats?.[maxKey] ?? 0 });
+  if (item.stats?.damageMin && item.stats?.damageMax) {
+    const r = range("damageMin", "damageMax");
+    const changed = r.min !== r.baseMin || r.max !== r.baseMax;
+    rows.push(["Poškození", `${fmtNum(r.min)}–${fmtNum(r.max)}`, changed ? `základ ${fmtNum(r.baseMin)}–${fmtNum(r.baseMax)}` : null]);
+  }
+  const single = (key, label, suffix = "") => {
+    if (!item.stats?.[key]) return;
+    const base = item.stats[key]; const effective = getItemBonus(item, key);
+    rows.push([label, `+${fmtNum(effective)}${suffix}`, effective !== base ? `základ ${fmtNum(base)}${suffix}` : null]);
+  };
+  if (!(item.stats?.damageMin && item.stats?.damageMax)) { single("damageMin", "Minimální poškození"); single("damageMax", "Maximální poškození"); }
+  single("maxHp", "Maximální životy");
+  single("critChance", "Kritický zásah", " %");
+  return rows;
+}
+
+// Rozdělí text modifikátoru na popisek a hodnotu ("Poškození +230 %" → ["Poškození", "+230 %"]); když neumí, vrátí celý text.
+function splitModifierText(text) {
+  const lead = String(text).match(/^([+−-]\s?[\d.,]+(?:\s?%)?)\s+(.+)$/);
+  if (lead) return [lead[2], lead[1]];
+  const trail = String(text).match(/^(.+?)\s+([+−-]\s?[\d.,]+(?:\s?%)?(?:\s?\/\s?.+)?)$/);
+  if (trail) return [trail[1], trail[2]];
+  return [String(text), ""];
+}
+
 function statSummary(item) { return statRows(item).map(([label, value]) => `${label}: ${value}`).join(" · "); }
 
 // Non-blocking drop notification (Oprava 1). Stacks visually in the corner,
@@ -1626,12 +1655,25 @@ function renderDetail() {
   renderItemIcon(elements.detailIcon, item);
   applyQualityVisuals(elements.detailIcon, visual);
   elements.detailType.textContent = `${SLOT_META[item.slot]?.label ?? "Ostatní"}${equippedNow ? " · právě vybaveno" : ""}`;
-  statRows(item).forEach(([label, value]) => elements.detailStats.append(kvRow(label, value)));
-  // Prototype 0.6: prefix a suffix jsou zvláštní řádky, oddělené od kvality a základních statů.
-  buildItemAffixLines(item).forEach((group) => {
-    elements.detailStats.append(mk("div", { class: "kv-row affix-heading" }, mk("span", { text: `${group.label}: ${group.name}` })));
-    group.lines.forEach((line) => elements.detailStats.append(mk("div", { class: `kv-row affix-line${line.negative ? " negative" : ""}` }, mk("span", { text: line.text }))));
-  });
+  // Redesign: nahoře ZÁKLAD předmětu (rozsah poškození, životy…), pod ním zvlášť VLASTNOSTI z affixů (jen vzhled; data a výpočty se nemění).
+  const baseRows = detailBaseRows(item);
+  if (baseRows.length) {
+    elements.detailStats.append(mk("p", { class: "detail-sec-title", text: "Základ" }));
+    baseRows.forEach(([label, value, note]) => elements.detailStats.append(mk("div", { class: "kv-row kv-base" }, mk("span", { text: note ? `${label} · ${note}` : label }), mk("strong", { text: value }))));
+  }
+  const affixGroups = buildItemAffixLines(item);
+  if (affixGroups.length) {
+    elements.detailStats.append(mk("p", { class: "detail-sec-title", text: "Vlastnosti předmětu" }));
+    affixGroups.forEach((group) => {
+      elements.detailStats.append(mk("p", { class: "affix-heading", text: `${group.label}: ${group.name}` }));
+      group.lines.forEach((line) => {
+        const [label, value] = splitModifierText(line.text);
+        const row = mk("div", { class: `kv-row affix-line mod-row${line.negative ? " negative" : ""}` }, mk("span", { text: label }));
+        if (value) row.append(mk("b", { text: value }));
+        elements.detailStats.append(row);
+      });
+    });
+  }
   if (!equippedNow) renderCompare(item);
 
   const flavorText = item.flavorText ?? template?.flavorText ?? null;
@@ -3309,6 +3351,12 @@ elements.enterDialog.addEventListener("close", () => { pendingEnterId = null; })
 // Navigace
 elements.menuButton.addEventListener("click", () => (document.body.classList.contains("nav-open") ? closeSidebar() : openSidebar()));
 elements.sidebarBackdrop.addEventListener("click", () => closeSidebar());
+document.getElementById("invFiltersToggle")?.addEventListener("click", (event) => {
+  const bar = document.getElementById("invToolbar");
+  const open = bar.classList.toggle("open");
+  event.currentTarget.setAttribute("aria-expanded", String(open));
+});
+document.getElementById("tabMore")?.addEventListener("click", () => (document.body.classList.contains("nav-open") ? closeSidebar({ restoreFocus: false }) : openSidebar()));
 $$(".nav-link", elements.sidebar).forEach((link) => link.addEventListener("click", () => closeSidebar({ restoreFocus: false })));
 window.addEventListener("hashchange", () => showPage(pageFromHash()));
 mqDrawer.addEventListener("change", (event) => { if (!event.matches) closeSidebar({ restoreFocus: false }); });
