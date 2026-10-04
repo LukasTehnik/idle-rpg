@@ -9,9 +9,10 @@ Současné UI je zdědění po retro tématu: velké písmo, velké mezery, vše
 1. **Mobile first.** Návrh se dělá pro telefon (~390 px) a rozšiřuje na desktop.
 2. **Navigace:** desktop = levé menu (zůstává, čistší). Telefon = spodní lišta (hlavní: Boj, Inventář, Postava, Kovář + „Další").
 3. **Písmo:** volně dostupný bezpatkový font (návrh: Inter, SIL OFL, hostovaný lokálně, bez externích závislostí). Čísla s `tabular-nums`, aby se staty četly pod sebou.
-4. **Styl:** čistý minimalistický, bez retro rámečků a pixelových stínů. Měkké rohy, jemné oddělení ploch, málo čar.
-5. **Assety zůstávají pixel art.** Na hladkých dlaždicích, zvětšují se po celých násobcích, `image-rendering: pixelated`.
-6. **Rarita:** vše vzácné má zářit a působit draze (viz níže).
+4. **Téma:** světlé, teplé (krémové).
+5. **Styl:** čistý minimalistický, bez retro rámečků a pixelových stínů. Měkké rohy, jemné oddělení ploch, málo čar.
+6. **Assety zůstávají pixel art.** Na hladkých dlaždicích, zvětšují se po celých násobcích, `image-rendering: pixelated`.
+7. **Rarita:** vše vzácné má zářit a působit draze (viz níže).
 
 ## Hierarchie informací (hlavní pravidlo)
 Každá obrazovka má tři úrovně a nesmí je míchat:
@@ -38,27 +39,42 @@ Příklad detailu itemu: nahoře jméno + kvalita, pod tím velké staty (s poro
 - Dotykové cíle min. 44 px.
 - Dlaždice itemu: telefon ≥ 72 px, desktop ≥ 88 px.
 
-## Rarita (musí zářit a působit draze)
-Tmavé teplé pozadí je kvůli tomu nutné: záře je na světlém pozadí neviditelná. Proto navrhuji **teplé tmavé téma** (espresso / grafit), ne bílé.
+## Téma: světlé, teplé (odsouhlaseno)
+Papírově krémové pozadí, teplá šedá/hnědá pro text, jedna akcentní barva pro akce. Všechny barvy jsou jako tokeny na jednom místě (`:root`), takže jde později doplnit i tmavou variantu.
+
+| Token | Návrh |
+| --- | --- |
+| Pozadí stránky | teplá krémová (~`#f6f1e9`) |
+| Povrch / karta | světlejší krém až bílá (~`#fffdf9`), jemný okraj a měkký stín |
+| Text hlavní / vedlejší / tlumený | tmavě hnědá (~`#2b2620`) / `#6b6258` / `#9a9086` |
+| Akcent (akce, vybraný stav) | teplá terakota nebo zlatavá okrová (jedna barva, ne víc) |
+| Dobré / špatné | tlumená zelená / tlumená červená (dost kontrastní na krému) |
+
+## Rarita (musí zářit a působit draze) na světlém pozadí
+Samotná záře kolem dlaždice se na světlém pozadí ztratí. Proto se vzácnost nedělá vnější září, ale **sytou plochou dlaždice**, která na krémovém pozadí vyskočí (jako plakáty ve FilScreen):
+
+- **Common:** neutrální teplá dlaždice, bez efektu.
+- **Rare a výš:** dlaždice dostane sytý barevný přechod (hluboká modrá, fialová, tyrkys, červená), jemný vnitřní lesk a barevný stín pod dlaždicí. Pixel art itemu na ní zůstává ostrý a čitelný.
+- **Legendary a výš:** navíc pomalý lesk (světelný pruh, který občas přejede přes dlaždici) a jemná jiskra v rohu.
+- **God:** vícebarevný přechod, výraznější lesk a dvojitý rámeček.
 
 | Kvalita | Projev |
 | --- | --- |
-| Common | bez efektu, neutrální rámeček |
-| Rare | čistá barevná linka, jemný barevný nádech dlaždice |
-| Epic | + měkká vnější záře |
-| Legendary | + zlatý/tyrkysový lesk, pomalý jemný záblesk přes dlaždici |
-| Mythic | + sytá záře, jemné částice |
-| God | vícebarevný přechod, výrazná záře a pomalý lesk |
+| Common | neutrální dlaždice |
+| Rare | sytá modrá, vnitřní lesk, barevný stín |
+| Epic | sytá fialová, silnější lesk a stín |
+| Legendary | tyrkys/zlato, pomalý lesk přes dlaždici |
+| Mythic | sytá červená, lesk + jiskry |
+| God | vícebarevný přechod, lesk, dvojitý rámeček |
 
-Efekty jsou statické nebo velmi pomalé, respektují `prefers-reduced-motion` a mají limit jasu. Barva není jediný indikátor, název kvality se píše.
+Efekty jsou statické nebo velmi pomalé a respektují `prefers-reduced-motion`. Barva není jediný indikátor, název kvality se vždy píše. V seznamech a řádcích (kovář, materiály) se kvalita ukazuje jen drobnou barevnou tečkou nebo štítkem, ne celou plochou.
 
 ## Postup
-1. Odsouhlasit tento dokument (hlavně motiv: tmavé vs. světlé, viz otevřená otázka).
+1. Odsouhlasit tento dokument.
 2. Vytvořit sdílené „design tokeny" (barvy, písmo, mezery) na jednom místě.
 3. Přepsat obrazovky po jedné v pořadí: **Inventář → Boj → Postava → Kovář → ostatní**. Po každé commit + kontrola na telefonu i desktopu.
 4. Stávající logika, save a testy se nemění.
 
 ## Otevřené otázky
-- **Tmavé teplé vs. světlé téma?** (návrh: tmavé teplé kvůli záři; světlé lze přidat později přes tokeny)
 - Má zůstat nějaký „herní" prvek (ikony, nadpisy), nebo čistě minimalistické?
 - Má se hra i na desktopu držet užšího sloupce, nebo využít celou šířku (grafy, víc sloupců)?
