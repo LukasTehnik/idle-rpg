@@ -570,39 +570,36 @@
               <div class="scene-head">
                 <div>
                   <p class="eyebrow" id="currentLocationName">OKRAJ STARÉHO LESA</p>
-                  <p class="muted">Vybraný nepřítel se po porážce vrací</p>
+                  <p class="muted">Vlna nepřátel se po vyčištění znovu objeví</p>
                 </div>
                 <a class="btn" href="#/mapa">Změnit cíl na mapě</a>
               </div>
 
-              <div id="arena" class="arena">
-                <div id="slashEffect" class="slash-effect" aria-hidden="true"></div>
-                <div id="arenaFx" class="arena-fx" aria-hidden="true"></div>
-                <div class="fighter fighter-player">
-                  <span class="tag">TY</span>
-                  <div class="fighter-art player-art" data-character-preview role="img" aria-label="Poutník"></div>
-                  <h2 class="fighter-name">Poutník</h2>
-                  <div class="bar-block">
-                    <div class="bar-label"><span>Životy</span><span><strong data-bind="playerHp">100</strong> / <span data-bind="playerMaxHp">100</span></span></div>
-                    <div class="bar health-bar bar-lg"><div class="bar-fill" data-bar="playerHp"></div></div>
-                  </div>
-                </div>
-
-                <div class="versus" aria-hidden="true">VS</div>
-
-                <div class="fighter fighter-enemy">
-                  <span class="tag danger">NEPŘÍTEL</span>
-                  <div id="enemyPortrait" class="fighter-art enemy-art" aria-hidden="true">
+              <div class="cf-playerhp">
+                <span class="cf-php-label">Životy</span>
+                <div class="cf-php-track"><div class="cf-php-fill" data-bar="playerHp"></div></div>
+                <span class="cf-php-text"><strong data-bind="playerHp">100</strong> / <span data-bind="playerMaxHp">100</span></span>
+              </div>
+              <div id="arena" class="arena arena-field">
+                <canvas id="combatCanvas" class="combat-canvas"></canvas>
+                <div class="cf-rlog"><div class="cf-rl-title">Odměny</div><div id="cfLogRows"></div></div>
+                <div class="cf-waveinfo" id="cfWave">Vlna</div>
+                <button class="cf-info" id="cfInfo" type="button" aria-pressed="false" aria-label="Drop a šance na drop">i</button>
+                <aside class="cf-drawer" id="cfDrawer" aria-label="Drop a šance"><button class="cf-dr-close" id="cfDrClose" type="button" aria-label="Zavřít">✕</button><div id="cfDrawerBody"></div></aside>
+                <div class="legacy-arena" hidden aria-hidden="true">
+                  <div id="slashEffect" class="slash-effect"></div>
+                  <div id="arenaFx" class="arena-fx"></div>
+                  <div id="enemyPortrait" class="fighter-art enemy-art">
                     <div id="goblinFigure" class="goblin-figure" role="img" aria-label="Goblin"></div>
                     <img id="enemyImage" class="enemy-image hidden" alt="" />
                   </div>
-                  <h2 id="enemyName" class="fighter-name" data-bind-name>Goblin</h2>
-                  <p id="enemyLevel" class="fighter-level">Úroveň 1</p>
-                  <div class="bar-block">
-                    <div class="bar-label"><span>Životy nepřítele</span><span><strong data-bind="enemyHp">48</strong> / <span data-bind="enemyMaxHp">48</span></span></div>
-                    <div class="bar health-bar enemy-bar bar-lg"><div class="bar-fill" data-bar="enemyHp"></div></div>
-                  </div>
+                  <span id="enemyName" data-bind-name>Goblin</span>
+                  <span id="enemyLevel">Úroveň 1</span>
                 </div>
+              </div>
+              <div class="cf-respawn">
+                <div class="cf-rb-label"><span id="cfRbLabel">Vlna</span><span id="cfRbRight"></span></div>
+                <div class="cf-rb-track"><div class="cf-rb-fill" id="cfRbFill"></div></div>
               </div>
 
               <div id="encounterMessage" class="encounter-message" aria-live="polite">Připraven k boji</div>
@@ -673,6 +670,7 @@
     <script src="affix-logic.js"></script>
     <script src="smith-data.js"></script>
     <script src="scroll-ui.js"></script>
+    <script src="combat-field.js"></script>
     <script src="cloud-sync.js" data-app="app.js"></script>
   </body>
 </html>

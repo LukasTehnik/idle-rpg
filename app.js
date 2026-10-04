@@ -6,6 +6,11 @@ const CONFIG = Object.freeze({
   enemyRespawnMs: 3000,
   playerRespawnMs: 5000,
   betweenFightHealPercent: 0.1,
+  // Prototype 0.9 — vlnový boj (farmící spot). Čísla jsou laditelná.
+  waveSize: 14,            // kolik nepřátel je ve vlně
+  waveSizeBoss: 4,         // boss typy: menší houf
+  waveRespawnMs: 8500,     // pauza po vyčištění vlny, než se objeví další
+  waveMeleeCount: 2,       // kolik nepřátel tě naráz může bít (aby velká vlna nezabila okamžitě)
   dropChance: 0.42, // fallback only -- each enemy in ENEMIES sets its own dropChance
   inventoryCapacity: LOOT_CONFIG.inventoryCapacity, // Prototype 0.5: centrální konfigurace v economy-data.js
   maxLogEntries: 80,
@@ -104,6 +109,8 @@ const initialState = () => ({
   run: createRun(DEFAULT_ENEMY_ID),
   player: { hp: 100, baseMaxHp: 100, baseMinDamage: 9, baseMaxDamage: 13, baseCritChance: 0.1 },
   enemy: { hp: ENEMIES[DEFAULT_ENEMY_ID].maxHp, maxHp: ENEMIES[DEFAULT_ENEMY_ID].maxHp },
+  // Prototype 0.9 — vlnový boj. Transientní (neukládá se), staví se v beginFight.
+  wave: [], waveTotal: 0, waveKilled: 0, waveSeq: 0, respawnTotalMs: 0,
   lastPlayerAttackAt: 0,
   lastEnemyAttackAt: 0,
   phaseEndsAt: 0,
@@ -697,6 +704,17 @@ function render() {
   else if (state.phase === "dead") setStatus("Postava padla", "danger");
   if (!state.run.targetEnemyId) { elements.fightButtonText.textContent = "Vybrat nepřítele"; elements.fightButtonIcon.textContent = "▶"; setStatus("Bez cíle", "idle"); }
   renderCombatWidgets();
+  if (window.CombatField) {
+    const now = state.running ? performance.now() : (state.pausedAt ?? performance.now());
+    window.CombatField.hud({
+      playerHpPct: clampPercent(state.player.hp, stats.maxHp),
+      mode: !state.run.targetEnemyId ? "ready" : state.phase,
+      waveKilled: state.waveKilled, waveTotal: state.waveTotal,
+      respawnLeftMs: Math.max(0, state.phaseEndsAt - now),
+      respawnTotalMs: state.respawnTotalMs || CONFIG.waveRespawnMs,
+      enemyName: getCurrentEnemy().name,
+    });
+  }
 }
 
 function setStatus(label, mode) {
@@ -766,51 +784,79 @@ function updateArenaHeader() {
     elements.enemyImage.removeAttribute("src");
     elements.goblinFigure.classList.remove("hidden");
   }
+  if (window.CombatField) window.CombatField.setLoot(combatLootTable(enemyCfg));
 }
+
+// Reálná tabulka dropu pro panel „i" na bojišti — čísla z world-data.js.
+function combatLootTable(enemyCfg) {
+  const pct = (c) => `${Math.round((c ?? 0) * 100)} %`;
+  const rows = [
+    { name: "XP", val: `+${enemyCfg.xp}`, col: "#3f7d4e", shape: "sq" },
+    { name: "Zlato", val: `+${enemyCfg.gold ?? 0}`, col: "#c79a3a", shape: "coin" },
+    { name: "Vybavení (náhodné)", val: pct(enemyCfg.dropChance ?? CONFIG.dropChance), col: "#3b74c9", shape: "dia" },
+  ];
+  (enemyCfg.equipmentDrops ?? []).forEach((raw) => {
+    const d = normalizeEquipmentDrop(raw, enemyCfg.id); if (!d) return;
+    const tmpl = ITEM_TEMPLATES.find((t) => t.templateId === d.templateId);
+    rows.push({ name: tmpl?.name ?? "Vybavení", val: pct(d.chance), col: "#8a4fd0", shape: "dia" });
+  });
+  (enemyCfg.materialDrops ?? []).forEach((raw) => {
+    const d = normalizeMaterialDrop(raw, enemyCfg.id); if (!d) return;
+    const m = MATERIALS[d.templateId]; if (!m) return;
+    rows.push({ name: m.name, val: pct(d.chance), col: "#8d8477", shape: "sq" });
+  });
+  return rows;
+}
+
+// Prototype 0.9 — vlnový boj (farmící spot). Stojíš na jednom místě, kolem se
+// objeví houf nepřátel jednoho druhu, biješ je po jednom (nejbližší cíl) a oni
+// bijí tebe (max `waveMeleeCount` naráz). Když je houf pryč, běží respawn a pak
+// se objeví celý nový houf. Veškerá čísla (poškození, krit, HP, loot, XP, zlato,
+// smrt) jsou původní — mění se jen struktura boje a vykreslení (combat-field.js).
+let lastKillLoot = null;
 
 function beginFight(now = performance.now()) {
   const enemyCfg = getCurrentEnemy();
   if (!state.bestiary[enemyCfg.id]) { discoverEnemy(enemyCfg.id); addLog(`Bestiář: objeven nový nepřítel — ${enemyCfg.name}.`, "system"); }
   state.phase = "fighting";
-  state.enemy.maxHp = enemyCfg.maxHp;
-  state.enemy.hp = enemyCfg.maxHp;
+  const size = enemyCfg.type === "boss" ? CONFIG.waveSizeBoss : CONFIG.waveSize;
+  state.wave = [];
+  for (let i = 0; i < size; i += 1) state.wave.push({ id: (state.waveSeq += 1), hp: enemyCfg.maxHp, maxHp: enemyCfg.maxHp });
+  state.waveTotal = size; state.waveKilled = 0;
+  state.enemy.maxHp = enemyCfg.maxHp; state.enemy.hp = enemyCfg.maxHp;
   state.lastPlayerAttackAt = now;
   state.lastEnemyAttackAt = now;
-  elements.encounterMessage.textContent = "Souboj začal";
-  addLog(`Objevil se nepřítel: ${enemyCfg.name}. Souboj začíná.`, "system");
+  elements.encounterMessage.textContent = `Vlna nepřátel: ${enemyCfg.name} ×${size}`;
+  addLog(`Objevila se vlna nepřátel: ${enemyCfg.name} ×${size}.`, "system");
+  if (window.CombatField) window.CombatField.beginWave(enemyCfg.type || "common", state.wave.map((e) => e.id));
   render();
 }
 
 function playerAttack() {
   const enemyCfg = getCurrentEnemy();
   const stats = getPlayerStats();
+  const target = state.wave.find((e) => e.hp > 0);
+  if (!target) { enterWaveCooldown(performance.now()); return; }
   const critical = Math.random() < stats.critChance;
   let damage = randomInt(stats.minDamage, stats.maxDamage);
   if (critical) damage *= 2;
   damage = Math.max(1, damage - (enemyCfg.defense ?? 0));
   if (critical) state.stats.highestCrit = Math.max(state.stats.highestCrit, damage);
-  state.enemy.hp = Math.max(0, state.enemy.hp - damage);
-  addLog(critical ? `Kritický zásah! Poutník zasáhl nepřítele (${enemyCfg.name}) za ${damage}.` : `Poutník zasáhl nepřítele (${enemyCfg.name}) za ${damage}.`, critical ? "critical" : "player");
-  animateHit("enemy");
-  spawnCombatBurst("enemy", critical);
-  if (state.enemy.hp <= 0) defeatEnemy();
+  target.hp = Math.max(0, target.hp - damage);
+  state.enemy.maxHp = target.maxHp; state.enemy.hp = target.hp;
+  if (window.CombatField) window.CombatField.hit(target.id, critical, damage);
+  if (target.hp <= 0) {
+    awardKill(enemyCfg);
+    state.wave = state.wave.filter((e) => e !== target);
+    state.waveKilled += 1;
+    if (window.CombatField) window.CombatField.kill(target.id, lastKillLoot);
+    if (!state.wave.some((e) => e.hp > 0)) enterWaveCooldown(performance.now());
+  }
 }
 
-function enemyAttack() {
-  const enemyCfg = getCurrentEnemy();
-  const damage = randomInt(enemyCfg.minDamage, enemyCfg.maxDamage);
-  state.player.hp = Math.max(0, state.player.hp - damage);
-  addLog(`${enemyCfg.name} zasáhl Poutníka za ${damage}.`, "enemy");
-  animateHit("player");
-  spawnCombatBurst("player");
-  if (state.player.hp <= 0) defeatPlayer();
-}
-
-function defeatEnemy() {
-  // Guard against double-awarding: rewards are granted only for the fight
-  // that is actually in progress.
-  if (state.phase !== "fighting") return;
-  const enemyCfg = getCurrentEnemy();
+// Odměna za jedno zabití — původní logika z defeatEnemy (XP, zlato, kořist,
+// drobné doléčení). Nemění fázi; tu řeší enterWaveCooldown až po vybití vlny.
+function awardKill(enemyCfg) {
   state.kills += 1;
   discoverEnemy(enemyCfg.id).kills += 1;
   state.xp += enemyCfg.xp;
@@ -818,23 +864,42 @@ function defeatEnemy() {
   state.run.kills += 1;
   state.run.xpEarned += enemyCfg.xp;
   state.run.goldEarned += enemyCfg.gold ?? 0;
-  state.phase = "searching";
-  const searchMs = enemySearchMs(enemyCfg);
-  state.phaseEndsAt = performance.now() + searchMs;
-  elements.encounterMessage.textContent = `Hledám další výskyt: ${enemyCfg.name}… ${Math.ceil(searchMs / 1000)} s`;
-  addLog(`${enemyCfg.name} padl. Získáváš ${enemyCfg.xp} XP a ${enemyCfg.gold ?? 0} gold.`, "victory");
   applyLevelUps();
   const stats = getPlayerStats();
   const healing = Math.max(1, Math.round(stats.maxHp * CONFIG.betweenFightHealPercent));
-  const before = state.player.hp;
   state.player.hp = Math.min(stats.maxHp, state.player.hp + healing);
-  if (state.player.hp > before) addLog(`Krátký oddech obnovil ${state.player.hp - before} životů.`, "system");
+  const dropsBefore = state.drops;
   if (Math.random() < (enemyCfg.dropChance ?? CONFIG.dropChance)) generateDrop(enemyCfg);
   rollEquipmentDrops(enemyCfg);
   rollMaterialDrops(enemyCfg);
-  if (ui.page === "obchodnik") renderMerchant(); // dostupnost zpětného odkupu závisí na zlatě
+  lastKillLoot = { xp: enemyCfg.xp, gold: enemyCfg.gold ?? 0, item: state.drops > dropsBefore };
+  if (ui.page === "obchodnik") renderMerchant();
   if (ui.page === "bestiar") renderBestiary();
+}
+
+function enterWaveCooldown(now) {
+  state.phase = "searching";
+  state.respawnTotalMs = CONFIG.waveRespawnMs;
+  state.phaseEndsAt = now + state.respawnTotalMs;
+  const secs = Math.ceil(state.respawnTotalMs / 1000);
+  elements.encounterMessage.textContent = `Vlna vybita. Další za ${secs} s`;
+  addLog(`Vlna vybita. Další se objeví za ${secs} s.`, "victory");
+  if (window.CombatField) window.CombatField.clearWave();
   saveState();
+}
+
+function enemyAttack() {
+  const enemyCfg = getCurrentEnemy();
+  const alive = state.wave.filter((e) => e.hp > 0);
+  if (!alive.length) return;
+  const attackers = Math.min(alive.length, CONFIG.waveMeleeCount);
+  let total = 0;
+  for (let i = 0; i < attackers; i += 1) total += randomInt(enemyCfg.minDamage, enemyCfg.maxDamage);
+  if (total <= 0) return;
+  state.player.hp = Math.max(0, state.player.hp - total);
+  if (window.CombatField) window.CombatField.playerStruck();
+  addLog(`${enemyCfg.name}${attackers > 1 ? ` ×${attackers}` : ""} tě zasáhl za ${total}.`, "enemy");
+  if (state.player.hp <= 0) defeatPlayer();
 }
 
 function applyLevelUps() {
@@ -852,6 +917,8 @@ function applyLevelUps() {
 function defeatPlayer() {
   if (state.phase === "dead") return;
   state.phase = "dead";
+  state.wave = []; state.waveKilled = 0;
+  if (window.CombatField) window.CombatField.clearWave();
   state.phaseEndsAt = performance.now() + CONFIG.playerRespawnMs;
   elements.encounterMessage.textContent = "Návrat k výpravě za 5 s";
   state.stats.deaths += 1;
@@ -2874,7 +2941,7 @@ function combatWidgetView() {
   if (!enemyCfg) return { mode: "none", status: "ŽÁDNÝ AKTIVNÍ BOJ", short: "ŽÁDNÝ AKTIVNÍ BOJ" };
   const now = performance.now();
   const searching = state.phase === "searching" || state.phase === "dead";
-  const total = state.phase === "dead" ? CONFIG.playerRespawnMs : enemySearchMs(enemyCfg);
+  const total = state.phase === "dead" ? CONFIG.playerRespawnMs : (state.respawnTotalMs || CONFIG.waveRespawnMs);
   const reference = state.running ? now : (state.pausedAt ?? now);
   const msLeft = Math.max(0, state.phaseEndsAt - reference);
   const secondsLeft = Math.ceil(msLeft / 1000);
@@ -3155,6 +3222,7 @@ function showPage(page) {
   else if (page === "sbirka") renderCollection();
   else if (page === "postava") renderEquipmentOverview();
   else if (page === "kovarna") renderSmith();
+  if (window.CombatField) window.CombatField.setVisible(page === "boj");
   window.scrollTo(0, 0);
 }
 

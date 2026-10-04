@@ -969,3 +969,40 @@ body *:not(.eyebrow):not(.nav-heading):not(.bank-card dt) { text-transform: none
 .btn, .smith-tabs .inv-tab, .ld-tab { text-transform: lowercase; }
 .btn::first-letter, .smith-tabs .inv-tab::first-letter, .ld-tab::first-letter { text-transform: uppercase; }
 .btn.menu-button { text-transform: none; }
+
+/* -------------------------------------------------------------- Bojiště (vlnový boj 0.9) */
+.combat-scene .scene-head .muted { color: var(--color-text-secondary); }
+.cf-playerhp { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.cf-php-label { font-size: var(--fs-label); font-weight: 600; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: .04em; }
+.cf-php-track { flex: 1; height: 10px; border-radius: 999px; background: var(--color-surface-3); overflow: hidden; }
+.cf-php-fill { height: 100%; width: 100%; border-radius: 999px; background: var(--color-health); transition: width .12s linear; }
+.cf-php-text { font-size: var(--fs-small); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-text-primary); white-space: nowrap; }
+
+.arena.arena-field { display: block; position: relative; margin-top: 10px; padding: 0; border: 1px solid var(--color-border); border-radius: var(--radius); background: #fbf7f0; overflow: hidden; height: min(58vh, 460px); box-shadow: none; }
+.arena.arena-field::before, .arena.arena-field .arena-fx { display: none; }
+@media (max-width: 760px) { .arena.arena-field { height: auto; aspect-ratio: 3 / 4; } }
+.combat-canvas { display: block; width: 100%; height: 100%; }
+
+.cf-rlog { position: absolute; top: 10px; left: 10px; display: flex; flex-direction: column; gap: 3px; pointer-events: none; z-index: 2; }
+.cf-rl-title { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); margin-bottom: 1px; }
+.cf-rl-row { display: flex; align-items: center; gap: 6px; background: rgba(255,253,249,.82); border: 1px solid var(--color-border); border-radius: 8px; padding: 3px 8px; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-text-primary); }
+.cf-rl-row .sq { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+.cf-waveinfo { position: absolute; top: 10px; right: 10px; background: rgba(255,253,249,.82); border: 1px solid var(--color-border); border-radius: 999px; padding: 4px 11px; font-size: 12px; font-weight: 600; color: var(--color-text-secondary); z-index: 2; }
+.cf-info { position: absolute; top: 46px; right: 10px; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--color-border); background: rgba(255,253,249,.9); color: var(--color-text-secondary); font-weight: 700; font-style: italic; cursor: pointer; display: grid; place-items: center; z-index: 2; }
+.cf-info[aria-pressed="true"] { background: var(--color-accent-gold); color: #fff; border-color: var(--color-accent-gold); }
+.cf-drawer { position: absolute; top: 0; right: 0; bottom: 0; width: min(234px, 82%); background: rgba(255,253,249,.97); border-left: 1px solid var(--color-border); backdrop-filter: blur(6px); transform: translateX(102%); transition: transform .22s ease; padding: 14px; overflow: auto; z-index: 3; }
+.cf-drawer.open { transform: none; }
+.cf-dr-close { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--color-border); background: var(--color-surface-1); color: var(--color-text-secondary); font-size: 14px; font-weight: 700; cursor: pointer; display: grid; place-items: center; line-height: 1; }
+.cf-dr-close:hover { background: var(--color-surface-2); color: var(--color-text-primary); }
+.cf-dr-title { font-size: 13px; font-weight: 700; margin: 0 0 2px; display: flex; align-items: center; gap: 8px; }
+.cf-dr-sub { font-size: 11.5px; color: var(--color-text-muted); margin: 0 0 12px; }
+.cf-dr-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--color-border); font-size: 13px; }
+.cf-dr-row:last-child { border-bottom: 0; }
+.cf-dr-ic { width: 22px; height: 22px; flex: none; display: grid; place-items: center; }
+.cf-dr-nm { flex: 1; min-width: 0; }
+.cf-dr-pct { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--color-text-secondary); white-space: nowrap; }
+
+.cf-respawn { margin-top: 10px; display: flex; flex-direction: column; gap: 5px; }
+.cf-rb-label { display: flex; justify-content: space-between; font-size: 12.5px; font-weight: 600; color: var(--color-text-secondary); }
+.cf-rb-track { height: 8px; border-radius: 999px; background: var(--color-surface-3); overflow: hidden; }
+.cf-rb-fill { height: 100%; width: 0; border-radius: 999px; background: var(--color-accent-gold); transition: width .12s linear; }
