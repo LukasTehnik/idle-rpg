@@ -27,7 +27,7 @@ const CombatField = (() => {
   let targetId = null;
   let parts = [], dmgs = [], floats = [], rings = [], shards = [], trail = [];
   let hudState = { playerHpPct: 100, mode: "ready", waveKilled: 0, waveTotal: 0, respawnLeftMs: 0, respawnTotalMs: 1, enemyName: "" };
-  let rewardLog = [], lootTable = [];
+  let rewardLog = [], lootTable = [], ICONS = { gold: null, core: null };
   let last = 0;
   const rnd = (a, b) => a + Math.random() * (b - a);
   const $ = (id) => document.getElementById(id);
@@ -97,6 +97,7 @@ const CombatField = (() => {
     if (targetId === id) targetId = null;
   }
   function playerStruck() { if (visible) you.hit = 0.22; }
+  function heal(amount) { if (!visible) return; floats.push({ x: you.x, y: you.y - you.r - 4, vy: -38, life: 0, max: 0.95, txt: "+" + amount, col: COL.xp }); rings.push({ x: you.x, y: you.y, life: 0, max: 0.4, r: you.r + 12, col: COL.xp }); }
   function hud(vm) { hudState = Object.assign(hudState, vm); }
   function setLoot(list) { lootTable = list || []; if ($("cfDrawer") && $("cfDrawer").classList.contains("open")) renderDrawer(); }
 
@@ -116,23 +117,38 @@ const CombatField = (() => {
   }
 
   // ---- reward log + drop drawer ---------------------------------------
-  function pushReward(loot) {
-    const bits = []; if (loot.xp) bits.push("+" + loot.xp + " XP"); if (loot.gold) bits.push("+" + loot.gold + " zl"); if (loot.item) bits.push("předmět");
-    if (!bits.length) return;
-    rewardLog.unshift({ txt: bits.join(" · "), col: loot.item ? COL.rare : (loot.gold ? COL.gold : COL.xp) });
-    if (rewardLog.length > 5) rewardLog.pop();
-    const el = $("cfLogRows"); if (el) el.innerHTML = rewardLog.map((r) => `<div class="cf-rl-row"><span class="sq" style="background:${r.col}"></span>${r.txt}</div>`).join("");
+  // Ikonky: zlato a úlomek jádra jsou herní assety (dodá app.js přes setIcons),
+  // XP je malá hvězdička, předmět kosočtverec; materiály a vybavení mají vlastní obrázek.
+  function setIcons(obj) { ICONS = Object.assign(ICONS, obj || {}); }
+  const XP_ICON = '<svg class="cf-ic-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.4 5.8L20.5 8.4l-4.3 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.5 8.4l6.1-.6z" fill="#3f7d4e"/></svg>';
+  function imgTag(src) { return `<img class="cf-ic-img" src="${src}" alt="">`; }
+  function diamond(col) { return `<span class="cf-ic-shape" style="background:${col};transform:rotate(45deg)"></span>`; }
+  function shapeIcon(col, shape) { return `<span class="cf-ic-shape" style="background:${col};${shape === "coin" ? "border-radius:50%" : shape === "dia" ? "transform:rotate(45deg)" : "border-radius:3px"}"></span>`; }
+  // Ikona řádku v drop panelu — obrázek, XP hvězdička, úlomek, jinak barevný tvar.
+  function rowIcon(row) {
+    if (row.img) return imgTag(row.img);
+    if (row.kind === "xp") return XP_ICON;
+    if (row.kind === "core") return ICONS.core ? imgTag(ICONS.core) : diamond("#6aa0d8");
+    if (row.kind === "gold") return ICONS.gold ? imgTag(ICONS.gold) : shapeIcon(COL.gold, "coin");
+    return shapeIcon(row.col || COL.t3, row.shape || "sq");
   }
-  function ico(col, shape) {
-    if (shape === "coin") return `<span style="width:17px;height:17px;border-radius:50%;background:${col}"></span>`;
-    if (shape === "sq") return `<span style="width:15px;height:15px;border-radius:3px;background:${col}"></span>`;
-    return `<span style="width:13px;height:13px;background:${col};transform:rotate(45deg);border-radius:2px"></span>`;
+
+  function pushReward(loot) {
+    const parts = [];
+    if (loot.xp) parts.push(XP_ICON + `<b>+${loot.xp}</b>`);
+    if (loot.gold) parts.push((ICONS.gold ? imgTag(ICONS.gold) : shapeIcon(COL.gold, "coin")) + `<b>+${loot.gold}</b>`);
+    if (loot.item) parts.push(diamond(COL.rare) + `<b>předmět</b>`);
+    if (loot.core) parts.push((ICONS.core ? imgTag(ICONS.core) : diamond("#6aa0d8")) + `<b>úlomek</b>`);
+    if (!parts.length) return;
+    rewardLog.unshift(parts.join('<span class="cf-rl-sep">·</span>'));
+    if (rewardLog.length > 5) rewardLog.pop();
+    const el = $("cfLogRows"); if (el) el.innerHTML = rewardLog.map((h) => `<div class="cf-rl-row">${h}</div>`).join("");
   }
   function renderDrawer() {
     const body = $("cfDrawerBody"); if (!body) return;
-    body.innerHTML = `<p class="cf-dr-title">${ico(vis.col, "dia")} Drop — ${hudState.enemyName || "nepřítel"}</p>`
+    body.innerHTML = `<p class="cf-dr-title">${shapeIcon(vis.col, "dia")} Drop — ${hudState.enemyName || "nepřítel"}</p>`
       + `<p class="cf-dr-sub">Co z tohoto nepřítele padá a jaká je šance.</p>`
-      + (lootTable.length ? lootTable.map((l) => `<div class="cf-dr-row"><span class="cf-dr-ic">${ico(l.col || COL.t3, l.shape || "sq")}</span><span class="cf-dr-nm">${l.name}</span><span class="cf-dr-pct">${l.val}</span></div>`).join("")
+      + (lootTable.length ? lootTable.map((l) => `<div class="cf-dr-row"><span class="cf-dr-ic">${rowIcon(l)}</span><span class="cf-dr-nm">${l.name}</span><span class="cf-dr-pct">${l.val}</span></div>`).join("")
         : `<p class="cf-dr-sub">Žádná data.</p>`);
   }
 
@@ -203,6 +219,6 @@ const CombatField = (() => {
     fill.style.width = Math.max(0, Math.min(1, pct)) * 100 + "%"; fill.style.background = col;
   }
 
-  return { mount, setVisible, beginWave, clearWave, hit, kill, playerStruck, hud, setLoot };
+  return { mount, setVisible, beginWave, clearWave, hit, kill, playerStruck, heal, hud, setLoot, setIcons };
 })();
 if (typeof window !== "undefined") window.CombatField = CombatField;

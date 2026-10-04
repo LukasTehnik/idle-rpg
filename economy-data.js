@@ -13,6 +13,15 @@ const LOOT_CONFIG = Object.freeze({
   unclaimedListPreview: 24, // kolik řádků nevyzvednuté kořisti se ukáže najednou
 });
 
+// --- Jídlo (0.9): koupíš u obchodníka, v boji se automaticky sní při nízkém HP ---
+const FOOD_CONFIG = Object.freeze({
+  id: "food_ration",
+  name: "Sušené maso",
+  price: 6,            // gold za jeden kus
+  healPercent: 0.4,    // doplní 40 % maximálních životů
+  autoEatBelow: 0.4,   // sní se, jakmile životy klesnou pod 40 %
+});
+
 // --- Síla itemu (orientační skóre) ----------------------------------------
 // Váha jednotlivých statů; slouží jen k řazení a k výpočtu prodejní hodnoty.
 //   síla = 2·minPoškození + 2·maxPoškození + 0,5·maxHP + 5·(kritický zásah v %)
@@ -40,5 +49,5 @@ function itemSellValue(item) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { LOOT_CONFIG, POWER_WEIGHTS, SELL_GOLD_PER_POWER, SELL_QUALITY_FACTOR, itemPower, itemSellValue };
+  module.exports = { LOOT_CONFIG, FOOD_CONFIG, POWER_WEIGHTS, SELL_GOLD_PER_POWER, SELL_QUALITY_FACTOR, itemPower, itemSellValue };
 }

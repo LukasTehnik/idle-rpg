@@ -56,3 +56,14 @@ obtížnost a grind budou ladit po hraní.
 - Itemy s „+N nepřátel ve vlně" nebo set zkracující respawn (hráč by viděl, o
   kolik se respawn zkrátil, přímo na liště).
 - Zásah více cílů naráz (multi-hit) — v rendereru i logice připraveno rozšířit.
+
+## Jídlo a úlomky jádra (0.9)
+
+- **Jídlo** (`FOOD_CONFIG` v `economy-data.js`): koupíš u obchodníka (panel „Nákup
+  jídla"). V boji se automaticky sní, jakmile životy klesnou pod práh
+  (`autoEatBelow`, 40 %), a doplní `healPercent` (40 %) maxima. Může zabránit
+  smrti. Zásoba se ukládá (`state.food`) a je vidět na stránce Boj i u obchodníka.
+- **Úlomek jádra**: vzácný drop z každého zabití, šance `CONFIG.coreFragmentDropChance`
+  (0,09 %). Přičítá se do `state.coreFragments` a je uvedený v drop panelu.
+- Drop panel i log odměn teď ukazují skutečné ikony (zlato a úlomek jádra z
+  assetů, XP hvězdička, vybavení a materiály vlastní obrázek).

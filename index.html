@@ -398,8 +398,31 @@
 
           <!-- ============ STRÁNKA: OBCHODNÍK ============ -->
           <section id="page-obchodnik" class="page" data-page="obchodnik" aria-labelledby="pageTitle" hidden>
-            <p class="page-lead">Obchodník vykupuje kořist za pevné ceny. Nabídka zboží zatím není. Boj běží dál, i když obchoduješ.</p>
+            <p class="page-lead">Obchodník vykupuje kořist za pevné ceny a prodává jídlo, které tě v boji automaticky léčí. Boj běží dál, i když obchoduješ.</p>
             <div class="merchant-grid">
+              <section class="panel merchant-shop" aria-labelledby="shopTitle">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">ZÁSOBY</p>
+                    <h2 id="shopTitle" class="section-title">Nákup jídla</h2>
+                  </div>
+                  <span class="tag">Máš <strong id="foodStock">0</strong></span>
+                </div>
+                <div class="shop-item">
+                  <div class="shop-copy">
+                    <strong id="foodName">Jídlo</strong>
+                    <span id="foodEffect" class="muted"></span>
+                  </div>
+                  <div class="shop-price" id="foodPrice">0 gold / ks</div>
+                </div>
+                <div class="shop-buy">
+                  <button class="btn" data-buy-food="1" type="button">Koupit 1</button>
+                  <button class="btn" data-buy-food="10" type="button">Koupit 10</button>
+                  <span class="shop-gold">Zlato u sebe: <strong data-bind="gold">0</strong></span>
+                </div>
+                <p id="foodMessage" class="shop-message" aria-live="polite"></p>
+              </section>
+
               <section class="panel merchant-sell" aria-labelledby="sellTitle">
                 <div class="panel-head">
                   <div>
@@ -639,6 +662,7 @@
                   <dl class="stat-table">
                     <div><dt>Poškození</dt><dd data-bind="damage">9–13</dd></div>
                     <div><dt>Kritický zásah</dt><dd data-bind="crit">10 %</dd></div>
+                    <div><dt>Zásoba jídla</dt><dd data-bind="food">0</dd></div>
                     <div><dt>Vítězství</dt><dd data-bind="kills">0</dd></div>
                     <div><dt>Nalezené předměty</dt><dd data-bind="drops">0</dd></div>
                     <div><dt>Čas výpravy</dt><dd data-bind="runTime">00:00</dd></div>

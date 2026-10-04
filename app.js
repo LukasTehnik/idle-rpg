@@ -11,6 +11,7 @@ const CONFIG = Object.freeze({
   waveSizeBoss: 4,         // boss typy: menší houf
   waveRespawnMs: 8500,     // pauza po vyčištění vlny, než se objeví další
   waveMeleeCount: 2,       // kolik nepřátel tě naráz může bít (aby velká vlna nezabila okamžitě)
+  coreFragmentDropChance: 0.0009, // 0,09 % šance na úlomek jádra z každého zabití (všude)
   dropChance: 0.42, // fallback only -- each enemy in ENEMIES sets its own dropChance
   inventoryCapacity: LOOT_CONFIG.inventoryCapacity, // Prototype 0.5: centrální konfigurace v economy-data.js
   maxLogEntries: 80,
@@ -70,6 +71,7 @@ const initialState = () => ({
   // při migraci savu převádí do `carriedGold`.
   carriedGold: 0,
   bankGold: 0,
+  food: 0, // 0.9: zásoba jídla (koupené u obchodníka, v boji se sní při nízkém HP)
   // Úlomky jádra: nová měna (zatím bez zdroje — zobrazuje se, ale nezískává se).
   coreFragments: 0,
   elapsedSeconds: 0,
@@ -503,7 +505,7 @@ function loadState() {
       ...fresh,
       level: saved.level ?? fresh.level, xp: saved.xp ?? fresh.xp,
       kills: saved.kills ?? fresh.kills, drops: saved.drops ?? fresh.drops,
-      carriedGold, bankGold: goldInt(saved.bankGold), coreFragments: goldInt(saved.coreFragments),
+      carriedGold, bankGold: goldInt(saved.bankGold), coreFragments: goldInt(saved.coreFragments), food: Math.max(0, goldInt(saved.food)),
       buyback: sanitizeBuyback(saved.buyback), lootRules: sanitizeLootRules(saved.lootRules), lootLog: sanitizeLootLog(saved.lootLog),
       stats, collection: saved.collection ? sanitizeCollection(saved.collection) : backfillCollection(owned),
       bestiary: saved.bestiary ? sanitizeBestiary(saved.bestiary) : backfillBestiary(saved, owned, materials, currentEnemyId, run),
@@ -524,7 +526,7 @@ function loadState() {
 function saveState() {
   const payload = {
     version: 8, savedAt: Date.now(), level: state.level, xp: state.xp, kills: state.kills, drops: state.drops,
-    carriedGold: state.carriedGold, bankGold: state.bankGold, coreFragments: state.coreFragments, currentEnemyId: state.currentEnemyId,
+    carriedGold: state.carriedGold, bankGold: state.bankGold, coreFragments: state.coreFragments, food: state.food, currentEnemyId: state.currentEnemyId,
     buyback: state.buyback, lootRules: state.lootRules, lootLog: state.lootLog, stats: state.stats, collection: state.collection, bestiary: state.bestiary,
     activeLocationId: state.activeLocationId, run: state.run,
     elapsedSeconds: state.elapsedSeconds, inventory: state.inventory, equipment: state.equipment,
@@ -671,6 +673,7 @@ function render() {
   setText("kills", state.kills);
   setText("drops", state.drops);
   setText("gold", fmtGold(state.carriedGold));
+  setText("food", fmtGold(state.food));
   setText("bankGold", fmtGold(state.bankGold));
   setText("coreFragments", fmtGold(state.coreFragments));
   setText("totalGold", fmtGold(state.carriedGold + state.bankGold));
@@ -791,20 +794,21 @@ function updateArenaHeader() {
 function combatLootTable(enemyCfg) {
   const pct = (c) => `${Math.round((c ?? 0) * 100)} %`;
   const rows = [
-    { name: "XP", val: `+${enemyCfg.xp}`, col: "#3f7d4e", shape: "sq" },
-    { name: "Zlato", val: `+${enemyCfg.gold ?? 0}`, col: "#c79a3a", shape: "coin" },
+    { name: "XP", val: `+${enemyCfg.xp}`, kind: "xp" },
+    { name: "Zlato", val: `+${enemyCfg.gold ?? 0}`, kind: "gold" },
     { name: "Vybavení (náhodné)", val: pct(enemyCfg.dropChance ?? CONFIG.dropChance), col: "#3b74c9", shape: "dia" },
   ];
   (enemyCfg.equipmentDrops ?? []).forEach((raw) => {
     const d = normalizeEquipmentDrop(raw, enemyCfg.id); if (!d) return;
     const tmpl = ITEM_TEMPLATES.find((t) => t.templateId === d.templateId);
-    rows.push({ name: tmpl?.name ?? "Vybavení", val: pct(d.chance), col: "#8a4fd0", shape: "dia" });
+    rows.push({ name: tmpl?.name ?? "Vybavení", val: pct(d.chance), img: tmpl?.image, col: "#8a4fd0", shape: "dia" });
   });
   (enemyCfg.materialDrops ?? []).forEach((raw) => {
     const d = normalizeMaterialDrop(raw, enemyCfg.id); if (!d) return;
     const m = MATERIALS[d.templateId]; if (!m) return;
-    rows.push({ name: m.name, val: pct(d.chance), col: "#8d8477", shape: "sq" });
+    rows.push({ name: m.name, val: pct(d.chance), img: m.asset, col: "#8d8477", shape: "sq" });
   });
+  rows.push({ name: "Úlomek jádra", val: `${(CONFIG.coreFragmentDropChance * 100).toLocaleString("cs-CZ", { maximumFractionDigits: 2 })} %`, kind: "core" });
   return rows;
 }
 
@@ -872,7 +876,14 @@ function awardKill(enemyCfg) {
   if (Math.random() < (enemyCfg.dropChance ?? CONFIG.dropChance)) generateDrop(enemyCfg);
   rollEquipmentDrops(enemyCfg);
   rollMaterialDrops(enemyCfg);
-  lastKillLoot = { xp: enemyCfg.xp, gold: enemyCfg.gold ?? 0, item: state.drops > dropsBefore };
+  // Úlomek jádra: vzácný drop z každého boje (0,09 %).
+  let gotCore = false;
+  if (Math.random() < CONFIG.coreFragmentDropChance) {
+    state.coreFragments += 1; gotCore = true;
+    addLog(`Vzácný nález: úlomek jádra! Celkem ${fmtGold(state.coreFragments)}.`, "level-up");
+    showNoticeToast("Úlomek jádra", `Vzácný drop (0,09 %) — celkem ${fmtGold(state.coreFragments)}`, "gold");
+  }
+  lastKillLoot = { xp: enemyCfg.xp, gold: enemyCfg.gold ?? 0, item: state.drops > dropsBefore, core: gotCore };
   if (ui.page === "obchodnik") renderMerchant();
   if (ui.page === "bestiar") renderBestiary();
 }
@@ -899,7 +910,25 @@ function enemyAttack() {
   state.player.hp = Math.max(0, state.player.hp - total);
   if (window.CombatField) window.CombatField.playerStruck();
   addLog(`${enemyCfg.name}${attackers > 1 ? ` ×${attackers}` : ""} tě zasáhl za ${total}.`, "enemy");
+  maybeEatFood(); // nouzová porce může zabránit smrti
   if (state.player.hp <= 0) defeatPlayer();
+}
+
+// 0.9: automatické snědení jídla v boji. Když životy klesnou pod práh a máš
+// zásobu, sní se jedna porce a doplní % maxima. Může tě zachránit před smrtí.
+function maybeEatFood() {
+  if (state.food <= 0) return;
+  const stats = getPlayerStats();
+  if (state.player.hp >= stats.maxHp) return;
+  if (state.player.hp > stats.maxHp * FOOD_CONFIG.autoEatBelow) return;
+  state.food -= 1;
+  const heal = Math.max(1, Math.round(stats.maxHp * FOOD_CONFIG.healPercent));
+  const before = state.player.hp;
+  state.player.hp = Math.min(stats.maxHp, state.player.hp + heal);
+  const gained = state.player.hp - before;
+  addLog(`Snědl jsi ${FOOD_CONFIG.name} (+${gained} HP). Zbývá jídlo: ${state.food}.`, "level-up");
+  if (window.CombatField) window.CombatField.heal(gained);
+  if (ui.page === "obchodnik") renderMerchant();
 }
 
 function applyLevelUps() {
@@ -2438,10 +2467,36 @@ function renderLootLog() {
 }
 
 function renderMerchant() {
+  renderFoodShop();
   renderMerchantSell();
   renderBuyback();
   renderRules();
   renderLootLog();
+}
+
+function renderFoodShop() {
+  const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+  set("foodStock", fmtGold(state.food));
+  set("foodName", FOOD_CONFIG.name);
+  set("foodEffect", `V boji se sní, jakmile životy klesnou pod ${Math.round(FOOD_CONFIG.autoEatBelow * 100)} %, a doplní ${Math.round(FOOD_CONFIG.healPercent * 100)} % maximálních životů.`);
+  set("foodPrice", `${fmtGold(FOOD_CONFIG.price)} gold / ks`);
+}
+
+function buyFood(n) {
+  const qty = Math.max(1, Math.floor(n));
+  const cost = qty * FOOD_CONFIG.price;
+  const msg = document.getElementById("foodMessage");
+  if (state.carriedGold < cost) {
+    if (msg) { msg.textContent = `Nedostatek zlata — ${FOOD_CONFIG.name} ×${qty} stojí ${fmtGold(cost)} gold.`; msg.dataset.kind = "error"; }
+    return;
+  }
+  state.carriedGold -= cost;
+  state.food += qty;
+  addLog(`Koupil jsi ${FOOD_CONFIG.name} ×${qty} za ${fmtGold(cost)} gold. Zásoba: ${state.food}.`, "system");
+  if (msg) { msg.textContent = `Koupeno ${qty}× za ${fmtGold(cost)} gold.`; msg.dataset.kind = "ok"; }
+  saveState();
+  render();
+  renderMerchant();
 }
 
 // --- Banka ---------------------------------------------------------------------
@@ -3419,6 +3474,7 @@ elements.enterDialog.addEventListener("close", () => { pendingEnterId = null; })
 // Navigace
 elements.menuButton.addEventListener("click", () => (document.body.classList.contains("nav-open") ? closeSidebar() : openSidebar()));
 elements.sidebarBackdrop.addEventListener("click", () => closeSidebar());
+document.addEventListener("click", (event) => { const b = event.target.closest?.("[data-buy-food]"); if (b) buyFood(parseInt(b.dataset.buyFood, 10) || 1); });
 document.getElementById("invFiltersToggle")?.addEventListener("click", (event) => {
   const bar = document.getElementById("invToolbar");
   const open = bar.classList.toggle("open");
@@ -3509,6 +3565,7 @@ function applyTestScrolls() {
 }
 applyTestScrolls();
 
+if (window.CombatField) window.CombatField.setIcons({ gold: "assets/icons/ui/ui_icon_gold_inventory.png", core: "assets/icons/ui/ui_icon_core_fragment_inventory.png" });
 initCombatWidgets();
 applyCharacterPreview();
 populateTypeFilter();
