@@ -17,8 +17,8 @@ Lokální server: `python3 -m http.server 8080` (pro UI testy port 8765).
 
 ## Balance Lab: 15min test
 
-1. Otevři `balance-lab.html` a klikni **NEW RUN**.
+1. Otevři `balance-lab.html` a klikni **START NEW MEASUREMENT**. Stav se přepne na „MĚŘENÍ ČEKÁ NA BOJ“.
 2. Vrať se do hry, vyber jeden konkrétní enemy a nech boj běžet alespoň 15 minut.
 3. Vrať se do Balance Labu. Uvidíš measured kills/hour, median clear time, cooldown, XP/gold/hour a pozorované dropy/hour. Kalkulátor nahoře používá počet ran na jednoho enemy a interval útoku; 14 zobrazených enemy se nezabíjí paralelně.
-4. Klikni **SAVE SNAPSHOT**. Historie drží posledních 20 lokálních měření.
+4. Klikni **END & SAVE RUN**. Měření se jasně ukončí, uloží mezi snapshoty a hra ho už dál nepřepisuje. Historie drží posledních 20 lokálních měření.
 5. Stejný test proveď pro underpowered, expected a overpowered postavu. Při dalším ladění změň vždy jen jednu věc: HP, cooldown, XP, gold nebo jeden konkrétní drop.

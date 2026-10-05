@@ -11,39 +11,55 @@
   <body>
     <main class="app-shell balance-lab">
       <header class="topbar"><div><p class="eyebrow">IDLE RPG / DEV ONLY</p><h1>Balance Lab</h1></div><nav class="catalog-nav"><a href="dev-tools.html" class="catalog-link">← Dev Tools</a><a href="index.html" class="catalog-link">Hra</a></nav></header>
-      <p class="catalog-intro">Interní kalkulátor pro wave economy. Čísla zde nic nemění ve hře ani neukazuj hráčům.</p>
+      <p class="catalog-intro">Interní nástroj pro měření skutečného farmení a návrh dropů. Nic zde nemění současnou hru ani neukazuj hráčům.</p>
+
+      <section class="panel balance-guide" aria-labelledby="balanceGuideTitle">
+        <p class="eyebrow">ZAČNI TADY</p><h2 id="balanceGuideTitle" class="section-title">Jak udělat správný test</h2>
+        <ol class="balance-steps"><li><b>1. START NEW MEASUREMENT</b><span>Vymaže předchozí měření a zapne záznam. Samo nespouští boj.</span></li><li><b>2. FARM 15 MINUTES</b><span>Vrať se do hry, vyber jeden enemy a nech automatický boj běžet.</span></li><li><b>3. END & SAVE RUN</b><span>Vrať se sem, ukonči záznam a ulož snapshot pro porovnání.</span></li></ol>
+      </section>
 
       <section class="balance-grid">
-        <article class="panel balance-panel"><p class="eyebrow">01 / WAVE RHYTHM</p><h2 class="section-title">Sequential kills per hour</h2>
-          <p class="muted">One attack hits one target. Clear time is derived from hits needed per enemy, not entered as a parallel-wave estimate.</p>
-          <div class="balance-fields"><label>Enemies / wave<input id="waveSize" type="number" min="1" value="14" /></label><label>Hits / enemy<input id="hitsToKill" type="number" min="1" step="1" value="4" /></label><label>Player attack (ms)<input id="attackMs" type="number" min="1" step="1" value="1600" /></label><label>Cooldown (ms)<input id="cooldownMs" type="number" min="0" step="100" value="8500" /></label></div>
-          <dl class="balance-metrics"><div><dt>Wave clear</dt><dd id="waveClear">89.6 s</dd></div><div><dt>Cycle</dt><dd id="waveCycle">98.1 s</dd></div><div><dt>Waves / hour</dt><dd id="wavesPerHour">36.7</dd></div><div><dt>Kills / hour</dt><dd id="killsPerHour">514</dd></div><div><dt>One-shot cap</dt><dd id="hardCap">1,631</dd></div><div><dt>Cooldown / kill</dt><dd id="cooldownPerKill">607 ms</dd></div></dl>
+        <article class="panel balance-panel"><p class="eyebrow">01 / RYCHLOST FARMENÍ</p><h2 class="section-title">Kolik enemy zvládneš za hodinu?</h2>
+          <p class="muted">Hra útočí na jeden cíl každých 1,6 s. Enemy se tedy nezabíjejí paralelně — počet ran na jednoho enemy je nejdůležitější vstup.</p>
+          <div class="balance-fields balance-fields-four">
+            <label><span>Enemy ve vlně</span><input id="waveSize" type="number" min="1" value="14" /><small>Normální vlna má 14, boss vlna 4.</small></label>
+            <label><span>Rány na jednoho enemy</span><input id="hitsToKill" type="number" min="1" step="1" value="4" /><small>Kolik vlastních zásahů průměrně potřebuješ k zabití.</small></label>
+            <label><span>Interval útoku (ms)</span><input id="attackMs" type="number" min="1" step="1" value="1600" /><small>Výchozí rychlost hráčova útoku je 1600 ms.</small></label>
+            <label><span>Cooldown vlny (ms)</span><input id="cooldownMs" type="number" min="0" step="100" value="8500" /><small>Pauza po úplném vyčištění vlny.</small></label>
+          </div>
+          <details class="balance-help"><summary>Co se zde počítá?</summary><p>Celá vlna potřebuje <b>enemy ve vlně × rány na enemy × interval útoku</b>. Až potom se přičte cooldown. Výsledkem je realistický počet killů za hodinu pro konkrétní build a lokaci.</p></details>
+          <dl class="balance-metrics"><div><dt>Čas na vyčištění vlny</dt><dd id="waveClear">89.6 s</dd></div><div><dt>Celý cyklus vlny</dt><dd id="waveCycle">98.1 s</dd></div><div><dt>Vlny za hodinu</dt><dd id="wavesPerHour">36.7</dd></div><div><dt>Killy za hodinu</dt><dd id="killsPerHour">514</dd></div><div><dt>Strop při one-shotu</dt><dd id="hardCap">1,631</dd></div><div><dt>Cooldown přepočtený na kill</dt><dd id="cooldownPerKill">607 ms</dd></div></dl>
         </article>
 
-        <article class="panel balance-panel"><p class="eyebrow">02 / TARGET DROP</p><h2 class="section-title">Specific reward timing</h2>
-          <div class="balance-fields"><label>Target time<input id="targetValue" type="number" min="0.01" step="0.01" value="2" /></label><label>Unit<select id="targetUnit"><option value="hours">hours</option><option value="minutes">minutes</option></select></label><label>Or chance / kill (%)<input id="directChance" type="number" min="0" max="100" step="0.000001" placeholder="optional" /></label></div>
-          <dl class="balance-metrics"><div><dt>Final chance / kill</dt><dd id="targetChance">0.0228 %</dd></div><div><dt>Expected kills</dt><dd id="targetKills">4,382</dd></div><div><dt>P50</dt><dd id="targetP50">1.39 h</dd></div><div><dt>P90</dt><dd id="targetP90">4.61 h</dd></div></dl>
+        <article class="panel balance-panel"><p class="eyebrow">02 / CÍLOVÝ DROP</p><h2 class="section-title">Jak vzácná má být jedna konkrétní věc?</h2>
+          <p class="muted">Použij pro konkrétní item, materiál nebo scroll. Nejde o šanci na „něco“, ale na přesně zvolený cíl.</p>
+          <div class="balance-fields balance-target-fields"><label><span>Za jak dlouho má průměrně padnout?</span><input id="targetValue" type="number" min="0.01" step="0.01" value="2" /><small>Například 2 hodiny pro konkrétní Rare item.</small></label><label><span>Jednotka času</span><select id="targetUnit"><option value="hours">hodiny</option><option value="minutes">minuty</option></select><small>Čas aktivního farmení, ne kalendářní čas.</small></label><label><span>Vlastní šance za kill (volitelné)</span><input id="directChance" type="number" min="0" max="100" step="0.000001" placeholder="nech prázdné" /><small>Vyplň jen pokud chceš ověřit již navržené procento.</small></label></div>
+          <details class="balance-help"><summary>Co znamenají P50 a P90?</summary><p><b>P50</b> je bod, kdy má drop asi polovina hráčů. <b>P90</b> ukazuje dlouhou smůlu: do této doby má drop přibližně 90 % hráčů. Obě hodnoty jsou důležité, protože průměr sám nestačí.</p></details>
+          <dl class="balance-metrics"><div><dt>Potřebná šance za kill</dt><dd id="targetChance">0.1 %</dd></div><div><dt>Průměrný počet killů</dt><dd id="targetKills">1,000</dd></div><div><dt>P50 — polovina hráčů</dt><dd id="targetP50">1.39 h</dd></div><div><dt>P90 — téměř každý hráč</dt><dd id="targetP90">4.61 h</dd></div></dl>
         </article>
       </section>
 
       <section class="balance-grid">
-        <article class="panel balance-panel"><p class="eyebrow">03 / DROP CHAIN</p><h2 class="section-title">Affix → smelting scroll</h2>
-          <p class="muted">Each stage is conditional on the previous one. The product is the final chance for one exact scroll.</p>
+        <article class="panel balance-panel"><p class="eyebrow">03 / SVITEK Z TAVBY</p><h2 class="section-title">Proč je konkrétní scroll vzácný?</h2>
+          <p class="muted">Tento řetězec ukazuje všechny podmínky, které musí vyjít, než získáš konkrétní scroll tavbou affixovaného itemu.</p>
+          <details class="balance-help"><summary>Jak číst řetězec?</summary><p>Každý řádek nastává až po předchozím. Například 5 % quality roll není pět procent za kill — je to pět procent až ve chvíli, kdy už padl správný base item.</p></details>
           <div id="chainRows" class="balance-chain"></div>
-          <dl class="balance-metrics"><div><dt>Final chance / kill</dt><dd id="chainChance">—</dd></div><div><dt>Expected time</dt><dd id="chainExpected">—</dd></div><div><dt>P50 / P90</dt><dd id="chainPercentiles">—</dd></div></dl>
+          <dl class="balance-metrics"><div><dt>Finální šance za kill</dt><dd id="chainChance">—</dd></div><div><dt>Průměrný čas na scroll</dt><dd id="chainExpected">—</dd></div><div><dt>P50 / P90</dt><dd id="chainPercentiles">—</dd></div></dl>
         </article>
 
-        <article class="panel balance-panel"><p class="eyebrow">04 / LIVE TELEMETRY</p><h2 class="section-title">Measured farming run</h2>
-          <p id="telemetryStatus" class="muted">No measured combat data yet.</p>
+        <article class="panel balance-panel"><p class="eyebrow">04 / MĚŘENÝ RUN</p><h2 class="section-title">Skutečná data z tvého farmení</h2>
+          <div id="measurementState" class="measurement-state idle"><span class="measurement-dot" aria-hidden="true"></span><div><strong id="measurementTitle">MĚŘENÍ NENÍ SPUŠTĚNÉ</strong><p id="telemetryStatus">Nejdřív klikni START NEW MEASUREMENT. Potom se vrať do hry a spusť boj.</p></div></div>
           <dl id="telemetryMetrics" class="balance-metrics"></dl>
-          <div class="balance-actions"><button id="captureTelemetry" class="btn" type="button">SAVE SNAPSHOT</button><button id="resetTelemetry" class="btn" type="button">NEW RUN</button></div>
+          <div class="balance-actions"><button id="startTelemetry" class="btn primary" type="button">START NEW MEASUREMENT</button><button id="captureTelemetry" class="btn" type="button" disabled>END &amp; SAVE RUN</button></div>
+          <p id="measurementFeedback" class="balance-feedback" aria-live="polite"></p>
           <div id="telemetryDrops" class="balance-drop-list"></div>
-          <h3 class="balance-subtitle">Saved snapshots</h3><ol id="telemetryHistory" class="balance-history"></ol>
+          <h3 class="balance-subtitle">Uložené snapshoty</h3><ol id="telemetryHistory" class="balance-history"></ol>
         </article>
       </section>
 
-      <section class="panel balance-panel"><p class="eyebrow">05 / ENEMY REPORT</p><h2 class="section-title">Existing game data</h2>
-        <div class="balance-fields balance-enemy-controls"><label>Enemy<select id="enemySelect"></select></label><label>Use kills / hour<input id="enemyKillsPerHour" type="number" min="1" value="2191" /></label></div>
+      <section class="panel balance-panel"><p class="eyebrow">05 / KONKRÉTNÍ ENEMY</p><h2 class="section-title">Co by měl tento enemy dávat za hodinu?</h2>
+        <p class="muted">Vyber enemy. Počet killů se automaticky bere z kalkulačky vlevo, ale můžeš ho ručně změnit pro ověření jiného buildu.</p>
+        <div class="balance-fields balance-enemy-controls"><label><span>Vybraný enemy</span><select id="enemySelect"></select><small>Jeho aktuální data se načtou z world-data.js.</small></label><label><span>Použít killů za hodinu</span><input id="enemyKillsPerHour" type="number" min="1" value="514" /><small>Ovlivní pouze tento report.</small></label></div>
         <div id="enemyReport" class="balance-enemy-report"></div>
       </section>
     </main>

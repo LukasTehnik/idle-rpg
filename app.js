@@ -128,7 +128,7 @@ const WAVE_TELEMETRY_KEY = "idle-rpg-wave-telemetry-v1";
 const WAVE_TELEMETRY_COMMAND_KEY = "idle-rpg-wave-telemetry-command-v1";
 function freshWaveTelemetry(now = Date.now()) {
   return {
-    version: 1, startedAt: now, activeMs: 0, lastActiveAt: 0, pausedAt: 0,
+    version: 1, mode: "idle", startedAt: now, activeMs: 0, lastActiveAt: 0, pausedAt: 0,
     waveStartedAt: 0, cooldownStartedAt: 0, deathStartedAt: 0,
     waves: 0, kills: 0, xp: 0, gold: 0, deaths: 0, deathMs: 0, cooldownMs: 0,
     clearTimesMs: [], materials: {}, equipment: {}, affixedItems: 0, scrolls: 0,
@@ -137,20 +137,27 @@ function freshWaveTelemetry(now = Date.now()) {
 function loadWaveTelemetry() {
   try {
     const saved = JSON.parse(localStorage.getItem(WAVE_TELEMETRY_KEY) || "null");
-    return saved && saved.version === 1 ? { ...freshWaveTelemetry(saved.startedAt), ...saved } : freshWaveTelemetry();
+    if (!saved || saved.version !== 1) return freshWaveTelemetry();
+    const migrated = { ...freshWaveTelemetry(saved.startedAt), ...saved };
+    // Telemetry created before the explicit Start/End UI was always recording.
+    if (!['idle', 'recording', 'completed'].includes(migrated.mode)) migrated.mode = migrated.kills || migrated.activeMs ? 'recording' : 'idle';
+    return migrated;
   } catch { return freshWaveTelemetry(); }
 }
 let waveTelemetry = loadWaveTelemetry();
+function telemetryRecording() { return waveTelemetry.mode === "recording"; }
 function saveWaveTelemetry() {
   try { localStorage.setItem(WAVE_TELEMETRY_KEY, JSON.stringify(waveTelemetry)); } catch { /* private mode: telemetry is optional */ }
 }
 function telemetryTick(now) {
+  if (!telemetryRecording()) { waveTelemetry.lastActiveAt = 0; return; }
   if (state.running && state.phase !== "ready") {
     if (waveTelemetry.lastActiveAt) waveTelemetry.activeMs += Math.max(0, now - waveTelemetry.lastActiveAt);
     waveTelemetry.lastActiveAt = now;
   } else waveTelemetry.lastActiveAt = 0;
 }
 function telemetryWaveStarted(now) {
+  if (!telemetryRecording()) return;
   if (waveTelemetry.cooldownStartedAt) {
     waveTelemetry.cooldownMs += Math.max(0, now - waveTelemetry.cooldownStartedAt);
     waveTelemetry.cooldownStartedAt = 0;
@@ -163,6 +170,7 @@ function telemetryWaveStarted(now) {
   saveWaveTelemetry();
 }
 function telemetryWaveCleared(now) {
+  if (!telemetryRecording()) return;
   if (waveTelemetry.waveStartedAt) waveTelemetry.clearTimesMs.push(Math.max(0, now - waveTelemetry.waveStartedAt));
   waveTelemetry.clearTimesMs = waveTelemetry.clearTimesMs.slice(-200);
   waveTelemetry.waves += 1;
@@ -171,29 +179,38 @@ function telemetryWaveCleared(now) {
   saveWaveTelemetry();
 }
 function telemetryKill(enemyCfg) {
+  if (!telemetryRecording()) return;
   waveTelemetry.kills += 1; waveTelemetry.xp += Number(enemyCfg.xp) || 0; waveTelemetry.gold += Number(enemyCfg.gold) || 0;
 }
 function telemetryMaterial(materialId, quality, quantity) {
+  if (!telemetryRecording()) return;
   const key = `${materialId}|${quality}`;
   waveTelemetry.materials[key] = (waveTelemetry.materials[key] || 0) + quantity;
 }
 function telemetryItem(item) {
+  if (!telemetryRecording()) return;
   const quality = item.quality || "common";
   waveTelemetry.equipment[quality] = (waveTelemetry.equipment[quality] || 0) + 1;
   if (item.prefix || item.suffix) waveTelemetry.affixedItems += 1;
 }
-function telemetryDeath(now) { waveTelemetry.deaths += 1; waveTelemetry.deathStartedAt = now; saveWaveTelemetry(); }
-function telemetryPause(now) { waveTelemetry.pausedAt = now; waveTelemetry.lastActiveAt = 0; saveWaveTelemetry(); }
+function telemetryDeath(now) { if (!telemetryRecording()) return; waveTelemetry.deaths += 1; waveTelemetry.deathStartedAt = now; saveWaveTelemetry(); }
+function telemetryPause(now) { if (!telemetryRecording()) return; waveTelemetry.pausedAt = now; waveTelemetry.lastActiveAt = 0; saveWaveTelemetry(); }
 function telemetryResume(now) {
+  if (!telemetryRecording()) return;
   if (!waveTelemetry.pausedAt) return;
   const pauseMs = Math.max(0, now - waveTelemetry.pausedAt);
   ["waveStartedAt", "cooldownStartedAt", "deathStartedAt"].forEach((key) => { if (waveTelemetry[key]) waveTelemetry[key] += pauseMs; });
   waveTelemetry.pausedAt = 0;
 }
-function resetWaveTelemetry() { waveTelemetry = freshWaveTelemetry(); saveWaveTelemetry(); }
+function startWaveTelemetry() { waveTelemetry = { ...freshWaveTelemetry(), mode: "recording" }; saveWaveTelemetry(); }
+function stopWaveTelemetry() { if (!telemetryRecording()) return; waveTelemetry.mode = "completed"; waveTelemetry.lastActiveAt = 0; waveTelemetry.pausedAt = 0; saveWaveTelemetry(); }
 window.addEventListener("storage", (event) => {
   if (event.key !== WAVE_TELEMETRY_COMMAND_KEY || !event.newValue) return;
-  try { if (JSON.parse(event.newValue).action === "reset") resetWaveTelemetry(); } catch { /* ignore malformed dev command */ }
+  try {
+    const action = JSON.parse(event.newValue).action;
+    if (action === "start") startWaveTelemetry();
+    if (action === "stop") stopWaveTelemetry();
+  } catch { /* ignore malformed dev command */ }
 });
 
 const $ = (selector, root = document) => root.querySelector(selector);
