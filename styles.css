@@ -653,6 +653,34 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 .combat-spark.player { left: 29%; color: var(--color-health-light); }
 .combat-spark.critical { width: 6px; height: 6px; color: var(--color-accent-gold-light); }
 @keyframes combat-spark { 0% { opacity: 0; transform: translate(0, 0); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--spark-x), var(--spark-y)); } }
+
+/* Dev only: Balance Lab. Kept compact and token-based so it also follows the
+   current light theme without adding a second visual system. */
+.balance-lab { max-width: 1280px; }
+.balance-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 18px 0; }
+.balance-panel { padding: 18px; }
+.balance-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
+.balance-fields label, .balance-chain label { display: grid; gap: 5px; color: var(--color-muted); font-size: 12px; font-weight: 700; }
+.balance-fields input, .balance-fields select, .balance-chain input { width: 100%; min-width: 0; }
+.balance-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin: 0; border: 1px solid var(--color-line); background: var(--color-line); }
+.balance-metrics div { padding: 9px 10px; background: var(--color-panel); }
+.balance-metrics dt, .balance-report-core small { color: var(--color-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+.balance-metrics dd { margin: 3px 0 0; font-family: var(--font-display); font-size: 21px; line-height: 1; }
+.balance-chain { display: grid; gap: 5px; margin: 12px 0; }
+.balance-chain label { grid-template-columns: minmax(0, 1fr) 110px auto; align-items: center; padding-bottom: 5px; border-bottom: 1px solid var(--color-line); }
+.balance-chain b { color: var(--color-muted); }
+.balance-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.balance-actions .btn { font-size: 12px; }
+.balance-subtitle { margin: 16px 0 7px; font-size: 14px; }
+.balance-drop-list ul, .balance-report-drops, .balance-history { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--color-line); }
+.balance-drop-list li, .balance-report-drops li, .balance-history li { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--color-line); font-size: 12px; }
+.balance-history li { display: block; }
+.balance-enemy-controls { grid-template-columns: minmax(260px, 1fr) 180px; max-width: 640px; }
+.balance-report-core { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; border: 1px solid var(--color-line); background: var(--color-line); margin-top: 12px; }
+.balance-report-core > div { padding: 10px; display: grid; gap: 4px; background: var(--color-panel); }
+.balance-report-core b { font-family: var(--font-display); font-size: 22px; }
+.balance-enemy-report { display: grid; gap: 10px; }
+@media (max-width: 760px) { .balance-grid { grid-template-columns: 1fr; } .balance-fields { grid-template-columns: 1fr; } .balance-enemy-controls { grid-template-columns: 1fr; } .balance-report-core { grid-template-columns: 1fr; } }
 .fighter { display: flex; min-width: 0; flex-direction: column; align-items: center; text-align: center; }
 .fighter-art { position: relative; display: grid; width: 220px; height: 230px; margin: 14px 0 10px; place-items: center; transition: 150ms ease; }
 .player-art { background: var(--character-art) center bottom / contain no-repeat; }

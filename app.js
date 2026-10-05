@@ -122,6 +122,80 @@ let state = loadState();
 let gameLoopId = null;
 let timerLoopId = null;
 
+// Internal wave-economy telemetry. This deliberately lives outside the player
+// save: it is only used by balance-lab.html and cannot affect progression.
+const WAVE_TELEMETRY_KEY = "idle-rpg-wave-telemetry-v1";
+const WAVE_TELEMETRY_COMMAND_KEY = "idle-rpg-wave-telemetry-command-v1";
+function freshWaveTelemetry(now = Date.now()) {
+  return {
+    version: 1, startedAt: now, activeMs: 0, lastActiveAt: 0, pausedAt: 0,
+    waveStartedAt: 0, cooldownStartedAt: 0, deathStartedAt: 0,
+    waves: 0, kills: 0, xp: 0, gold: 0, deaths: 0, deathMs: 0, cooldownMs: 0,
+    clearTimesMs: [], materials: {}, equipment: {}, affixedItems: 0, scrolls: 0,
+  };
+}
+function loadWaveTelemetry() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(WAVE_TELEMETRY_KEY) || "null");
+    return saved && saved.version === 1 ? { ...freshWaveTelemetry(saved.startedAt), ...saved } : freshWaveTelemetry();
+  } catch { return freshWaveTelemetry(); }
+}
+let waveTelemetry = loadWaveTelemetry();
+function saveWaveTelemetry() {
+  try { localStorage.setItem(WAVE_TELEMETRY_KEY, JSON.stringify(waveTelemetry)); } catch { /* private mode: telemetry is optional */ }
+}
+function telemetryTick(now) {
+  if (state.running && state.phase !== "ready") {
+    if (waveTelemetry.lastActiveAt) waveTelemetry.activeMs += Math.max(0, now - waveTelemetry.lastActiveAt);
+    waveTelemetry.lastActiveAt = now;
+  } else waveTelemetry.lastActiveAt = 0;
+}
+function telemetryWaveStarted(now) {
+  if (waveTelemetry.cooldownStartedAt) {
+    waveTelemetry.cooldownMs += Math.max(0, now - waveTelemetry.cooldownStartedAt);
+    waveTelemetry.cooldownStartedAt = 0;
+  }
+  if (waveTelemetry.deathStartedAt) {
+    waveTelemetry.deathMs += Math.max(0, now - waveTelemetry.deathStartedAt);
+    waveTelemetry.deathStartedAt = 0;
+  }
+  waveTelemetry.waveStartedAt = now;
+  saveWaveTelemetry();
+}
+function telemetryWaveCleared(now) {
+  if (waveTelemetry.waveStartedAt) waveTelemetry.clearTimesMs.push(Math.max(0, now - waveTelemetry.waveStartedAt));
+  waveTelemetry.clearTimesMs = waveTelemetry.clearTimesMs.slice(-200);
+  waveTelemetry.waves += 1;
+  waveTelemetry.waveStartedAt = 0;
+  waveTelemetry.cooldownStartedAt = now;
+  saveWaveTelemetry();
+}
+function telemetryKill(enemyCfg) {
+  waveTelemetry.kills += 1; waveTelemetry.xp += Number(enemyCfg.xp) || 0; waveTelemetry.gold += Number(enemyCfg.gold) || 0;
+}
+function telemetryMaterial(materialId, quality, quantity) {
+  const key = `${materialId}|${quality}`;
+  waveTelemetry.materials[key] = (waveTelemetry.materials[key] || 0) + quantity;
+}
+function telemetryItem(item) {
+  const quality = item.quality || "common";
+  waveTelemetry.equipment[quality] = (waveTelemetry.equipment[quality] || 0) + 1;
+  if (item.prefix || item.suffix) waveTelemetry.affixedItems += 1;
+}
+function telemetryDeath(now) { waveTelemetry.deaths += 1; waveTelemetry.deathStartedAt = now; saveWaveTelemetry(); }
+function telemetryPause(now) { waveTelemetry.pausedAt = now; waveTelemetry.lastActiveAt = 0; saveWaveTelemetry(); }
+function telemetryResume(now) {
+  if (!waveTelemetry.pausedAt) return;
+  const pauseMs = Math.max(0, now - waveTelemetry.pausedAt);
+  ["waveStartedAt", "cooldownStartedAt", "deathStartedAt"].forEach((key) => { if (waveTelemetry[key]) waveTelemetry[key] += pauseMs; });
+  waveTelemetry.pausedAt = 0;
+}
+function resetWaveTelemetry() { waveTelemetry = freshWaveTelemetry(); saveWaveTelemetry(); }
+window.addEventListener("storage", (event) => {
+  if (event.key !== WAVE_TELEMETRY_COMMAND_KEY || !event.newValue) return;
+  try { if (JSON.parse(event.newValue).action === "reset") resetWaveTelemetry(); } catch { /* ignore malformed dev command */ }
+});
+
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
@@ -830,6 +904,7 @@ function beginFight(now = performance.now()) {
   state.enemy.maxHp = enemyCfg.maxHp; state.enemy.hp = enemyCfg.maxHp;
   state.lastPlayerAttackAt = now;
   state.lastEnemyAttackAt = now;
+  telemetryWaveStarted(now);
   elements.encounterMessage.textContent = `Vlna nepřátel: ${enemyCfg.name} ×${size}`;
   addLog(`Objevila se vlna nepřátel: ${enemyCfg.name} ×${size}.`, "system");
   if (window.CombatField) window.CombatField.beginWave(enemyCfg.type || "common", state.wave.map((e) => e.id));
@@ -861,6 +936,7 @@ function playerAttack() {
 // Odměna za jedno zabití — původní logika z defeatEnemy (XP, zlato, kořist,
 // drobné doléčení). Nemění fázi; tu řeší enterWaveCooldown až po vybití vlny.
 function awardKill(enemyCfg) {
+  telemetryKill(enemyCfg);
   state.kills += 1;
   discoverEnemy(enemyCfg.id).kills += 1;
   state.xp += enemyCfg.xp;
@@ -889,6 +965,7 @@ function awardKill(enemyCfg) {
 }
 
 function enterWaveCooldown(now) {
+  telemetryWaveCleared(now);
   state.phase = "searching";
   state.respawnTotalMs = CONFIG.waveRespawnMs;
   state.phaseEndsAt = now + state.respawnTotalMs;
@@ -946,6 +1023,7 @@ function applyLevelUps() {
 function defeatPlayer() {
   if (state.phase === "dead") return;
   state.phase = "dead";
+  telemetryDeath(performance.now());
   state.wave = []; state.waveKilled = 0;
   if (window.CombatField) window.CombatField.clearWave();
   state.phaseEndsAt = performance.now() + CONFIG.playerRespawnMs;
@@ -1044,6 +1122,7 @@ function createItem(enemyCfg, fixed = null) {
 // Equipment: every drop is its own inventory entry (capacity-limited).
 function generateDrop(enemyCfg = getCurrentEnemy(), fixed = null) {
   const item = createItem(enemyCfg, fixed);
+  telemetryItem(item);
   state.drops += 1;
   // Nejdřív se item zapíše do sbírky (ať se pak prodá nebo ne) -- první získání šablony se nikdy neprodá automaticky.
   const firstOfTemplate = recordItemAcquired(item);
@@ -1091,6 +1170,7 @@ function addMaterial(materialId, quantity, enemyId = null, quality = null) {
   const material = MATERIALS[materialId];
   if (!material || !(quantity > 0)) return;
   const q = normalizeQuality(quality ?? material.defaultQuality, { stackable: true, where: `addMaterial ${materialId}` });
+  telemetryMaterial(materialId, q, quantity);
   const key = stackKey(materialId, q);
   state.materials[key] = (state.materials[key] ?? 0) + quantity;
   state.drops += 1;
@@ -1987,6 +2067,7 @@ function updateCountdown(now) {
 }
 
 function tick(now) {
+  telemetryTick(now);
   if (!state.running) return;
   if (state.phase === "fighting") {
     if (now - state.lastPlayerAttackAt >= CONFIG.playerAttackMs) { state.lastPlayerAttackAt = now; playerAttack(); }
@@ -1998,7 +2079,7 @@ function tick(now) {
 function startLoops() {
   if (gameLoopId === null) gameLoopId = window.setInterval(() => tick(performance.now()), 100);
   if (timerLoopId === null) timerLoopId = window.setInterval(() => {
-    if (state.running) { state.elapsedSeconds += 1; if (state.run.targetEnemyId) state.run.elapsedSeconds += 1; if (state.elapsedSeconds % 5 === 0) saveState(); render(); }
+    if (state.running) { state.elapsedSeconds += 1; if (state.run.targetEnemyId) state.run.elapsedSeconds += 1; if (state.elapsedSeconds % 5 === 0) { saveState(); saveWaveTelemetry(); } render(); }
   }, 1000);
 }
 
@@ -2009,6 +2090,7 @@ function toggleFight() {
   state.running = !state.running;
   if (state.running) {
     const now = performance.now();
+    telemetryResume(now);
     if (state.phase === "ready") beginFight(now);
     else if (state.phase === "fighting") {
       state.lastPlayerAttackAt = now; state.lastEnemyAttackAt = now;
@@ -2019,6 +2101,7 @@ function toggleFight() {
     }
   } else {
     state.pausedAt = performance.now();
+    telemetryPause(state.pausedAt);
     elements.encounterMessage.textContent = "Výprava pozastavena";
     addLog("Výprava byla pozastavena.", "system"); saveState();
   }
