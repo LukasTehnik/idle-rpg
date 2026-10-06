@@ -250,12 +250,12 @@ test("žádný nepřítel nemá scrollPool ani scrollDropChance", () => {
 });
 test("živý drop vyžaduje všechny podmínky (výchozí = odmítnuto)", () => {
   const r = api.validateAffixForLiveDrop("prefix_serrated", { poolId: "general_scrolls", source: { enemyId: "e01", enemyType: "common" }, weight: 100 });
-  assert(!r.ok); assert(r.errors.some((e) => /enabledInLiveDrops/.test(e))); assert(r.errors.some((e) => /schválený/.test(e))); assert(r.errors.some((e) => /progres/i.test(e)));
+  assert(!r.ok); assert(r.errors.some((e) => /enabledOnScrollDrops/.test(e))); assert(r.errors.some((e) => /schválený/.test(e))); assert(r.errors.some((e) => /progres/i.test(e)));
   assert(!api.validateAffixForLiveDrop("nope", {}).ok);
 });
 test("validace projde, jen když jsou splněny všechny podmínky (testovací kopie)", () => {
   const defs = JSON.parse(JSON.stringify(api.AFFIXES));
-  const d = defs.prefix_serrated; d.enabledInLiveDrops = true; d.scarcity.progressionBand = "early";
+  const d = defs.prefix_serrated; d.enabledInLiveDrops = true; d.enabledOnScrollDrops = true; d.scarcity.progressionBand = "early";
   const approved = api.SCROLL_SOURCE_POOLS.general_scrolls;
   const original = approved.approved;
   const pools = api.SCROLL_SOURCE_POOLS;
@@ -267,7 +267,7 @@ test("validace projde, jen když jsou splněny všechny podmínky (testovací ko
   assert(!r.ok && r.errors.length === 1 && /schválený/.test(r.errors[0]), r.errors.join("; "));
 });
 test("T5 nelze zařadit do poolu časné/střední hry ani při schválení", () => {
-  const defs = JSON.parse(JSON.stringify(api.AFFIXES)); defs.prefix_sanctified.enabledInLiveDrops = true; defs.prefix_sanctified.scarcity.progressionBand = "early";
+  const defs = JSON.parse(JSON.stringify(api.AFFIXES)); defs.prefix_sanctified.enabledInLiveDrops = true; defs.prefix_sanctified.enabledOnScrollDrops = true; defs.prefix_sanctified.scarcity.progressionBand = "early";
   defs.prefix_sanctified.scarcity.sourcePools = ["general_scrolls"];
   const r = api.validateAffixForLiveDrop("prefix_sanctified", { poolId: "general_scrolls", source: { enemyId: "e01", enemyType: "common" }, weight: 1, definitions: defs });
   assert(r.errors.some((e) => /Tier 5/.test(e)));

@@ -29,6 +29,7 @@ const PROGRESSION_ECONOMY = Object.freeze({
   // T1 je záměrně jediný povolený tier pro první živé dropy. Vyšší tiery,
   // Legendary i šance na získání svitku z tavení zůstávají uzamčené v datech.
   liveEquipmentAffixTier: 1,
+  smeltScrollRecoveryChance: 0.10,
 });
 
 function rollEconomyWeighted(weights, rng = Math.random) {

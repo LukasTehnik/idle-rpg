@@ -41,7 +41,10 @@ function validateAffixCatalog(definitions = AFFIX_DEFINITIONS) {
     if (!affix.id?.startsWith(`${affix.type}_`)) errors.push(`${where}: ID nezačíná typem`);
     if (!AFFIX_TIER_DEFAULTS[affix.tier]) errors.push(`${where}: neplatný tier`);
     if (affix.visualClass !== "affix_scroll" || affix.displayTier !== false || affix.displayRarity !== false) errors.push(`${where}: porušuje jednotný vzhled svitků`);
-    if (affix.enabledInLiveDrops !== false) errors.push(`${where}: enabledInLiveDrops musí být ve fázi 0.6 false`);
+    if (typeof affix.enabledOnEquipmentDrops !== "boolean") errors.push(`${where}: chybí enabledOnEquipmentDrops`);
+    if (typeof affix.enabledOnScrollDrops !== "boolean") errors.push(`${where}: chybí enabledOnScrollDrops`);
+    if (typeof affix.enabledOnSmeltRecovery !== "boolean") errors.push(`${where}: chybí enabledOnSmeltRecovery`);
+    if (affix.enabledInLiveDrops !== affix.enabledOnScrollDrops) errors.push(`${where}: historický enabledInLiveDrops musí kopírovat enabledOnScrollDrops`);
     if (!affix.allowedSlots?.length || affix.allowedSlots.some((slot) => !AFFIX_EQUIPMENT_SLOTS.includes(slot))) errors.push(`${where}: neplatné sloty`);
     if (affix.design?.visibility !== "internal" || affix.scarcity?.visibility !== "internal") errors.push(`${where}: design/scarcity musí být internal`);
     for (const pool of affix.scarcity?.sourcePools ?? []) {
@@ -70,7 +73,7 @@ function validateAffixForLiveDrop(affixId, { poolId, source, weight, definitions
   const affix = definitions[affixId];
   if (!affix) return { ok: false, errors: ["Neplatné affix ID"], warnings };
   if (!affix.enabled) errors.push("Affix je vypnutý (enabled:false)");
-  if (affix.enabledInLiveDrops !== true) errors.push("enabledInLiveDrops není explicitně true");
+  if (affix.enabledOnScrollDrops !== true) errors.push("enabledOnScrollDrops není explicitně true");
   const unusableStat = [...affix.modifiers, ...affix.drawbacks].find((m) => !STATS[m.statId]?.enabled);
   if (unusableStat) errors.push(`Stat ${unusableStat.statId} není aktivní v registru`);
   const prepared = [...affix.modifiers, ...affix.drawbacks].filter((m) => STATS[m.statId]?.calc === "prepared").map((m) => m.statId);
@@ -133,7 +136,9 @@ const SCROLL_DROP_TEST_FIXTURE = Object.freeze({
 });
 
 // Živě povolené affixy (musí být prázdná množina). Test i dev nástroj to hlídají.
-function getLiveDropAffixIds() { return AFFIX_DEFINITIONS.filter((affix) => affix.enabledInLiveDrops === true).map((affix) => affix.id); }
+function getLiveDropAffixIds() { return AFFIX_DEFINITIONS.filter((affix) => affix.enabledOnScrollDrops === true).map((affix) => affix.id); }
+function getEquipmentDropAffixIds() { return AFFIX_DEFINITIONS.filter((affix) => affix.enabledOnEquipmentDrops === true).map((affix) => affix.id); }
+function getSmeltRecoverableAffixIds() { return AFFIX_DEFINITIONS.filter((affix) => affix.enabledOnSmeltRecovery === true).map((affix) => affix.id); }
 
 // --- Roll hodnot -------------------------------------------------------------
 function roundRoll(value, min, max) {
@@ -385,6 +390,17 @@ function createAffixScroll(affixId) {
     visualClass: "affix_scroll",
     tradeable: affix.tradeable,
   };
+}
+
+function smeltRecoveryCandidates(item) {
+  if (!item || item.craftedAt) return [];
+  return getItemAffixes(item).map(({ instance }) => instance.affixId).filter((affixId) => getAffix(affixId)?.enabledOnSmeltRecovery === true);
+}
+
+// Nezávislý hod za každý affix: u dvou affixů 81 % nic, 18 % jeden, 1 % oba.
+function rollSmeltRecoveredScrolls(item, { rng = Math.random, chance = PROGRESSION_ECONOMY.smeltScrollRecoveryChance } = {}) {
+  const validChance = Math.max(0, Math.min(1, Number(chance) || 0));
+  return smeltRecoveryCandidates(item).filter(() => rng() < validChance).map((affixId) => createAffixScroll(affixId)).filter(Boolean);
 }
 
 // Sanitizace ze savu: jen povolená pole; `quality`/`rarity` a jiné cizí pole se zahodí.
