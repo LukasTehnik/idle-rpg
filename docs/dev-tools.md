@@ -10,6 +10,7 @@ Všechny jsou statické stránky bez build kroku; rozcestník je `dev-tools.html
 | `balance-lab.html` | sequential wave calculator (H = hits/enemy), cílový drop calculator, affix → smelting scroll chain, report existujících drop tabulek a lokální telemetry měřeného runu |
 | `index.html?testitems#/inventar` | přidá do inventáře itemy všech kvalit |
 | `index.html?testscrolls#/inventar` | přidá 64 svitků a 3 itemy s affixy |
+| `index.html?testsmelt#/kovarna` | přidá 15 itemů pro zkoušení tavby: 5× T1 prefix+suffix, 4× jen prefix, 4× jen suffix, 1× T2 (tavbou svitek nevrací), 1× craftěný (nikdy nevrací). Parametr se po načtení smaže |
 | `node tests/affix-tests.js` | 50 logických testů (Node, bez závislostí) |
 | `node tests/ui-tests.js` | 10 UI testů (Playwright; server na `localhost:8765`, `PLAYWRIGHT_MODULE` / `CHROME_PATH` lze přepsat) |
 

@@ -3711,6 +3711,41 @@ function applyTestScrolls() {
 }
 applyTestScrolls();
 
+// Vývojová pomůcka (0.10): `index.html?testsmelt#/kovarna` přidá do inventáře itemy pro zkoušení
+// tavby a dropů: T1 itemy s prefixem+suffixem, jen s prefixem, jen se suffixem, jeden s T2 affixem
+// (tavbou svitek nevrátí) a jeden „craftěný" (nikdy svitek nevrací). Affixy se losují jako u dropů.
+function applyTestSmelt() {
+  if (!/[?&]testsmelt\b/.test(location.search)) return;
+  const enemy = getCurrentEnemy();
+  const slots = ["weapon", "armor", "helmet", "gloves", "pants", "boots", "charm"];
+  const pickAffix = (type, slot, tier) => {
+    const pool = AFFIX_DEFINITIONS.filter((a) => a.type === type && a.tier === tier && a.allowedSlots.includes(slot) && a.enabled && (tier !== 1 || a.enabledOnSmeltRecovery));
+    return pool.length ? pool[randomInt(0, pool.length - 1)] : null;
+  };
+  const make = (slot, types, { tier = 1, crafted = false } = {}) => {
+    const pool = ENEMIES.goblin.dropPool ?? [];
+    const candidates = ITEM_TEMPLATES.filter((t) => t.slot === slot);
+    const template = candidates.find((t) => pool.includes(t.templateId)) ?? candidates.find((t) => t.image) ?? candidates[0];
+    if (!template || state.inventory.length >= CONFIG.inventoryCapacity) return;
+    let item = createItem(enemy, { templateId: template.templateId, quality: "common" });
+    for (const type of types) {
+      const affix = pickAffix(type, slot, tier);
+      if (affix) item = applyAffixToItem(item, affix.id).item;
+    }
+    item = { ...item, name: composeAffixedName(item.baseName ?? item.name, item), ...(crafted ? { craftedAt: Date.now(), source: "Kovářství" } : {}) };
+    recordItemAcquired(item);
+    state.inventory.unshift(item);
+  };
+  slots.slice(0, 5).forEach((slot) => make(slot, ["prefix", "suffix"]));   // 5× prefix + suffix (dva hody při tavbě)
+  slots.slice(0, 4).forEach((slot) => make(slot, ["prefix"]));             // 4× jen prefix
+  slots.slice(2, 6).forEach((slot) => make(slot, ["suffix"]));             // 4× jen suffix
+  make("weapon", ["prefix"], { tier: 2 });                                 // T2: tavba svitek nevrací
+  make("armor", ["prefix", "suffix"], { crafted: true });                  // craftěný: tavba svitek nevrací
+  saveState();
+  history.replaceState(null, "", location.pathname + (location.hash || "#/kovarna"));
+}
+applyTestSmelt();
+
 if (window.CombatField) window.CombatField.setIcons({ gold: "assets/icons/ui/ui_icon_gold_inventory.png", core: "assets/icons/ui/ui_icon_core_fragment_inventory.png" });
 initCombatWidgets();
 applyCharacterPreview();
