@@ -14,9 +14,9 @@ Závazné zdroje: `idle-rpg-affix-balance-catalog-en.md` (má přednost), `idle-
 | `enabledInLiveDrops`, pooly, `category` | podmínky, cooldowny, funkční omezení |
 | | kompatibilní sloty, obchodovatelnost |
 
-Renderer svitku čte **výhradně** view model `buildAffixScrollViewModel()` s 7 poli: `displayName, affixType, formattedModifiers, formattedConditions, allowedSlots, requiredLevel, tradeable`. Interní objekt se rendereru nepředává (nic se neskrývá přes CSS).
+Renderer svitku čte **výhradně** view model `buildAffixScrollViewModel()` s 8 poli: `displayName, affixType, formattedModifiers, formattedConditions, allowedSlots, requiredLevel, tradeable, scrollColor`. Interní objekt se rendereru nepředává (nic se neskrývá přes CSS).
 
-Všech 64 svitků má **identický vzhled**: stejný obrázek (`assets/scrolls/affix_scroll.png`, vybrán náhodně z dodaných, nepoužité jsou v `assets/scrolls/unused/`), stejný rám a pozadí, stejná barva názvu, žádný glow, typ `AFFIX SCROLL`. Prefix/suffix se liší jen písmenem P/S a textem PREFIX/SUFFIX SCROLL. Žádný tier, quality ani build štítek. Na záložce SVITKY se nenabízí filtr/legenda kvality ani řazení podle síly.
+Všech 64 svitků má **stejný vzhled kromě barvy obrázku**: 4 varianty (`assets/scrolls/affix_scroll_{blue,green,purple,rainbow}.png`). Barva = **téma affixu** podle většiny statistik (`getAffixScrollColor`, affix-logic.js): modrá = přežití (defense, HP, regen, dodge, heal), zelená = užitek/farming (find, xp, search), fialová = útok (damage, crit, speed, elementy, boss/elite), duha = hybrid (remíza témat). Tier ani vzácnost do barvy nevstupují (test hlídá, že každá barva pokrývá ≥3 tiery). Stejný rám a pozadí, stejná barva názvu, žádný glow, typ `AFFIX SCROLL`. Prefix/suffix se liší jen písmenem P/S a textem PREFIX/SUFFIX SCROLL. Žádný tier, quality ani build štítek. Na záložce SVITKY se nenabízí filtr/legenda kvality ani řazení podle síly.
 
 ## Soubory
 

@@ -4,7 +4,7 @@
 // Prototype 0.6 — JEDNOTNÁ VIZUÁLNÍ KOMPONENTA SVITKU (player-facing)
 // =============================================================================
 // Všechny prefix/suffix svitky (64 z 64) používají PRÁVĚ TENTO kód: stejné pozadí,
-// stejný rám, stejnou barvu názvu, žádný glow, generický typ "AFFIX SCROLL".
+// stejný rám, stejnou barvu názvu, žádný glow (liší se jen barva obrázku svitku podle tématu), generický typ "AFFIX SCROLL".
 // Prefix a suffix se liší jen malým písmenem na ikoně a textem PREFIX/SUFFIX SCROLL —
 // to označuje druh svitku, nikdy sílu.
 //
@@ -14,9 +14,18 @@
 
 const AFFIX_SCROLL_TYPE_LABEL = "AFFIX SCROLL";
 const AFFIX_SCROLL_SUBTYPE_LABEL = Object.freeze({ prefix: "PREFIX SCROLL", suffix: "SUFFIX SCROLL" });
-// Jediný obrázek pro VŠECH 64 svitků (assets/scrolls/affix_scroll.png). Prefix/suffix se liší jen písmenem P/S.
-const AFFIX_SCROLL_IMAGE = "assets/scrolls/affix_scroll.png";
-const AFFIX_SCROLL_ICON_HTML = `<img class="scroll-art" src="${AFFIX_SCROLL_IMAGE}" alt="" draggable="false" />`;
+// Čtyři barevné varianty téhož svitku (modrá/zelená/fialová/duha). Barva = téma affixu
+// (viz getAffixScrollColor v affix-logic.js), NIKDY síla ani vzácnost. Rám, pozadí a název jsou stejné.
+const AFFIX_SCROLL_IMAGES = Object.freeze({
+  blue: "assets/scrolls/affix_scroll_blue.png",
+  green: "assets/scrolls/affix_scroll_green.png",
+  purple: "assets/scrolls/affix_scroll_purple.png",
+  rainbow: "assets/scrolls/affix_scroll_rainbow.png",
+});
+function affixScrollIconHtml(color) {
+  const key = AFFIX_SCROLL_IMAGES[color] ? color : "blue";
+  return `<img class="scroll-art" data-scroll-color="${key}" src="${AFFIX_SCROLL_IMAGES[key]}" alt="" draggable="false" />`;
+}
 
 // Odstraní z prvku jakoukoli kvalitu a označí ho jednotným vzhledem svitku.
 function applyAffixScrollVisuals(element) {
@@ -30,8 +39,8 @@ function applyAffixScrollVisuals(element) {
 }
 
 // Ikona svitku: společné SVG + malé písmeno P/S.
-function renderAffixScrollIcon(container, affixType) {
-  container.innerHTML = `${AFFIX_SCROLL_ICON_HTML}<span class="scroll-mark" aria-hidden="true">${affixType === "prefix" ? "P" : "S"}</span>`;
+function renderAffixScrollIcon(container, affixType, color) {
+  container.innerHTML = `${affixScrollIconHtml(color)}<span class="scroll-mark" aria-hidden="true">${affixType === "prefix" ? "P" : "S"}</span>`;
   container.classList.add("scroll-icon");
   container.classList.remove("item-glow");
   container.style.removeProperty("--glow-color");
@@ -44,7 +53,7 @@ function renderAffixScrollIcon(container, affixType) {
 function renderAffixScrollDetail(model, targets) {
   const { badge, icon, title, type, stats, meta } = targets;
   if (badge) badge.textContent = AFFIX_SCROLL_TYPE_LABEL;
-  if (icon) renderAffixScrollIcon(icon, model.affixType);
+  if (icon) renderAffixScrollIcon(icon, model.affixType, model.scrollColor);
   if (title) { title.textContent = model.displayName; title.className = "detail-title scroll-title"; }
   if (type) type.textContent = AFFIX_SCROLL_SUBTYPE_LABEL[model.affixType];
   if (stats) {
@@ -86,7 +95,7 @@ function buildAffixScrollCard(model) {
   card.className = "scroll-card scroll-surface";
   card.dataset.visual = "affix_scroll";
   const icon = document.createElement("div"); icon.className = "scroll-card-icon";
-  renderAffixScrollIcon(icon, model.affixType);
+  renderAffixScrollIcon(icon, model.affixType, model.scrollColor);
   const body = document.createElement("div"); body.className = "scroll-card-body";
   const type = document.createElement("p"); type.className = "scroll-card-type"; type.textContent = `${AFFIX_SCROLL_TYPE_LABEL} · ${AFFIX_SCROLL_SUBTYPE_LABEL[model.affixType]}`;
   const name = document.createElement("h3"); name.className = "scroll-title"; name.textContent = model.displayName;

@@ -27,7 +27,7 @@ const SAVE_KEY = "idle-rpg-prototype-v02";
   };
 
   console.log("Hra: svitky v inventáři");
-  await test("64 svitků má identický vzhled a žádné quality třídy", async () => {
+  await test("64 svitků: stejný rám/pozadí, barva jen z 4 témat, žádné quality třídy", async () => {
     const page = await newPage();
     await page.goto(`${BASE}/index.html?testscrolls#/inventar`); await page.waitForTimeout(500);
     await page.click('[data-tab="scrolls"]'); await page.waitForTimeout(200);
@@ -42,11 +42,14 @@ const SAVE_KEY = "idle-rpg-prototype-v02";
       const shine = cells.filter((c) => c.querySelector(".q-shine")).length;
       const text = cells.map((c) => c.textContent).join(" ");
       const prefix = cells.filter((c) => c.querySelector(".scroll-mark").textContent === "P").length;
-      return { count: cells.length, unique: signatures.size, qClasses, shine, text, prefix, suffix: cells.length - prefix };
+      const colors = {}; cells.forEach((c) => { const k = c.querySelector(".scroll-art").dataset.scrollColor; colors[k] = (colors[k] || 0) + 1; });
+      const srcs = new Set(cells.map((c) => c.querySelector(".scroll-art").getAttribute("src")));
+      return { count: cells.length, unique: signatures.size, qClasses, shine, text, prefix, suffix: cells.length - prefix, colors, srcCount: srcs.size };
     });
     assert(result.count === 64, `počet ${result.count}`);
     assert(result.unique === 1, `vzhledů ${result.unique}`);
     assert(result.qClasses === 0 && result.shine === 0, "quality třídy/glow na svitku");
+    assert(result.srcCount === 4 && ["blue", "green", "purple", "rainbow"].every((k) => result.colors[k] > 0), `barvy svitků: ${JSON.stringify(result.colors)}`);
     assert(!BANNED.test(result.text), `zakázaný text v mřížce: ${result.text.match(BANNED)?.[0]}`);
     assert(result.prefix === 30 && result.suffix === 34, `P/S ${result.prefix}/${result.suffix}`);
     const hidden = await page.evaluate(() => ({ quality: document.getElementById("invQualityField").classList.contains("hidden"), legend: document.getElementById("qualityLegend").classList.contains("hidden"), sortQuality: document.querySelector('#invSort option[value="quality"]').disabled, sortPower: document.querySelector('#invSort option[value="power"]').disabled }));

@@ -1445,7 +1445,7 @@ function getInventoryEntries() {
     const affix = getAffix(scroll.affixId);
     if (!affix) return;
     entries.push({
-      kind: "scroll", key: `scr:${scroll.instanceId}`, id: scroll.instanceId, name: affix.displayName, affixType: scroll.affixType,
+      kind: "scroll", key: `scr:${scroll.instanceId}`, id: scroll.instanceId, name: affix.displayName, affixType: scroll.affixType, scrollColor: getAffixScrollColor(affix),
       quality: null, slot: null, category: "scrolls", qty: 1, order: 2000 + index, iconSource: null, visual: null,
       time: -1, originLocationId: null, value: 0, power: 0, flags: {},
     });
@@ -1624,7 +1624,7 @@ function renderInventory() {
     ].join("");
     cell.innerHTML = `<span class="cell-check" aria-hidden="true"></span><span class="cell-icon" aria-hidden="true"></span>${entry.kind === "material" ? `<span class="cell-qty">×${entry.qty}</span>` : (flags ? `<span class="cell-flags" aria-hidden="true">${flags}</span>` : "")}<span class="cell-name"></span>`;
     if (entry.kind === "scroll") {
-      renderAffixScrollIcon(applyAffixScrollVisuals(cell.querySelector(".cell-icon")), entry.affixType);
+      renderAffixScrollIcon(applyAffixScrollVisuals(cell.querySelector(".cell-icon")), entry.affixType, entry.scrollColor);
     } else {
       renderItemIcon(cell.querySelector(".cell-icon"), entry.iconSource);
       applyQualityVisuals(cell.querySelector(".cell-icon"), entry.visual);

@@ -1624,7 +1624,7 @@ h1, h2, h3 { margin-bottom: 0; font-family: var(--font-display); font-weight: 70
 /* Inline ikona materiálu: 22×22 rámeček, asset ~18×18, těsně vedle názvu. Barva ok/missing se dědí. */
 .mat-inline { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 .mat-icon { display: inline-grid; flex: none; width: 22px; height: 22px; place-items: center; box-sizing: border-box; border: 1px solid var(--color-border); background: var(--color-bg-deep); }
-.mat-icon img { width: 18px; height: 18px; object-fit: contain; image-rendering: pixelated; }
+.mat-icon img { width: 18px; height: 18px; object-fit: contain; image-rendering: auto; }
 .ok .mat-icon { border-color: var(--color-success, #87be71); }
 .missing .mat-icon { border-color: var(--color-danger, #e0645c); }
 .mat-name { min-width: 0; }

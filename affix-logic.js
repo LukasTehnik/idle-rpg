@@ -40,6 +40,7 @@ function validateAffixCatalog(definitions = AFFIX_DEFINITIONS) {
     if (affix.type !== "prefix" && affix.type !== "suffix") errors.push(`${where}: neplatný typ`);
     if (!affix.id?.startsWith(`${affix.type}_`)) errors.push(`${where}: ID nezačíná typem`);
     if (!AFFIX_TIER_DEFAULTS[affix.tier]) errors.push(`${where}: neplatný tier`);
+    if (!AFFIX_SCROLL_COLORS.includes(getAffixScrollColor(affix))) errors.push(`${where}: neplatná barva svitku`);
     if (affix.visualClass !== "affix_scroll" || affix.displayTier !== false || affix.displayRarity !== false) errors.push(`${where}: porušuje jednotný vzhled svitků`);
     if (typeof affix.enabledOnEquipmentDrops !== "boolean") errors.push(`${where}: chybí enabledOnEquipmentDrops`);
     if (typeof affix.enabledOnScrollDrops !== "boolean") errors.push(`${where}: chybí enabledOnScrollDrops`);
@@ -377,6 +378,31 @@ function affixLiveBonus(item, liveKey) {
 }
 
 // --- Entita svitku ---------------------------------------------------------------
+// Barva svitku = TÉMA affixu (obrana / užitek / útok / hybrid), nikdy síla ani vzácnost.
+// Tier ani drop weight do výpočtu nevstupují. Modrá = přežití, zelená = užitek/farming,
+// fialová = útok, duha = hybrid (statistiky z více témat bez jasné většiny).
+const AFFIX_SCROLL_COLORS = Object.freeze(["blue", "green", "purple", "rainbow"]);
+const AFFIX_SCROLL_STAT_THEME = Object.freeze({
+  defense: ["defense", "max_hp", "hp_regen", "dodge_chance", "heal_on_kill", "revive_time", "low_hp_defense", "survive_lethal_once", "trigger_heal_on_damage"],
+  utility: ["magic_find", "gold_find", "material_find", "xp_gain", "search_time", "equipment_drop_chance"],
+  offense: ["damage_min", "damage_max", "crit_chance", "crit_damage", "attack_speed", "defense_penetration", "boss_damage", "boss_defense_penetration", "elite_damage", "enemy_family_damage", "fire_damage", "electric_damage", "execution_damage", "low_hp_damage", "full_hp_damage", "hunger_damage_per_kill", "hunger_damage_cap", "trigger_true_damage_on_crit", "trigger_extra_attack_on_crit"],
+});
+const AFFIX_THEME_COLOR = Object.freeze({ defense: "blue", utility: "green", offense: "purple" });
+
+function getAffixScrollColor(affixOrId) {
+  const affix = typeof affixOrId === "string" ? getAffix(affixOrId) : affixOrId;
+  if (!affix) return "blue";
+  const counts = { defense: 0, utility: 0, offense: 0 };
+  (affix.modifiers ?? []).forEach((m) => {
+    const theme = Object.keys(AFFIX_SCROLL_STAT_THEME).find((t) => AFFIX_SCROLL_STAT_THEME[t].includes(m.statId));
+    if (theme) counts[theme] += 1;
+  });
+  const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  if (ranked[0][1] === 0) return "blue";
+  if (ranked[1][1] === ranked[0][1]) return "rainbow";
+  return AFFIX_THEME_COLOR[ranked[0][0]];
+}
+
 let affixScrollCounter = 0;
 function createAffixScroll(affixId) {
   const affix = getAffix(affixId);
@@ -443,7 +469,7 @@ function sanitizeItemAffixes(raw) {
 // Renderer svitku smí číst POUZE tento objekt. Interní definice (tier, design,
 // scarcity, váhy, zdroje) se do něj nikdy nekopírují — a UI je neskrývá pomocí CSS,
 // prostě tam nejsou.
-const AFFIX_SCROLL_VIEW_KEYS = Object.freeze(["displayName", "affixType", "formattedModifiers", "formattedConditions", "allowedSlots", "requiredLevel", "tradeable"]);
+const AFFIX_SCROLL_VIEW_KEYS = Object.freeze(["displayName", "affixType", "formattedModifiers", "formattedConditions", "allowedSlots", "requiredLevel", "tradeable", "scrollColor"]);
 // Požadovaná úroveň se zatím nevynucuje (item level ve hře není) → null = nezobrazuje se.
 const AFFIX_REQUIRED_LEVEL_ENABLED = false;
 
@@ -480,6 +506,7 @@ function buildAffixScrollViewModel(scroll) {
     allowedSlots: affix.allowedSlots.map((slot) => AFFIX_SLOT_LABELS[slot] ?? slot),
     requiredLevel: AFFIX_REQUIRED_LEVEL_ENABLED ? affix.requiredItemLevel : null,
     tradeable: Boolean(scroll.tradeable && affix.tradeable),
+    scrollColor: getAffixScrollColor(affix),
   };
   return Object.freeze(Object.fromEntries(AFFIX_SCROLL_VIEW_KEYS.map((key) => [key, model[key]])));
 }

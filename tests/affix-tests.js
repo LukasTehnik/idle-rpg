@@ -17,7 +17,7 @@ vm.runInContext(`${source}
   SCROLL_DROP_TEST_FIXTURE, getLiveDropAffixIds, rollAffix, applyAffixToItem, removeAffixFromItem, checkAffixOnItem, computeAffixTotals, applyStatCap,
   computeEffectiveTimes, effectiveTargetDefense, effectivePlayerDefense, createAffixScroll, sanitizeAffixScroll, sanitizeAffixScrolls, sanitizeItemAffixes,
   buildAffixScrollViewModel, buildItemAffixLines, composeAffixedName, AFFIX_SCROLL_VIEW_KEYS, affixLiveBonus, AFFIX_EQUIPMENT_SLOTS, AFFIX_TIER_DEFAULTS,
-  collectItemModifiers, compareAffixTotals, emptyAffixSlots };`, context);
+  collectItemModifiers, compareAffixTotals, emptyAffixSlots, getAffixScrollColor, AFFIX_SCROLL_COLORS, AFFIX_SCROLL_IMAGES };`, context);
 const api = context.api;
 
 let passed = 0; const failures = [];
@@ -112,7 +112,17 @@ test("entita svitku nemá quality ani rarity", () => {
 test("instanceId jsou unikátní", () => {
   const ids = new Set(Array.from({ length: 500 }, () => api.createAffixScroll("prefix_serrated").instanceId)); eq(ids.size, 500);
 });
-test("view model má přesně 7 povolených polí a žádná interní data", () => {
+test("barva svitku: jen 4 povolené, všechny se používají a nekorelují s tierem", () => {
+  const byColor = {};
+  for (const a of api.AFFIX_DEFINITIONS) {
+    const c = api.getAffixScrollColor(a); assert(api.AFFIX_SCROLL_COLORS.includes(c), `${a.id}: ${c}`);
+    (byColor[c] ??= new Set()).add(a.tier);
+    eq(api.buildAffixScrollViewModel({ affixId: a.id, tradeable: true }).scrollColor, c);
+  }
+  for (const c of api.AFFIX_SCROLL_COLORS) assert(byColor[c] && byColor[c].size >= 3, `barva ${c} prozrazuje tier: ${[...(byColor[c] ?? [])]}`);
+  eq(Object.keys(api.AFFIX_SCROLL_IMAGES).sort(), [...api.AFFIX_SCROLL_COLORS].sort());
+});
+test("view model má přesně 8 povolených polí a žádná interní data", () => {
   const banned = /\b(T[1-5]|tier|rarity|quality|common|rare|epic|legendary|mythic|god|weight|scarcity|design|buildRole|primaryBuild|recommended|best for|boss hunter|farming build)\b/i;
   for (const a of api.AFFIX_DEFINITIONS) {
     const vm_ = api.buildAffixScrollViewModel({ affixId: a.id, tradeable: true });
