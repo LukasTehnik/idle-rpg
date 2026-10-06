@@ -153,15 +153,25 @@ const SAVE_KEY = "idle-rpg-prototype-v02";
     assert(page.errors.length === 0, page.errors.join("; "));
   });
 
-  await test("běžné dropy nevytvářejí svitky ani affixy (500 dropů)", async () => {
+  // Prototype 0.10: affixy na dropech smí nést JEN startovní Goblin (affixTier 1) a jen
+  // T1 kompatibilní se slotem. Ostatní nepřátelé affixy nenesou; svitky z tavení a
+  // „živé" affixy (enabledInLiveDrops) zůstávají vypnuté.
+  await test("dropy: affixy jen z Goblina (T1, správný slot); jinde žádné; žádné svitky", async () => {
     const page = await newPage();
     await page.goto(`${BASE}/index.html`); await page.waitForTimeout(300);
     const r = await page.evaluate(() => {
-      let withAffix = 0; const enemies = Object.values(ENEMIES);
-      for (let i = 0; i < 500; i += 1) { const item = createItem(enemies[i % enemies.length]); if (item.prefix || item.suffix) withAffix += 1; }
-      return { withAffix, scrolls: state.affixScrolls.length, live: getLiveDropAffixIds().length };
+      let otherWithAffix = 0, goblinWithAffix = 0, badTier = 0, badSlot = 0;
+      for (const enemy of Object.values(ENEMIES)) {
+        for (let i = 0; i < 300; i += 1) {
+          const item = createItem(enemy); const affixes = [item.prefix, item.suffix].filter(Boolean);
+          if (enemy.id === "goblin") { if (affixes.length) goblinWithAffix += 1; } else if (affixes.length) otherWithAffix += 1;
+          for (const a of affixes) { const d = AFFIXES[a.affixId]; if (d.tier !== 1) badTier += 1; if (!d.allowedSlots.includes(item.slot)) badSlot += 1; }
+        }
+      }
+      return { otherWithAffix, goblinWithAffix, badTier, badSlot, scrolls: state.affixScrolls.length, live: getLiveDropAffixIds().length };
     });
-    assert(r.withAffix === 0 && r.scrolls === 0 && r.live === 0, JSON.stringify(r));
+    // 300 Goblinů × 24 % ≈ 72 s affixem; rozumné pásmo 40–110.
+    assert(r.otherWithAffix === 0 && r.badTier === 0 && r.badSlot === 0 && r.scrolls === 0 && r.live === 0 && r.goblinWithAffix > 40 && r.goblinWithAffix < 110, JSON.stringify(r));
   });
 
   console.log("Interní affix katalog (desktop)");

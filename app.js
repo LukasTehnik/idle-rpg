@@ -1093,16 +1093,39 @@ function resolveDropPool(enemyCfg) {
 // šablona losuje z dropPool a kvalita zděděným hodem (chování 0.4/0.5 beze změny).
 // Kvalita sama staty NEMĚNÍ: násobič statů (ITEM_QUALITY_ROLL) patří jen zděděnému hodu,
 // pevná kvalita (např. legendary) používá základní rozsah šablony × 1 — balance je mimo rozsah 0.5.1.
+function rollDroppedAffixes(item, enemyCfg) {
+  // Scrolly z tavení a jejich šance nejsou v této fázi zapnuté. Toto řeší
+  // pouze přirozený prefix/suffix na nalezeném, ne-craftěném itemu.
+  if (!enemyCfg?.affixTier || item?.craftedAt) return item;
+  const composition = rollAffixComposition();
+  if (composition === "none") return item;
+  let result = { ...item };
+  const types = composition === "both" ? ["prefix", "suffix"] : [composition];
+  for (const type of types) {
+    const candidates = AFFIX_DEFINITIONS.filter((affix) => (
+      affix.type === type
+      && affix.tier === enemyCfg.affixTier
+      && affix.allowedSlots.includes(result.slot)
+      && affix.enabled
+    ));
+    if (!candidates.length) continue;
+    const affix = candidates[randomInt(0, candidates.length - 1)];
+    const applied = applyAffixToItem(result, affix.id);
+    if (applied.ok) result = applied.item;
+  }
+  return { ...result, name: composeAffixedName(item.name, result) };
+}
+
 function createItem(enemyCfg, fixed = null) {
   const template = fixed ? findTemplateById(fixed.templateId) : (() => { const pool = resolveDropPool(enemyCfg); return pool[randomInt(0, pool.length - 1)]; })();
-  const quality = fixed ? normalizeQuality(fixed.quality, { where: `drop ${fixed.templateId}` }) : rollLegacyQuality();
+  const quality = fixed ? normalizeQuality(fixed.quality, { where: `drop ${fixed.templateId}` }) : (enemyCfg?.equipmentQualityProfile ? rollEquipmentQuality(enemyCfg.equipmentQualityProfile) : rollLegacyQuality());
   const multiplier = fixed ? 1 : (ITEM_QUALITY_ROLL[quality]?.statMultiplier ?? 1);
   const stats = {};
   for (const [stat, range] of Object.entries(template.rolls ?? {})) {
     const raw = stat === "critChance" ? randomDecimal(range[0], range[1]) : randomInt(range[0], range[1]);
     stats[stat] = stat === "critChance" ? Math.round(raw * multiplier * 10) / 10 : Math.max(stat === "damageMin" ? 0 : 1, Math.round(raw * multiplier));
   }
-  return {
+  const item = {
     id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
     name: template.name, slot: template.slot ?? null, icon: template.icon, quality, stats,
     upgradeLevel: 0, maxUpgradeLevel: SMITH_CONFIG.maxUpgradeLevel, isMaxUpgraded: false,
@@ -1127,8 +1150,10 @@ function createItem(enemyCfg, fixed = null) {
     isNew: true, isFavorite: false, isLocked: false,
     tradeable: template.tradeable ?? true,
     flavorText: template.flavorText ?? null,
-    prefix: null, suffix: null, // Prototype 0.6: běžné dropy zatím žádné affixy nenesou
+    itemLevel: enemyCfg?.level ?? 1,
+    prefix: null, suffix: null,
   };
+  return fixed ? item : rollDroppedAffixes(item, enemyCfg);
 }
 
 // Oprava 1: drops no longer open a blocking confirmation modal. The item (or
@@ -1171,7 +1196,8 @@ function rollMaterialDrops(enemyCfg) {
     // source of it (guards e.g. "Oko Matky" = Matka děr only).
     if (!material.sourceEnemyIds.includes(enemyCfg.id)) continue;
     if (Math.random() >= drop.chance) continue;
-    addMaterial(drop.templateId, randomInt(drop.quantity[0], drop.quantity[1]), enemyCfg.id, drop.quality);
+    const quality = drop.qualityProfile ? rollMaterialQuality(drop.qualityProfile) : drop.quality;
+    addMaterial(drop.templateId, randomInt(drop.quantity[0], drop.quantity[1]), enemyCfg.id, quality);
   }
 }
 

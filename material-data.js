@@ -75,16 +75,16 @@ const GLOBAL_MATERIAL_META = Object.freeze([
 ]);
 
 const GLOBAL_MATERIAL_SOURCES = Object.freeze({
-  "cloth-padding": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e01"] },
+  "cloth-padding": { locationId: "okraj-stareho-lesa", enemyIds: ["goblin", "odpadky-e01"] },
   "thread-spool": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e01"] },
   "binding-glue": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e01"] },
-  "leather-padding": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e02"] },
-  "metal-buckle": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e02"] },
-  "sharpening-stone": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e02"] },
-  "iron-rivets": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e03"] },
+  "leather-padding": { locationId: "okraj-stareho-lesa", enemyIds: ["goblin", "odpadky-e02"] },
+  "metal-buckle": { locationId: "okraj-stareho-lesa", enemyIds: ["goblin", "odpadky-e02"] },
+  "sharpening-stone": { locationId: "okraj-stareho-lesa", enemyIds: ["goblin", "odpadky-e02"] },
+  "iron-rivets": { locationId: "okraj-stareho-lesa", enemyIds: ["goblin", "odpadky-e03"] },
   "steel-chain": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e03"] },
   "polishing-compound": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e03"] },
-  "wooden-handle": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e03"] },
+  "wooden-handle": { locationId: "okraj-stareho-lesa", enemyIds: ["goblin", "odpadky-e03"] },
   "bone": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e02"] },
   "sinew": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e02"] },
   "quartz": { locationId: "odpadkove-hory", enemyIds: ["odpadky-e01"] },
@@ -237,6 +237,7 @@ function normalizeMaterialDrop(drop, where = "") {
   return {
     templateId: drop.templateId, chance: Number(drop.chance) || 0, quantity: [min, max], tier: drop.tier ?? null,
     quality: normalizeQuality(drop.quality ?? material.defaultQuality, { stackable: true, where: `materialDrops ${drop.templateId}` }),
+    qualityProfile: typeof drop.qualityProfile === "string" ? drop.qualityProfile : null,
   };
 }
 

@@ -28,7 +28,6 @@ const PUSTINA_TICHA_DROP_POOL = [
 // stays exactly as Goblin's drop pool, unchanged from before this update.
 const OKRAJ_STAREHO_LESA_DROP_POOL = [
   "iron-sword", "goblin-cleaver", "leather-vest", "quilted-coat", "bone-talisman", "copper-ring",
-  "greatsword-angels", "angel-armor", "angel-helmet", "angel-gloves", "angel-boots", "angel-charm",
 ];
 
 // Prozatímní pooly kořisti nových lokací (content-first fáze, bez finální balance).
@@ -162,8 +161,20 @@ const ENEMY_TYPE_LABELS = Object.freeze({
 const ENEMIES = Object.freeze({
   goblin: {
     id: "goblin", locationId: "okraj-stareho-lesa", name: "Goblin", level: 1, type: "common", image: null,
-    maxHp: 48, minDamage: 5, maxDamage: 8, defense: 0, xp: 18, gold: 4,
-    dropChance: 0.42, dropPool: OKRAJ_STAREHO_LESA_DROP_POOL, materialDrops: [],
+    maxHp: 48, minDamage: 5, maxDamage: 8, defense: 0, xp: 10, gold: 1,
+    dropChance: PROGRESSION_ECONOMY.equipmentDropChance, equipmentQualityProfile: "start", affixTier: 1,
+    dropPool: OKRAJ_STAREHO_LESA_DROP_POOL,
+    // Jeden startovní spot má všechny nutné základní vstupy. Pozdější cílené
+    // spoty zůstávají efektivnější/tematické, ale první meč ani vesta nejsou
+    // blokované mapou na úrovni 1.
+    materialDrops: [
+      { templateId: "iron-rivets", qualityProfile: "start", chance: 0.12, quantity: [1, 1], tier: "common" },
+      { templateId: "leather-padding", qualityProfile: "start", chance: 0.12, quantity: [1, 1], tier: "common" },
+      { templateId: "sharpening-stone", qualityProfile: "start", chance: 0.12, quantity: [1, 1], tier: "common" },
+      { templateId: "wooden-handle", qualityProfile: "start", chance: 0.04, quantity: [1, 1], tier: "uncommon" },
+      { templateId: "cloth-padding", qualityProfile: "start", chance: 0.04, quantity: [1, 1], tier: "uncommon" },
+      { templateId: "metal-buckle", qualityProfile: "start", chance: 0.04, quantity: [1, 1], tier: "uncommon" },
+    ],
     equipmentLoot: { name: "Vybavení z lesa", icon: "iron-sword", tier: "uncommon" },
   },
   e01: {

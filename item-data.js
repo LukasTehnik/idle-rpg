@@ -15,9 +15,9 @@
 // se zapečetí do instance při dropu. Kvalita sama staty nikdy nemění; tato tabulka se
 // týká jen starého losování. Vyšší kvality (legendary+) se zatím neurčují náhodně.
 const ITEM_QUALITY_ROLL = Object.freeze({
-  common: { weight: 74, statMultiplier: 1 },
-  rare: { weight: 22, statMultiplier: 1.55 },
-  epic: { weight: 4, statMultiplier: 2.3 },
+  common: { weight: 94, statMultiplier: 1 },
+  rare: { weight: 5.5, statMultiplier: 1 },
+  epic: { weight: 0.5, statMultiplier: 1 },
 });
 
 const SLOT_META = Object.freeze({

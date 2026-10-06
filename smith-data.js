@@ -16,11 +16,11 @@ const SMITH_CONFIG = Object.freeze({
 const FORGE_RECIPES = Object.freeze([
   Object.freeze({
     id: "forge-iron-sword", templateId: "iron-sword", label: "Železný meč", tier: 1,
-    gold: 20, materials: [{ id: "iron-rivets", qty: 3 }, { id: "wooden-handle", qty: 1 }, { id: "sharpening-stone", qty: 1 }],
+    gold: 200, materials: [{ id: "iron-rivets", qty: 24 }, { id: "wooden-handle", qty: 4 }, { id: "sharpening-stone", qty: 4 }],
   }),
   Object.freeze({
     id: "forge-leather-vest", templateId: "leather-vest", label: "Kožená vesta", tier: 1,
-    gold: 20, materials: [{ id: "leather-padding", qty: 3 }, { id: "cloth-padding", qty: 2 }, { id: "metal-buckle", qty: 1 }],
+    gold: 200, materials: [{ id: "leather-padding", qty: 24 }, { id: "cloth-padding", qty: 8 }, { id: "metal-buckle", qty: 4 }],
   }),
   Object.freeze({
     id: "forge-bone-talisman", templateId: "bone-talisman", label: "Kostěný talisman", tier: 2,
@@ -54,6 +54,7 @@ function upgradeChance(nextLevel) {
 
 function upgradeCost(item) {
   const nextLevel = Math.min(SMITH_CONFIG.maxUpgradeLevel, (Number(item?.upgradeLevel) || 0) + 1);
+  if (nextLevel <= 3) return { gold: nextLevel * 50, materials: [{ id: "iron-rivets", qty: 2 }, { id: "sharpening-stone", qty: 1 }], nextLevel, chance: 1 };
   const scale = Math.max(1, Math.ceil(nextLevel / 3));
   const materials = [{ id: "iron-rivets", qty: scale }];
   if (nextLevel >= 4) materials.push({ id: "sharpening-stone", qty: Math.ceil(scale / 2) });
@@ -66,7 +67,9 @@ function repairCost(item) {
   const max = Math.max(1, Number(item?.maxDurability) || SMITH_CONFIG.durabilityMax);
   const current = Math.max(0, Math.min(max, Number(item?.durability) ?? max));
   const missing = max - current;
-  return { missing, gold: Math.max(1, Math.ceil(missing / 5)), materials: missing ? [{ id: "polishing-compound", qty: Math.max(1, Math.ceil(missing / 30)) }] : [] };
+  // V prvním pásmu stojí oprava jen gold; pozdější materiálové opravy se
+  // přidají spolu s vyššími recepty, aby start nepůsobil jako slepá ulička.
+  return { missing, gold: Math.max(1, Math.ceil(missing / 5)), materials: [] };
 }
 
 function smeltYield(item) {

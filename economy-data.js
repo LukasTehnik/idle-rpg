@@ -13,6 +13,45 @@ const LOOT_CONFIG = Object.freeze({
   unclaimedListPreview: 24, // kolik řádků nevyzvednuté kořisti se ukáže najednou
 });
 
+// Prototype 0.10 — první schválené pásmo ekonomiky.  Čísla jsou uložená
+// odděleně od UI, aby se dala později měnit bez přepisování soubojové logiky.
+// Svitky z tavení zde ZÁMĚRNĚ nejsou: jejich návratnost ještě není schválená.
+const PROGRESSION_ECONOMY = Object.freeze({
+  expectedKillsPerHour: 500,
+  equipmentDropChance: 0.03, // 15 kusů / h při 500 killech
+  affixComposition: Object.freeze({ none: 0.76, prefix: 0.11, suffix: 0.11, both: 0.02 }),
+  materialQualityProfiles: Object.freeze({
+    start: Object.freeze({ common: 0.90, rare: 0.09, epic: 0.01 }),
+  }),
+  equipmentQualityProfiles: Object.freeze({
+    start: Object.freeze({ common: 0.94, rare: 0.055, epic: 0.005 }),
+  }),
+  // T1 je záměrně jediný povolený tier pro první živé dropy. Vyšší tiery,
+  // Legendary i šance na získání svitku z tavení zůstávají uzamčené v datech.
+  liveEquipmentAffixTier: 1,
+});
+
+function rollEconomyWeighted(weights, rng = Math.random) {
+  let remaining = rng();
+  for (const [id, weight] of Object.entries(weights ?? {})) {
+    remaining -= Number(weight) || 0;
+    if (remaining < 0) return id;
+  }
+  return Object.keys(weights ?? {})[0] ?? DEFAULT_QUALITY;
+}
+
+function rollMaterialQuality(profileId = "start", rng = Math.random) {
+  return rollEconomyWeighted(PROGRESSION_ECONOMY.materialQualityProfiles[profileId], rng);
+}
+
+function rollEquipmentQuality(profileId = "start", rng = Math.random) {
+  return rollEconomyWeighted(PROGRESSION_ECONOMY.equipmentQualityProfiles[profileId], rng);
+}
+
+function rollAffixComposition(rng = Math.random) {
+  return rollEconomyWeighted(PROGRESSION_ECONOMY.affixComposition, rng);
+}
+
 // --- Jídlo (0.9): koupíš u obchodníka, v boji se automaticky sní při nízkém HP ---
 const FOOD_CONFIG = Object.freeze({
   id: "food_ration",
@@ -49,5 +88,5 @@ function itemSellValue(item) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { LOOT_CONFIG, FOOD_CONFIG, POWER_WEIGHTS, SELL_GOLD_PER_POWER, SELL_QUALITY_FACTOR, itemPower, itemSellValue };
+  module.exports = { LOOT_CONFIG, FOOD_CONFIG, POWER_WEIGHTS, SELL_GOLD_PER_POWER, SELL_QUALITY_FACTOR, PROGRESSION_ECONOMY, rollEconomyWeighted, rollMaterialQuality, rollEquipmentQuality, rollAffixComposition, itemPower, itemSellValue };
 }
