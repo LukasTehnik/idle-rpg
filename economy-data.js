@@ -24,7 +24,7 @@ const PROGRESSION_ECONOMY = Object.freeze({
     start: Object.freeze({ common: 0.90, rare: 0.09, epic: 0.01 }),
   }),
   equipmentQualityProfiles: Object.freeze({
-    start: Object.freeze({ common: 0.94, rare: 0.055, epic: 0.005 }),
+    start: Object.freeze({ common: 0.935, rare: 0.058, epic: 0.0065, legendary: 0.0005 }),
   }),
   // T1 je záměrně jediný povolený tier pro první živé dropy. Vyšší tiery,
   // Legendary i šance na získání svitku z tavení zůstávají uzamčené v datech.

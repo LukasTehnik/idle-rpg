@@ -162,7 +162,8 @@ const ENEMIES = Object.freeze({
   goblin: {
     id: "goblin", locationId: "okraj-stareho-lesa", name: "Goblin", level: 1, type: "common", image: null,
     maxHp: 48, minDamage: 5, maxDamage: 8, defense: 0, xp: 10, gold: 1,
-    dropChance: PROGRESSION_ECONOMY.equipmentDropChance, equipmentQualityProfile: "start", affixTier: 1,
+    dropChance: PROGRESSION_ECONOMY.equipmentDropChance, equipmentQualityProfile: "start", itemTier: 1,
+    affixTierPool: { 1: 100 },
     dropPool: OKRAJ_STAREHO_LESA_DROP_POOL,
     // Jeden startovní spot má všechny nutné základní vstupy. Pozdější cílené
     // spoty zůstávají efektivnější/tematické, ale první meč ani vesta nejsou

@@ -688,6 +688,10 @@ function sanitizeItem(raw) {
   return {
     ...rest,
     quality: normalizeQuality(raw.quality ?? legacyRarity, { where: `item ${raw.name ?? raw.icon ?? "?"}` }),
+    itemTier: normalizeItemTier(raw.itemTier ?? (enemy?.itemTier ?? 1)),
+    baseStats: raw.baseStats && typeof raw.baseStats === "object" ? { ...raw.baseStats } : { ...(raw.stats ?? {}) },
+    secondaryStats: Array.isArray(raw.secondaryStats) ? raw.secondaryStats.map((entry) => ({ ...entry, stats: { ...(entry?.stats ?? {}) } })) : [],
+    itemizationVersion: Math.max(0, Math.floor(Number(raw.itemizationVersion) || 0)),
     templateId: typeof raw.templateId === "string" ? raw.templateId : (template?.templateId ?? raw.icon ?? null),
     baseName: typeof raw.baseName === "string" ? raw.baseName : (template?.name ?? raw.name ?? "Předmět"),
     obtainedAt: time,
@@ -748,8 +752,10 @@ function getPlayerStats(equipment = state.equipment) {
       minDamage: stats.minDamage + getItemBonus(item, "damageMin"),
       maxDamage: stats.maxDamage + getItemBonus(item, "damageMax"),
       critChance: stats.critChance + getItemBonus(item, "critChance") / 100,
+      defense: stats.defense + getItemBonus(item, "defense"),
+      attackSpeed: stats.attackSpeed + getItemBonus(item, "attackSpeed"),
     }),
-    { maxHp: state.player.baseMaxHp, minDamage: state.player.baseMinDamage, maxDamage: state.player.baseMaxDamage, critChance: state.player.baseCritChance },
+    { maxHp: state.player.baseMaxHp, minDamage: state.player.baseMinDamage, maxDamage: state.player.baseMaxDamage, critChance: state.player.baseCritChance, defense: 0, attackSpeed: 0 },
   );
   // Prototype 0.6: affixy z nasazených itemů. Počítají se jen staty s živým výpočtem (calc:"active");
   // staty bez základu (obrana, elementy, trigger efekty …) zůstávají jen jako data.
@@ -760,7 +766,7 @@ function getPlayerStats(equipment = state.equipment) {
   const maxHp = Math.max(1, base.maxHp + (totals.max_hp ?? 0));
   const minDamage = Math.max(0, base.minDamage + (totals.damage_min ?? 0));
   const maxDamage = Math.max(minDamage, base.maxDamage + (totals.damage_max ?? 0));
-  return { maxHp, minDamage, maxDamage, critChance: Math.max(0, crit) };
+  return { maxHp, minDamage, maxDamage, critChance: Math.max(0, crit), defense: base.defense, attackSpeed: base.attackSpeed };
 }
 
 function render() {
@@ -1010,7 +1016,7 @@ function enemyAttack() {
   const attackers = Math.min(alive.length, CONFIG.waveMeleeCount);
   let total = 0;
   for (let i = 0; i < attackers; i += 1) total += randomInt(enemyCfg.minDamage, enemyCfg.maxDamage);
-  if (total <= 0) return;
+  total = Math.max(1, total - getPlayerStats().defense);
   state.player.hp = Math.max(0, state.player.hp - total);
   if (window.CombatField) window.CombatField.playerStruck();
   addLog(`${enemyCfg.name}${attackers > 1 ? ` ×${attackers}` : ""} tě zasáhl za ${total}.`, "enemy");
@@ -1112,9 +1118,11 @@ function rollDroppedAffixes(item, enemyCfg) {
   let result = { ...item };
   const types = composition === "both" ? ["prefix", "suffix"] : [composition];
   for (const type of types) {
+    const affixTier = rollAffixTierFromPool(enemyCfg.affixTierPool ?? (enemyCfg.affixTier ? { [enemyCfg.affixTier]: 100 } : null));
+    if (!affixTier) continue;
     const candidates = AFFIX_DEFINITIONS.filter((affix) => (
       affix.type === type
-      && affix.tier === enemyCfg.affixTier
+      && affix.tier === affixTier
       && affix.allowedSlots.includes(result.slot)
       && affix.enabledOnEquipmentDrops === true
     ));
@@ -1129,15 +1137,12 @@ function rollDroppedAffixes(item, enemyCfg) {
 function createItem(enemyCfg, fixed = null) {
   const template = fixed ? findTemplateById(fixed.templateId) : (() => { const pool = resolveDropPool(enemyCfg); return pool[randomInt(0, pool.length - 1)]; })();
   const quality = fixed ? normalizeQuality(fixed.quality, { where: `drop ${fixed.templateId}` }) : (enemyCfg?.equipmentQualityProfile ? rollEquipmentQuality(enemyCfg.equipmentQualityProfile) : rollLegacyQuality());
-  const multiplier = fixed ? 1 : (ITEM_QUALITY_ROLL[quality]?.statMultiplier ?? 1);
-  const stats = {};
-  for (const [stat, range] of Object.entries(template.rolls ?? {})) {
-    const raw = stat === "critChance" ? randomDecimal(range[0], range[1]) : randomInt(range[0], range[1]);
-    stats[stat] = stat === "critChance" ? Math.round(raw * multiplier * 10) / 10 : Math.max(stat === "damageMin" ? 0 : 1, Math.round(raw * multiplier));
-  }
+  const itemTier = normalizeItemTier(enemyCfg?.itemTier ?? 1);
+  const rolled = rollItemStats(template, { quality, itemTier });
   const item = {
     id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
-    name: template.name, baseName: template.name, slot: template.slot ?? null, icon: template.icon, quality, stats,
+    name: template.name, baseName: template.name, slot: template.slot ?? null, icon: template.icon, quality,
+    itemTier, baseStats: rolled.baseStats, secondaryStats: rolled.secondaryStats, stats: rolled.stats, itemizationVersion: rolled.version,
     upgradeLevel: 0, maxUpgradeLevel: SMITH_CONFIG.maxUpgradeLevel, isMaxUpgraded: false,
     durability: SMITH_CONFIG.durabilityMax, maxDurability: SMITH_CONFIG.durabilityMax,
     ...(template.wingGlow ? { wingGlow: template.wingGlow } : {}),
@@ -1285,6 +1290,8 @@ function statRows(item) {
   if (item.stats?.damageMax) rows.push(["Maximální poškození", display("damageMax")]);
   if (item.stats?.maxHp) rows.push(["Maximální životy", display("maxHp")]);
   if (item.stats?.critChance) rows.push(["Kritický zásah", display("critChance", " %")]);
+  if (item.stats?.defense) rows.push(["Obrana", display("defense")]);
+  if (item.stats?.attackSpeed) rows.push(["Rychlost útoku", display("attackSpeed", " %")]);
   return rows;
 }
 
@@ -2127,7 +2134,8 @@ function tick(now) {
   telemetryTick(now);
   if (!state.running) return;
   if (state.phase === "fighting") {
-    if (now - state.lastPlayerAttackAt >= CONFIG.playerAttackMs) { state.lastPlayerAttackAt = now; playerAttack(); }
+    const attackInterval = Math.max(650, CONFIG.playerAttackMs / (1 + getPlayerStats().attackSpeed / 100));
+    if (now - state.lastPlayerAttackAt >= attackInterval) { state.lastPlayerAttackAt = now; playerAttack(); }
     if (state.phase === "fighting" && now - state.lastEnemyAttackAt >= CONFIG.enemyAttackMs) { state.lastEnemyAttackAt = now; enemyAttack(); }
   } else if (state.phase === "searching" || state.phase === "dead") updateCountdown(now);
   render();
@@ -3254,12 +3262,12 @@ function materialRequirementText(entry) {
 }
 function forgeBaseItem(recipe, quality) {
   const template = findTemplateById(recipe.templateId);
-  const stats = {};
-  for (const [stat, range] of Object.entries(template.rolls ?? {})) stats[stat] = stat === "critChance" ? randomDecimal(range[0], range[1]) : randomInt(range[0], range[1]);
+  const rolled = rollItemStats(template, { quality, itemTier: recipe.tier });
   state.smith.serial += 1;
   return composeItem(recipe.templateId, {
     id: globalThis.crypto?.randomUUID?.() ?? `forge-${Date.now()}-${Math.random()}`,
-    name: template.name, baseName: template.name, quality, stats, itemLevel: recipe.tier * 10,
+    name: template.name, baseName: template.name, quality, itemTier: recipe.tier,
+    baseStats: rolled.baseStats, secondaryStats: rolled.secondaryStats, stats: rolled.stats, itemizationVersion: rolled.version, itemLevel: recipe.tier * 10,
     upgradeLevel: 0, maxUpgradeLevel: SMITH_CONFIG.maxUpgradeLevel, isMaxUpgraded: false,
     durability: SMITH_CONFIG.durabilityMax, maxDurability: SMITH_CONFIG.durabilityMax,
     source: "Kovářství", sourceEnemyId: null, sourceLocationId: null, obtainedAt: Date.now(), acquiredAt: Date.now(),
