@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#12100d" />
+    <meta name="robots" content="noindex" />
+    <title>Game Overview (DEV) — Idle RPG</title>
+    <link rel="preload" href="assets/fonts/jersey-10-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="theme-light.css" />
+    <style>
+      .dev-banner { margin: 0 0 16px; padding: 12px 18px; border: 2px solid var(--color-danger); background: var(--color-danger-bg); color: var(--color-text-primary); font-family: var(--font-display); font-size: var(--fs-h2, 20px); letter-spacing: .12em; text-align: center; }
+      .dev-banner small { display: block; margin-top: 4px; color: var(--color-text-secondary); font-size: var(--fs-small); letter-spacing: .04em; }
+      .go-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 16px; }
+      .go-tabs button { min-height: 38px; padding: 4px 14px; border: 2px solid var(--color-border-strong); background: var(--color-surface-1); color: var(--color-text-secondary); font-family: var(--font-display); font-size: var(--fs-small); letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
+      .go-tabs button:hover { background: var(--color-surface-2); color: var(--color-text-primary); }
+      .go-tabs button[aria-selected="true"] { border-color: var(--color-accent-gold); background: var(--color-surface-3); color: var(--color-accent-gold-light); }
+      .go-panel[hidden] { display: none; }
+      .go-panel h2 { margin: 26px 0 10px; }
+      .go-panel h2:first-child { margin-top: 0; }
+      .go-panel h3 { margin: 18px 0 8px; color: var(--color-accent-gold-light); }
+      .go-note { margin: 0 0 12px; padding: 10px 14px; border: 1px solid var(--color-border); background: var(--color-surface-1); color: var(--color-text-secondary); font-size: var(--fs-small); line-height: 1.5; }
+      .go-note.internal { border-color: var(--color-danger); }
+      .go-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 0 0 8px; }
+      .go-card { padding: 12px; border: 1px solid var(--color-border-strong); background: var(--color-surface-1); }
+      .go-card b { display: block; color: var(--color-accent-gold-light); font-family: var(--font-display); font-size: 26px; line-height: 1.1; }
+      .go-card span { color: var(--color-text-secondary); font-size: var(--fs-label); letter-spacing: .06em; text-transform: uppercase; }
+      .tbl-wrap { overflow: auto; margin: 0 0 12px; border: 1px solid var(--color-border); background: var(--color-surface-1); }
+      .tbl-wrap.tall { max-height: 620px; }
+      table.dev { width: 100%; border-collapse: collapse; font-size: var(--fs-small); }
+      table.dev th, table.dev td { padding: 6px 9px; border-bottom: 1px solid var(--color-border); text-align: left; vertical-align: top; }
+      table.dev th { position: sticky; top: 0; z-index: 1; background: var(--color-surface-2); color: var(--color-accent-gold-light); font-family: var(--font-display); letter-spacing: .06em; white-space: nowrap; }
+      table.dev td.num, table.dev th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+      table.dev code { color: var(--color-text-secondary); }
+      table.dev tr.group td { background: var(--color-surface-2); color: var(--color-accent-gold-light); font-family: var(--font-display); letter-spacing: .06em; }
+      .tag { display: inline-block; margin: 0 4px 2px 0; padding: 0 6px; border: 1px solid var(--color-border-strong); color: var(--color-text-secondary); font-size: var(--fs-label); white-space: nowrap; }
+      .tag.warn { border-color: var(--color-accent-gold-dark); color: var(--color-accent-gold-light); }
+      .tag.bad { border-color: var(--color-danger); color: var(--color-health-light, #e88); }
+      .tag.ok { border-color: #3d8a5a; color: #7fd6a0; }
+      .missing { display: inline-block; padding: 0 6px; border: 1px dashed var(--color-danger); color: var(--color-health-light, #e88); font-size: var(--fs-label); letter-spacing: .04em; white-space: nowrap; }
+      .neg { color: var(--color-health-light, #e88); }
+      .pos { color: #8fd6a4; }
+      .muted { color: var(--color-text-muted); }
+      .go-bar { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; margin: 0 0 12px; padding: 12px; border: 1px solid var(--color-border); background: var(--color-surface-1); }
+      .go-bar label { display: grid; gap: 4px; color: var(--color-text-secondary); font-size: var(--fs-label); letter-spacing: .06em; text-transform: uppercase; }
+      .go-bar select, .go-bar input[type="search"] { min-width: 140px; min-height: 36px; padding: 4px 8px; border: 2px solid var(--color-border-strong); background: var(--color-bg-deep); color: var(--color-text-primary); font: inherit; }
+      .go-bar .go-check { display: flex; align-items: center; gap: 6px; min-height: 36px; }
+      .go-count { margin-left: auto; color: var(--color-accent-gold-light); font-family: var(--font-display); }
+      ul.go-issues { margin: 0 0 12px; padding: 0; list-style: none; border: 1px solid var(--color-border); background: var(--color-surface-1); }
+      ul.go-issues li { padding: 6px 10px; border-bottom: 1px solid var(--color-border); font-size: var(--fs-small); }
+      ul.go-issues li:last-child { border-bottom: 0; }
+    </style>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar"><div><p class="eyebrow">IDLE RPG / DEV</p><h1>Game Overview</h1></div>
+        <nav class="catalog-nav"><a href="dev-tools.html" class="catalog-link">← Vývojové nástroje</a><a href="index.html" class="catalog-link">Zpět do hry</a></nav></header>
+      <div class="dev-banner">DEVELOPMENT TOOL — NOT PLAYER-FACING<small>Read-only přehled skutečných herních dat. Nic neukládá ani nemění (localStorage, Supabase, save, herní data). Interní tier a váhy jsou jen pro vývoj.</small></div>
+
+      <div class="go-tabs" role="tablist" aria-label="Sekce přehledu" id="goTabs"></div>
+      <section class="go-panel" id="panel-overview" role="tabpanel" hidden></section>
+      <section class="go-panel" id="panel-locations" role="tabpanel" hidden></section>
+      <section class="go-panel" id="panel-items" role="tabpanel" hidden></section>
+      <section class="go-panel" id="panel-materials" role="tabpanel" hidden></section>
+      <section class="go-panel" id="panel-affixes" role="tabpanel" hidden></section>
+      <section class="go-panel" id="panel-economy" role="tabpanel" hidden></section>
+    </main>
+
+    <!-- Pouze datové soubory. Záměrně se NENAČÍTÁ app.js ani cloud-sync.js: stránka nesmí sahat na save ani na Supabase. -->
+    <script src="quality-data.js"></script>
+    <script src="itemization-data.js"></script>
+    <script src="item-data.js"></script>
+    <script src="material-data.js"></script>
+    <script src="economy-data.js"></script>
+    <script src="world-data.js"></script>
+    <script src="stat-data.js"></script>
+    <script src="affix-data.js"></script>
+    <script src="smith-data.js"></script>
+    <script>
+      "use strict";
+
+      // ---------------------------------------------------------------- pomocníci
+      // Čtení globálu bez výjimky: chybějící soubor/konstanta = undefined → „CHYBÍ DEFINICE“.
+      const G = (name) => { try { return new Function(`return typeof ${name} === "undefined" ? undefined : ${name};`)(); } catch { return undefined; } };
+      const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+      const MISSING = '<span class="missing">CHYBÍ DEFINICE</span>';
+      const has = (value) => value !== undefined && value !== null;
+      const or = (value, render = esc) => (has(value) ? render(value) : MISSING);
+      const num = (value, digits = 2) => { const n = Number(value); return Number.isFinite(n) ? String(Math.round(n * 10 ** digits) / 10 ** digits).replace(".", ",") : "—"; };
+      const pct = (fraction, digits = 3) => (Number.isFinite(Number(fraction)) ? `${num(Number(fraction) * 100, digits)} %` : MISSING);
+      const tag = (text, cls = "") => `<span class="tag ${cls}">${esc(text)}</span>`;
+      const code = (text) => `<code>${esc(text)}</code>`;
+      const range = (pair) => (Array.isArray(pair) ? (pair[0] === pair[1] ? num(pair[0]) : `${num(pair[0])}–${num(pair[1])}`) : MISSING);
+      function table(headers, rows, { tall = false, numeric = [] } = {}) {
+        const head = headers.map((h, i) => `<th${numeric.includes(i) ? ' class="num"' : ""}>${esc(h)}</th>`).join("");
+        const body = rows.map((row) => (row.group
+          ? `<tr class="group"><td colspan="${headers.length}">${row.group}</td></tr>`
+          : `<tr>${row.map((cell, i) => `<td${numeric.includes(i) ? ' class="num"' : ""}>${cell}</td>`).join("")}</tr>`)).join("");
+        return `<div class="tbl-wrap${tall ? " tall" : ""}"><table class="dev"><thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan="${headers.length}">${MISSING}</td></tr>`}</tbody></table></div>`;
+      }
+      const cards = (items) => `<div class="go-cards">${items.map(([label, value]) => `<div class="go-card"><b>${has(value) ? esc(value) : MISSING}</b><span>${esc(label)}</span></div>`).join("")}</div>`;
+      const note = (html, cls = "") => `<p class="go-note ${cls}">${html}</p>`;
+
+      // ---------------------------------------------------------------- načtení dat
+      const D = {
+        qualities: G("ITEM_QUALITIES"), qualityIds: G("QUALITY_IDS"), legacyRoll: G("ITEM_QUALITY_ROLL"),
+        qualityRules: G("ITEM_QUALITY_RULES"), tierRules: G("ITEM_TIER_RULES"), slotPrimary: G("SLOT_PRIMARY_STAT_KEYS"), secondaryPool: G("ITEM_SECONDARY_POOL"),
+        itemizationVersion: G("ITEMIZATION_VERSION"),
+        slots: G("SLOT_META"), templates: G("ITEM_TEMPLATES"), primaryRolls: G("itemPrimaryRolls"),
+        materials: G("MATERIALS"), materialOrder: G("MATERIAL_ORDER"), materialCategories: G("MATERIAL_CATEGORY_LABELS"),
+        economy: G("PROGRESSION_ECONOMY"), loot: G("LOOT_CONFIG"), food: G("FOOD_CONFIG"), sellFactor: G("SELL_QUALITY_FACTOR"), powerWeights: G("POWER_WEIGHTS"),
+        locations: G("LOCATIONS"), areas: G("AREAS"), enemies: G("ENEMIES"), enemyTypes: G("ENEMY_TYPE_LABELS"), dropTierLabels: G("DROP_TIER_LABELS"),
+        stats: G("STATS"), statList: G("STAT_DEFINITIONS"), formatModifier: G("formatModifier"),
+        affixes: G("AFFIX_DEFINITIONS"), affixById: G("AFFIXES"), affixPools: G("SCROLL_SOURCE_POOLS"), affixTierDefaults: G("AFFIX_TIER_DEFAULTS"),
+        smith: G("SMITH_CONFIG"), recipes: G("FORGE_RECIPES"), forgeChance: G("forgeChance"),
+      };
+      const list = (value) => (Array.isArray(value) ? value : []);
+      const entries = (value) => (value && typeof value === "object" ? Object.entries(value) : []);
+      const enemyList = Object.values(D.enemies ?? {});
+      const templateList = list(D.templates);
+      const materialList = Object.values(D.materials ?? {});
+      const affixList = list(D.affixes);
+      const qualityLabel = (id) => D.qualities?.[id]?.label ?? String(id).toUpperCase();
+      const slotLabel = (id) => D.slots?.[id]?.label ?? id;
+      const enemyName = (id) => D.enemies?.[id]?.name ?? null;
+      const locationName = (id) => D.locations?.[id]?.name ?? null;
+      const enemyRef = (id) => (enemyName(id) ? `${esc(enemyName(id))} ${code(id)}` : `${code(id)} ${MISSING}`);
+      const templateName = (id) => templateList.find((t) => t.templateId === id)?.name ?? null;
+      const materialName = (id) => D.materials?.[id]?.name ?? null;
+      const profileOf = (kind, id) => D.economy?.[kind]?.[id];
+      const distribution = (profile, base = 1) => entries(profile).map(([q, p]) => `${tag(qualityLabel(q))}${pct(Number(p) * base)}`).join(" ");
+
+      // ---------------------------------------------------------------- kontrola chybějících definic
+      const issues = [];
+      const issue = (area, text) => issues.push({ area, text });
+      (function collectIssues() {
+        for (const [name, value] of [["ITEM_QUALITIES", D.qualities], ["ITEM_QUALITY_RULES", D.qualityRules], ["ITEM_TIER_RULES", D.tierRules], ["ITEM_TEMPLATES", D.templates], ["MATERIALS", D.materials], ["PROGRESSION_ECONOMY", D.economy], ["LOCATIONS", D.locations], ["ENEMIES", D.enemies], ["STATS", D.stats], ["AFFIX_DEFINITIONS", D.affixes], ["FORGE_RECIPES", D.recipes], ["SCROLL_SOURCE_POOLS", D.affixPools]]) {
+          if (!has(value)) issue("Data", `Globální konstanta ${name} není k dispozici (soubor se nenačetl nebo ji nedefinuje).`);
+        }
+        for (const id of list(D.qualityIds)) if (!D.qualityRules?.[id]) issue("Kvality", `Quality ${id} nemá záznam v ITEM_QUALITY_RULES.`);
+        for (const [id, q] of entries(D.qualities)) if (!has(q.rank)) issue("Kvality", `Quality ${id} nemá rank.`);
+        for (const location of Object.values(D.locations ?? {})) {
+          for (const enemyId of location.enemyIds ?? []) {
+            if (!D.enemies?.[enemyId]) issue("Lokace", `${location.name}: enemyId ${enemyId} neexistuje v ENEMIES.`);
+            else if (D.enemies[enemyId].locationId !== location.id) issue("Lokace", `${location.name}: ${enemyId} má locationId ${D.enemies[enemyId].locationId}.`);
+          }
+          for (const itemId of location.itemIds ?? []) if (!templateName(itemId)) issue("Lokace", `${location.name}: itemId ${itemId} neexistuje v ITEM_TEMPLATES.`);
+          if (!location.backgroundAsset) issue("Lokace", `${location.name}: backgroundAsset není definován.`);
+        }
+        for (const enemy of enemyList) {
+          const where = `${enemy.name ?? enemy.id}`;
+          if (!D.locations?.[enemy.locationId]) issue("Enemy", `${where}: locationId ${enemy.locationId} neexistuje.`);
+          if (!has(enemy.itemTier)) issue("Enemy", `${where}: chybí itemTier.`);
+          if (Number(enemy.dropChance) > 0) {
+            if (!has(enemy.equipmentQualityProfile)) issue("Enemy", `${where}: chybí equipmentQualityProfile (dropChance ${enemy.dropChance}).`);
+            else if (!profileOf("equipmentQualityProfiles", enemy.equipmentQualityProfile)) issue("Enemy", `${where}: equipmentQualityProfile ${enemy.equipmentQualityProfile} neexistuje v PROGRESSION_ECONOMY.`);
+            if (!has(enemy.affixTierPool) && !has(enemy.affixTier)) issue("Enemy", `${where}: chybí affixTierPool/affixTier.`);
+            for (const itemId of enemy.dropPool ?? []) if (!templateName(itemId)) issue("Enemy", `${where}: dropPool položka ${itemId} neexistuje v ITEM_TEMPLATES.`);
+            if (!list(enemy.dropPool).length) issue("Enemy", `${where}: dropChance > 0, ale dropPool je prázdný.`);
+          }
+          for (const drop of enemy.materialDrops ?? []) {
+            const material = D.materials?.[drop.templateId];
+            if (!material) { issue("Materiály", `${where}: drop ${drop.templateId} neexistuje v MATERIALS.`); continue; }
+            if (!list(material.sourceEnemyIds).includes(enemy.id)) issue("Materiály", `${where}: drop ${material.name} nepadne – enemy chybí v sourceEnemyIds materiálu.`);
+            if (drop.qualityProfile && !profileOf("materialQualityProfiles", drop.qualityProfile)) issue("Materiály", `${where}: qualityProfile ${drop.qualityProfile} (${material.name}) neexistuje v PROGRESSION_ECONOMY.`);
+            if (!has(drop.chance)) issue("Materiály", `${where}: drop ${material.name} nemá chance.`);
+          }
+        }
+        for (const material of materialList) {
+          for (const enemyId of material.sourceEnemyIds ?? []) {
+            const enemy = D.enemies?.[enemyId];
+            if (!enemy) issue("Materiály", `${material.name}: sourceEnemyIds obsahuje neznámého enemy ${enemyId}.`);
+            else if (!(enemy.materialDrops ?? []).some((d) => d.templateId === material.id)) issue("Materiály", `${material.name}: ${enemy.name} je v sourceEnemyIds, ale nemá drop v tabulce.`);
+          }
+        }
+        for (const recipe of list(D.recipes)) {
+          if (!templateName(recipe.templateId)) issue("Recepty", `${recipe.label ?? recipe.id}: templateId ${recipe.templateId} neexistuje.`);
+          for (const m of recipe.materials ?? []) if (!D.materials?.[m.id]) issue("Recepty", `${recipe.label ?? recipe.id}: materiál ${m.id} neexistuje.`);
+        }
+        for (const template of templateList) {
+          if (!itemSources(template).length) issue("Itemy", `${template.name} (${template.templateId}): žádný zdroj (enemy dropPool, recept ani lokace).`);
+          for (const key of Object.keys(template.rolls ?? {})) if (!has(template.rolls[key]?.[0])) issue("Itemy", `${template.name}: roll ${key} nemá rozsah.`);
+        }
+        for (const affix of affixList) {
+          for (const m of [...affix.modifiers, ...affix.drawbacks]) if (!D.stats?.[m.statId]) issue("Affixy", `${affix.displayName}: stat ${m.statId} není v registru STATS.`);
+          for (const poolId of affix.scarcity?.sourcePools ?? []) if (!D.affixPools?.[poolId]) issue("Affixy", `${affix.displayName}: source pool ${poolId} neexistuje.`);
+          if (!(affix.scarcity?.sourcePools ?? []).length) issue("Affixy", `${affix.displayName}: žádný source pool.`);
+          if (!D.affixTierDefaults?.[affix.tier]) issue("Affixy", `${affix.displayName}: tier ${affix.tier} nemá AFFIX_TIER_DEFAULTS.`);
+          if (affix.enabledOnEquipmentDrops && !enemyList.some((e) => affixTiersOf(e).includes(affix.tier))) issue("Affixy", `${affix.displayName}: zapnutý na equipment dropech, ale žádný enemy nemá jeho tier v affix poolu.`);
+        }
+        const compositionSum = entries(D.economy?.affixComposition).reduce((s, [, v]) => s + Number(v), 0);
+        if (has(D.economy?.affixComposition) && Math.abs(compositionSum - 1) > 1e-9) issue("Economy", `affixComposition dává součet ${num(compositionSum * 100, 4)} % místo 100 %.`);
+        for (const kind of ["materialQualityProfiles", "equipmentQualityProfiles"]) {
+          for (const [id, profile] of entries(D.economy?.[kind])) {
+            const sum = entries(profile).reduce((s, [, v]) => s + Number(v), 0);
+            if (Math.abs(sum - 1) > 1e-9) issue("Economy", `${kind}.${id} dává součet ${num(sum * 100, 4)} % místo 100 %.`);
+            for (const q of Object.keys(profile)) if (!D.qualities?.[q]) issue("Economy", `${kind}.${id}: neznámá quality ${q}.`);
+          }
+        }
+        if (!has(D.economy?.expectedKillsPerHour)) issue("Economy", "Chybí expectedKillsPerHour.");
+        if (!has(D.economy?.equipmentDropChance)) issue("Economy", "Chybí equipmentDropChance.");
+        if (!has(D.economy?.smeltScrollRecoveryChance)) issue("Economy", "Chybí smeltScrollRecoveryChance.");
+      })();
+
+      // Zdroje itemu: pouze to, co je skutečně v datech.
+      function itemSources(template) {
+        const sources = [];
+        for (const enemy of enemyList) {
+          if (Number(enemy.dropChance) > 0 && list(enemy.dropPool).includes(template.templateId)) sources.push({ kind: "drop", enemy, tier: enemy.itemTier });
+          for (const fixed of enemy.equipmentDrops ?? []) if (fixed.templateId === template.templateId) sources.push({ kind: "fixed", enemy, tier: enemy.itemTier, chance: fixed.chance, quality: fixed.quality });
+        }
+        for (const recipe of list(D.recipes)) if (recipe.templateId === template.templateId) sources.push({ kind: "forge", recipe, tier: recipe.tier });
+        return sources;
+      }
+      function affixTiersOf(enemy) {
+        if (enemy.affixTierPool) return Object.keys(enemy.affixTierPool).map(Number);
+        return has(enemy.affixTier) ? [Number(enemy.affixTier)] : [];
+      }
+      const affixPoolText = (enemy) => {
+        if (enemy.affixTierPool) {
+          const total = entries(enemy.affixTierPool).reduce((s, [, w]) => s + Number(w), 0);
+          return entries(enemy.affixTierPool).map(([t, w]) => tag(`T${t}: ${num(total ? (Number(w) / total) * 100 : 0, 1)} %`)).join(" ");
+        }
+        return has(enemy.affixTier) ? tag(`T${enemy.affixTier} (affixTier)`) : MISSING;
+      };
+
+      // ---------------------------------------------------------------- 1. Přehled
+      function renderOverview() {
+        const prefix = affixList.filter((a) => a.type === "prefix").length;
+        const suffix = affixList.filter((a) => a.type === "suffix").length;
+        const scrolls = materialList.filter((m) => m.category === "scroll").length;
+        const economy = D.economy;
+        const flag = (key) => affixList.filter((a) => a[key] === true);
+        const tiersOf = (items) => [...new Set(items.map((a) => a.tier))].sort().map((t) => `T${t}`).join(", ") || "—";
+        const issueRows = issues.map((i) => `<li>${tag(i.area, "bad")} ${esc(i.text)}</li>`).join("");
+        return `
+          <h2>Počty obsahu</h2>
+          ${cards([
+            ["Lokace", has(D.locations) ? Object.keys(D.locations).length : undefined], ["Oblasti", has(D.areas) ? Object.keys(D.areas).length : undefined],
+            ["Nepřátelé", has(D.enemies) ? enemyList.length : undefined], ["Item šablony", has(D.templates) ? templateList.length : undefined],
+            ["Materiály", has(D.materials) ? materialList.length - scrolls : undefined], ["Svitky (materiál)", has(D.materials) ? scrolls : undefined],
+            ["Prefixy", has(D.affixes) ? prefix : undefined], ["Suffixy", has(D.affixes) ? suffix : undefined],
+            ["Staty v registru", has(D.statList) ? D.statList.length : undefined], ["Forge recepty", has(D.recipes) ? D.recipes.length : undefined],
+            ["Kvality", has(D.qualities) ? Object.keys(D.qualities).length : undefined], ["Item tiery", has(D.tierRules) ? Object.keys(D.tierRules).length : undefined],
+          ])}
+          <h2>Aktivní startovní economy pravidla</h2>
+          ${table(["Pravidlo", "Hodnota", "Zdroj"], [
+            ["Očekávané kills / hodinu", or(economy?.expectedKillsPerHour, num), code("PROGRESSION_ECONOMY.expectedKillsPerHour")],
+            ["Šance na equipment drop (Goblin)", or(economy?.equipmentDropChance, pct), code("PROGRESSION_ECONOMY.equipmentDropChance")],
+            ["Quality profil equipmentu „start“", has(profileOf("equipmentQualityProfiles", "start")) ? distribution(profileOf("equipmentQualityProfiles", "start")) : MISSING, code("equipmentQualityProfiles.start")],
+            ["Quality profil materiálu „start“", has(profileOf("materialQualityProfiles", "start")) ? distribution(profileOf("materialQualityProfiles", "start")) : MISSING, code("materialQualityProfiles.start")],
+            ["Složení affixů na dropu", has(economy?.affixComposition) ? entries(economy.affixComposition).map(([k, v]) => `${tag(k)}${pct(v)}`).join(" ") : MISSING, code("affixComposition")],
+            ["Povolený affix tier na equipment dropech", or(economy?.liveEquipmentAffixTier, (v) => `T${esc(v)}`), code("liveEquipmentAffixTier")],
+            ["Šance svitku z tavení (za affix)", or(economy?.smeltScrollRecoveryChance, pct), code("smeltScrollRecoveryChance")],
+          ])}
+          <h2>Příznaky affixů</h2>
+          ${table(["Příznak", "Počet affixů", "Tiery"], [
+            ["enabledOnEquipmentDrops", String(flag("enabledOnEquipmentDrops").length), esc(tiersOf(flag("enabledOnEquipmentDrops")))],
+            ["enabledOnScrollDrops (přímý drop svitku)", String(flag("enabledOnScrollDrops").length), esc(tiersOf(flag("enabledOnScrollDrops")))],
+            ["enabledOnSmeltRecovery", String(flag("enabledOnSmeltRecovery").length), esc(tiersOf(flag("enabledOnSmeltRecovery")))],
+          ], { numeric: [1] })}
+          <h2>Kontrola chybějících definic <span class="tag ${issues.length ? "bad" : "ok"}">${issues.length ? `${issues.length} nálezů` : "bez nálezů"}</span></h2>
+          ${note("Kontrola jen porovnává data navzájem (odkazy na neexistující ID, chybějící pole, součty profilů). Nic se nedopočítává.")}
+          ${issues.length ? `<ul class="go-issues">${issueRows}</ul>` : note("Žádná chybějící definice nebyla nalezena.")}`;
+      }
+
+      // ---------------------------------------------------------------- 2. Lokace a dropy
+      function materialRows(enemy) {
+        const rows = [];
+        for (const raw of enemy.materialDrops ?? []) {
+          const material = D.materials?.[raw.templateId];
+          const blocked = material && !list(material.sourceEnemyIds).includes(enemy.id);
+          const profile = raw.qualityProfile ? profileOf("materialQualityProfiles", raw.qualityProfile) : null;
+          let qualityCell; let finalCell;
+          if (raw.qualityProfile) {
+            qualityCell = profile ? `profil ${code(raw.qualityProfile)}` : `profil ${code(raw.qualityProfile)} ${MISSING}`;
+            finalCell = profile ? distribution(profile, Number(raw.chance)) : MISSING;
+          } else {
+            const q = raw.quality ?? material?.defaultQuality;
+            qualityCell = has(q) ? `${tag(qualityLabel(q))}${has(raw.quality) ? "" : '<span class="muted">(default materiálu)</span>'}` : MISSING;
+            finalCell = has(q) ? `${tag(qualityLabel(q))}${pct(raw.chance)}` : MISSING;
+          }
+          rows.push([
+            material ? `${esc(material.name)} ${code(raw.templateId)}` : `${code(raw.templateId)} ${MISSING}`,
+            qualityCell, pct(raw.chance), range(raw.quantity), esc(D.dropTierLabels?.[raw.tier] ?? raw.tier ?? "—"),
+            blocked ? `${finalCell} ${tag("NEPADÁ: enemy není v sourceEnemyIds", "bad")}` : finalCell,
+          ]);
+        }
+        return rows;
+      }
+      function renderLocations() {
+        const parts = [note("Šance materiálu jsou nezávislé hody za každý kill. U materiálu s quality profilem je finální šance = šance záznamu × pravděpodobnost dané quality v profilu. Šance equipmentu = <code>dropChance</code> enemy.")];
+        for (const location of Object.values(D.locations ?? {})) {
+          const areas = list(location.areaIds).map((id) => D.areas?.[id]?.name).filter(Boolean);
+          parts.push(`<h2>${esc(location.name)} ${tag(location.status ?? "?")} ${tag(`doporučená úroveň ${location.recommendedLevel ?? "?"}`)}</h2>`);
+          parts.push(note(`${code(location.id)} · oblasti: ${areas.length ? esc(areas.join(", ")) : MISSING} · item pool lokace: ${list(location.itemIds).length ? list(location.itemIds).map((id) => esc(templateName(id) ?? id)).join(", ") : MISSING}`));
+          const enemies = list(location.enemyIds).map((id) => D.enemies?.[id]).filter(Boolean);
+          const rows = enemies.map((e) => {
+            const eqProfile = has(e.equipmentQualityProfile) ? profileOf("equipmentQualityProfiles", e.equipmentQualityProfile) : null;
+            let equipmentQuality;
+            if (!(Number(e.dropChance) > 0)) equipmentQuality = '<span class="muted">bez equipment dropu</span>';
+            else if (eqProfile) equipmentQuality = `${code(e.equipmentQualityProfile)} ${distribution(eqProfile, Number(e.dropChance))}`;
+            else if (has(e.equipmentQualityProfile)) equipmentQuality = `${code(e.equipmentQualityProfile)} ${MISSING}`;
+            else if (D.legacyRoll) equipmentQuality = `<span class="muted">legacy ITEM_QUALITY_ROLL:</span> ${entries(D.legacyRoll).map(([q, v]) => `${tag(qualityLabel(q))}${num((Number(v.weight) / 100) * Number(e.dropChance) * 100, 3)} %`).join(" ")}`;
+            else equipmentQuality = MISSING;
+            return [
+              `${esc(e.name)}<br>${code(e.id)}`, tag(D.enemyTypes?.[e.type] ?? e.type ?? "?"), or(e.level, num), or(e.maxHp, num),
+              has(e.minDamage) && has(e.maxDamage) ? `${num(e.minDamage)}–${num(e.maxDamage)}` : MISSING, or(e.defense, num), or(e.xp, num), or(e.gold, num),
+              or(e.itemTier, (v) => `T${esc(v)}`), or(e.dropChance, pct), equipmentQuality,
+              Number(e.dropChance) > 0 ? affixPoolText(e) : '<span class="muted">—</span>',
+            ];
+          });
+          parts.push(table(["Enemy", "Typ", "Lvl", "HP", "Damage", "Def", "XP", "Gold", "Item tier", "Equipment / kill", "Quality equipmentu (šance / kill)", "Affix tier pool"], rows, { numeric: [2, 3, 5, 6, 7] }));
+          const dropRows = [];
+          for (const e of enemies) {
+            const mats = materialRows(e);
+            dropRows.push({ group: `${esc(e.name)} ${code(e.id)} — ${Number(e.dropChance) > 0 ? `equipment: ${list(e.dropPool).map((id) => esc(templateName(id) ?? id)).join(", ") || MISSING}` : "bez equipmentu"}` });
+            if (!mats.length) dropRows.push([MISSING, "", "", "", "", ""]); else mats.forEach((r) => dropRows.push(r));
+          }
+          parts.push(table(["Materiál", "Quality", "Šance záznamu", "Množství", "Drop tier (popisek)", "Finální šance za kill"], dropRows, { numeric: [2, 3] }));
+        }
+        if (!Object.keys(D.locations ?? {}).length) parts.push(MISSING);
+        return parts.join("");
+      }
+
+      // ---------------------------------------------------------------- 3. Itemy a kvality
+      function statRange(key, pair) { return `${esc(key)} ${range(pair)}`; }
+      function renderItems() {
+        const primaryFn = typeof D.primaryRolls === "function" ? D.primaryRolls : null;
+        const rows = templateList.map((t) => {
+          const primary = primaryFn ? primaryFn(t) : null;
+          const extra = Object.keys(t.rolls ?? {}).filter((k) => !primary || !(k in primary));
+          const sources = itemSources(t).map((s) => {
+            if (s.kind === "forge") return `${tag("Kovárna", "ok")} ${esc(s.recipe.label)} ${has(s.tier) ? tag(`T${s.tier}`) : MISSING}`;
+            return `${tag(s.kind === "fixed" ? "Pevný drop" : "Drop", "warn")} ${esc(s.enemy.name)} (${esc(locationName(s.enemy.locationId) ?? s.enemy.locationId)}) ${has(s.tier) ? tag(`T${s.tier}`) : MISSING}`;
+          });
+          const tiers = [...new Set(itemSources(t).map((s) => s.tier).filter(has))].sort();
+          const missingTier = itemSources(t).some((s) => !has(s.tier));
+          return [
+            `${esc(t.name)}<br>${code(t.templateId)}`, esc(slotLabel(t.slot)),
+            primary ? entries(primary).map(([k, v]) => `<div>${statRange(k, v)}</div>`).join("") : MISSING,
+            extra.length ? extra.map((k) => `<div class="muted">${statRange(k, t.rolls[k])}</div>`).join("") : '<span class="muted">—</span>',
+            sources.length ? sources.map((s) => `<div>${s}</div>`).join("") : MISSING,
+            `${tiers.map((x) => tag(`T${x}`)).join("")}${missingTier || !tiers.length ? MISSING : ""}`,
+            t.tradeable === false ? tag("neobchodovatelný") : "",
+          ];
+        });
+        const qualityRows = list(D.qualityIds).map((id) => {
+          const rule = D.qualityRules?.[id];
+          return [esc(qualityLabel(id)), or(D.qualities?.[id]?.rank, num), rule ? num(rule.primaryMultiplier) : MISSING, rule ? esc(rule.secondaryCount) : MISSING];
+        });
+        const tierRows = entries(D.tierRules).map(([t, r]) => [`T${esc(t)}`, num(r.primaryMultiplier), num(r.secondaryMultiplier)]);
+        const secondaryRows = list(D.secondaryPool).map((s) => [code(s.id), entries(s.stats).map(([k, v]) => `<div>${statRange(k, v)}</div>`).join("")]);
+        const slotRows = entries(D.slotPrimary).map(([slot, keys]) => [esc(slotLabel(slot)), keys.map(code).join(" ")]);
+        return `
+          <h2>Kvality a počet sekundárních statů</h2>
+          ${note(`Hodnoty jsou čtené přímo z <code>ITEM_QUALITY_RULES</code> (itemization-data.js, verze ${or(D.itemizationVersion)}). Common má jen hlavní staty, každá další kvalita přidává sekundární staty podle <code>secondaryCount</code>.`)}
+          ${table(["Quality", "Rank", "Násobek hlavního statu", "Sekundárních statů"], qualityRows, { numeric: [1, 2, 3] })}
+          <h2>Item tiery</h2>
+          ${table(["Item tier", "Násobek hlavního statu", "Násobek sekundárního statu"], tierRows, { numeric: [1, 2] })}
+          <h2>Pool sekundárních statů a hlavní staty slotů</h2>
+          ${table(["Sekundár", "Rozsah (před násobkem tieru)"], secondaryRows)}
+          ${table(["Slot", "Klíče hlavního statu"], slotRows)}
+          <h2>Item šablony (${templateList.length})</h2>
+          ${note("Hlavní staty = <code>itemPrimaryRolls(šablona)</code> podle slotu; ostatní rolly šablony jsou zobrazeny šedě. Zdroje a tiery se skládají z drop tabulek enemy (<code>itemTier</code>) a forge receptů (<code>tier</code>).")}
+          ${table(["Šablona", "Slot", "Hlavní staty", "Ostatní rolly", "Zdroje", "Dostupné item tiery", ""], rows, { tall: true })}`;
+      }
+
+      // ---------------------------------------------------------------- 4. Materiály
+      function renderMaterials() {
+        const rows = materialList.map((m) => {
+          const drops = [];
+          for (const e of enemyList) for (const d of e.materialDrops ?? []) if (d.templateId === m.id) drops.push({ e, d });
+          const used = list(D.recipes).filter((r) => (r.materials ?? []).some((x) => x.id === m.id));
+          const hasSource = drops.length || list(m.sourceEnemyIds).length;
+          return [
+            `${esc(m.name)}<br>${code(m.id)}`, tag(D.materialCategories?.[m.category] ?? m.category ?? "?"), or(m.defaultQuality, (q) => tag(qualityLabel(q))),
+            hasSource ? [
+              ...drops.map(({ e, d }) => `<div>${esc(e.name)} ${code(e.id)} · ${pct(d.chance)}${d.qualityProfile ? ` · profil ${code(d.qualityProfile)}` : ` · ${esc(qualityLabel(d.quality ?? m.defaultQuality))}`}</div>`),
+              ...list(m.sourceEnemyIds).filter((id) => !drops.some(({ e }) => e.id === id)).map((id) => `<div>${enemyRef(id)} ${tag("jen v sourceEnemyIds, bez drop záznamu", "bad")}</div>`),
+            ].join("") : MISSING,
+            has(m.sourceLocationId) ? esc(locationName(m.sourceLocationId) ?? m.sourceLocationId) + (locationName(m.sourceLocationId) ? "" : ` ${MISSING}`) : MISSING,
+            used.length ? used.map((r) => `<div>${esc(r.label)} ${tag(`T${r.tier}`)} ×${esc(r.materials.find((x) => x.id === m.id).qty)}</div>`).join("") : '<span class="muted">žádný recept</span>',
+          ];
+        });
+        const recipeRows = list(D.recipes).map((r) => [
+          `${esc(r.label)}<br>${code(r.id)}`, esc(templateName(r.templateId) ?? r.templateId) + (templateName(r.templateId) ? "" : ` ${MISSING}`), has(r.tier) ? `T${esc(r.tier)}` : MISSING, or(r.gold, num),
+          (r.materials ?? []).map((m) => `<div>${esc(materialName(m.id) ?? m.id)} ×${esc(m.qty)}${materialName(m.id) ? "" : ` ${MISSING}`}</div>`).join("") || MISSING,
+        ]);
+        return `
+          <h2>Materiály (${materialList.length})</h2>
+          ${note("Zdroje = skutečné záznamy <code>materialDrops</code> v ENEMIES a <code>sourceEnemyIds</code> materiálu. Materiál bez obojího nemá žádný zdroj v datech.")}
+          ${table(["Materiál", "Kategorie", "Default quality", "Zdroje (enemy · šance · quality)", "Lokace zdroje", "Použití ve forge receptech"], rows, { tall: true })}
+          <h2>Forge recepty (${list(D.recipes).length})</h2>
+          ${table(["Recept", "Výsledek", "Tier", "Gold", "Materiály"], recipeRows, { numeric: [3] })}`;
+      }
+
+      // ---------------------------------------------------------------- 5. Affixy
+      function modText(m) {
+        try { if (typeof D.formatModifier === "function") return D.formatModifier(m.statId, { min: m.minValue, max: m.maxValue }, m.params ?? {}); } catch { /* fallback níže */ }
+        return `${m.statId} ${m.minValue}${m.minValue === m.maxValue ? "" : `–${m.maxValue}`}`;
+      }
+      const affixState = { type: "", tier: "", flag: "", search: "" };
+      function renderAffixes() {
+        return `
+          ${note("INTERNÍ DATA: tier (T1–T5) a relativní váhy jsou pouze pro vývojáře. Hráčské UI je nikdy nezobrazuje.", "internal")}
+          <div class="go-bar">
+            <label>Typ<select id="afType"><option value="">Vše</option><option value="prefix">Prefix</option><option value="suffix">Suffix</option></select></label>
+            <label>Interní tier<select id="afTier"><option value="">Vše</option>${[1, 2, 3, 4, 5].map((t) => `<option value="${t}">T${t}</option>`).join("")}</select></label>
+            <label>Stav<select id="afFlag"><option value="">Vše</option><option value="enabledOnEquipmentDrops">Live na equipmentu</option><option value="enabledOnSmeltRecovery">Smelt recovery</option><option value="enabledOnScrollDrops">Drop svitku</option></select></label>
+            <label>Hledat<input type="search" id="afSearch" placeholder="název, id, stat…" /></label>
+            <span class="go-count" id="afCount"></span>
+          </div>
+          <div id="afTable"></div>`;
+      }
+      function drawAffixTable() {
+        const s = affixState;
+        const q = s.search.trim().toLowerCase();
+        const filtered = affixList.filter((a) => (!s.type || a.type === s.type) && (!s.tier || String(a.tier) === s.tier) && (!s.flag || a[s.flag] === true)
+          && (!q || `${a.displayName} ${a.id} ${[...a.modifiers, ...a.drawbacks].map((m) => m.statId).join(" ")}`.toLowerCase().includes(q)));
+        const rows = filtered.map((a) => {
+          const pools = (a.scarcity?.sourcePools ?? []).map((id) => {
+            const pool = D.affixPools?.[id];
+            return pool ? tag(`${pool.label}${pool.approved ? "" : " · neschváleno"}`, pool.approved ? "ok" : "") : `${code(id)} ${MISSING}`;
+          }).join("");
+          const flags = [
+            tag(a.enabledOnEquipmentDrops ? "equipment: ANO" : "equipment: ne", a.enabledOnEquipmentDrops ? "ok" : ""),
+            tag(a.enabledOnSmeltRecovery ? "tavba: ANO" : "tavba: ne", a.enabledOnSmeltRecovery ? "ok" : ""),
+            tag(a.enabledOnScrollDrops ? "svitek: ANO" : "svitek: ne", a.enabledOnScrollDrops ? "ok" : ""),
+          ].join("");
+          return [
+            `${esc(a.displayName)}<br>${code(a.id)}`, tag(a.type), `T${esc(a.tier)}`, esc(a.category ?? "?"),
+            a.modifiers.map((m) => `<div class="pos">${esc(modText(m))}</div>`).join("") + a.drawbacks.map((m) => `<div class="neg">${esc(modText(m))}</div>`).join(""),
+            (a.allowedSlots ?? []).map((slot) => tag(slotLabel(slot))).join("") || MISSING,
+            pools || MISSING,
+            has(a.scarcity?.relativeDropWeight) ? num(a.scarcity.relativeDropWeight) : MISSING,
+            flags,
+          ];
+        });
+        document.getElementById("afTable").innerHTML = table(["Affix", "Typ", "Interní tier", "Kategorie", "Staty (zelená = bonus, červená = nevýhoda)", "Sloty", "Source pooly", "Relativní váha", "Live / tavba / svitek"], rows, { tall: true, numeric: [7] });
+        document.getElementById("afCount").textContent = `${filtered.length} / ${affixList.length}`;
+      }
+      function wireAffixes() {
+        const bind = (id, key) => document.getElementById(id).addEventListener("input", (event) => { affixState[key] = event.target.value; drawAffixTable(); });
+        bind("afType", "type"); bind("afTier", "tier"); bind("afFlag", "flag"); bind("afSearch", "search");
+        drawAffixTable();
+      }
+
+      // ---------------------------------------------------------------- 6. Ekonomika
+      function renderEconomy() {
+        const e = D.economy;
+        const kills = e?.expectedKillsPerHour; const chance = e?.equipmentDropChance;
+        const perHour = has(kills) && has(chance) ? Number(kills) * Number(chance) : undefined;
+        const equipProfile = profileOf("equipmentQualityProfiles", "start");
+        const qualityRows = entries(equipProfile).map(([q, p]) => {
+          const rate = has(perHour) ? perHour * Number(p) : undefined;
+          return [tag(qualityLabel(q)), pct(p), has(rate) ? `${num(rate, 4)} ks` : MISSING, has(rate) && rate > 0 ? `${num(1 / rate, 1)} h` : MISSING];
+        });
+        const matRows = entries(profileOf("materialQualityProfiles", "start")).map(([q, p]) => [tag(qualityLabel(q)), pct(p)]);
+        const comp = e?.affixComposition;
+        const affixed = has(comp) ? entries(comp).filter(([k]) => k !== "none").reduce((s, [, v]) => s + Number(v), 0) : undefined;
+        const compRows = entries(comp).map(([k, v]) => [tag(k), pct(v), has(perHour) ? `${num(perHour * Number(v), 4)} ks` : MISSING]);
+        const p = Number(e?.smeltScrollRecoveryChance);
+        const recoveryValid = Number.isFinite(p);
+        const recoveryRows = recoveryValid ? [
+          ["1 affix (prefix NEBO suffix)", pct(p, 2) + " svitek", pct(1 - p, 2) + " nic"],
+          ["2 affixy (prefix I suffix) — nezávislé hody", `${pct(2 * p * (1 - p), 2)} právě jeden svitek · ${pct(p * p, 2)} oba`, pct((1 - p) * (1 - p), 2) + " nic"],
+        ] : [];
+        const dropEnemies = enemyList.filter((x) => Number(x.dropChance) > 0);
+        const enemyRows = dropEnemies.map((x) => [`${esc(x.name)} ${code(x.id)}`, esc(locationName(x.locationId) ?? x.locationId), pct(x.dropChance), or(x.itemTier, (v) => `T${esc(v)}`), has(x.equipmentQualityProfile) ? code(x.equipmentQualityProfile) : '<span class="muted">legacy ITEM_QUALITY_ROLL</span>', affixPoolText(x)]);
+        const legacyRows = entries(D.legacyRoll).map(([q, v]) => [tag(qualityLabel(q)), `${num(v.weight)} %`, num(v.statMultiplier)]);
+        return `
+          <h2>Tempo a equipment drop</h2>
+          ${note("Odvozené hodnoty jsou jen jednoduchý součin hodnot z <code>PROGRESSION_ECONOMY</code>: kills/h × šance equipmentu. Jiná tempa nejsou v datech definována, proto se nezobrazují.")}
+          ${table(["Položka", "Hodnota"], [
+            ["Očekávané kills / hodinu", or(kills, num)],
+            ["Šance equipmentu na kill (startovní pravidlo)", or(chance, pct)],
+            ["Očekávané equipment dropy / hodinu (kills/h × šance)", has(perHour) ? `${num(perHour, 3)} ks` : MISSING],
+          ])}
+          <h2>Quality profil equipmentu „start“</h2>
+          ${table(["Quality", "Šance při dropu", "Očekávané kusy / hodinu", "Očekávaně 1 kus za"], qualityRows, { numeric: [1, 2, 3] })}
+          <h2>Quality profil materiálu „start“</h2>
+          ${table(["Quality", "Šance při dropu materiálu"], matRows, { numeric: [1] })}
+          <h2>Složení affixů na nalezeném itemu</h2>
+          ${table(["Varianta", "Šance", "Očekávané kusy / hodinu"], compRows, { numeric: [1, 2] })}
+          ${note(`Item s alespoň jedním affixem: ${has(affixed) ? pct(affixed) : MISSING}. Povolený affix tier na equipmentu: ${or(e?.liveEquipmentAffixTier, (v) => `T${esc(v)}`)}.`)}
+          <h2>Obnova svitků tavením</h2>
+          ${note(`Šance za každý obnovitelný affix: ${or(e?.smeltScrollRecoveryChance, (v) => pct(v, 2))}. Craftěný item (kovárna) svitek nikdy nevrací — pravidlo je v kódu (<code>smeltRecoveryCandidates</code>), ne v datech. Pravděpodobnosti níže jsou nezávislé hody.`)}
+          ${table(["Item", "Výsledek", "Nic"], recoveryRows)}
+          <h2>Enemy s equipment dropem</h2>
+          ${table(["Enemy", "Lokace", "Equipment / kill", "Item tier", "Quality profil", "Affix tier pool"], enemyRows, { numeric: [2] })}
+          <h2>Legacy hod kvality (<code>ITEM_QUALITY_ROLL</code>)</h2>
+          ${note("Použije se u enemy bez <code>equipmentQualityProfile</code>.")}
+          ${table(["Quality", "Váha", "Násobek statů"], legacyRows, { numeric: [1, 2] })}
+          <h2>Další konfigurace</h2>
+          ${table(["Klíč", "Hodnota"], [
+            ...entries(D.loot).map(([k, v]) => [code(`LOOT_CONFIG.${k}`), esc(v)]),
+            ...entries(D.smith).filter(([, v]) => typeof v !== "object").map(([k, v]) => [code(`SMITH_CONFIG.${k}`), esc(v)]),
+            ...(typeof D.forgeChance === "function" ? [["Šance forge: bez affixu", pct(D.forgeChance({}), 1)], ["Šance forge: jeden affix", pct(D.forgeChance({ prefixId: "x" }), 1)], ["Šance forge: prefix i suffix", pct(D.forgeChance({ prefixId: "x", suffixId: "y" }), 1)]] : []),
+          ])}`;
+      }
+
+      // ---------------------------------------------------------------- záložky
+      const TABS = [
+        ["overview", "Přehled", renderOverview], ["locations", "Lokace a dropy", renderLocations], ["items", "Itemy a kvality", renderItems],
+        ["materials", "Materiály", renderMaterials], ["affixes", "Affixy", renderAffixes, wireAffixes], ["economy", "Ekonomika", renderEconomy],
+      ];
+      const rendered = new Set();
+      function show(id) {
+        const tab = TABS.find((t) => t[0] === id) ?? TABS[0];
+        TABS.forEach(([key]) => {
+          document.getElementById(`panel-${key}`).hidden = key !== tab[0];
+          document.getElementById(`tab-${key}`).setAttribute("aria-selected", key === tab[0] ? "true" : "false");
+        });
+        if (!rendered.has(tab[0])) {
+          rendered.add(tab[0]);
+          document.getElementById(`panel-${tab[0]}`).innerHTML = tab[2]();
+          if (tab[3]) tab[3]();
+        }
+      }
+      const tabBar = document.getElementById("goTabs");
+      TABS.forEach(([key, label]) => {
+        const button = document.createElement("button");
+        button.type = "button"; button.id = `tab-${key}`; button.setAttribute("role", "tab"); button.textContent = label;
+        button.addEventListener("click", () => { try { history.replaceState(null, "", `#${key}`); } catch { /* adresa se jen neaktualizuje */ } show(key); });
+        tabBar.append(button);
+      });
+      show(location.hash.slice(1));
+    </script>
+  </body>
+</html>
