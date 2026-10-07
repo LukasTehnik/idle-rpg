@@ -1112,7 +1112,7 @@ function resolveDropPool(enemyCfg) {
 function rollDroppedAffixes(item, enemyCfg) {
   // Scrolly z tavení a jejich šance nejsou v této fázi zapnuté. Toto řeší
   // pouze přirozený prefix/suffix na nalezeném, ne-craftěném itemu.
-  if (!enemyCfg?.affixTier || item?.craftedAt) return item;
+  if (!(enemyCfg?.affixTierPool || enemyCfg?.affixTier) || item?.craftedAt) return item;
   const composition = rollAffixComposition();
   if (composition === "none") return item;
   let result = { ...item };
