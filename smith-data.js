@@ -14,6 +14,7 @@ const SMITH_CONFIG = Object.freeze({
 });
 
 const FORGE_RECIPES = Object.freeze([
+  ...(typeof CONTENT_100 !== "undefined" ? CONTENT_100.recipes : []),
   Object.freeze({
     id: "forge-iron-sword", templateId: "iron-sword", label: "Železný meč", tier: 1,
     gold: 200, materials: [{ id: "iron-rivets", qty: 24 }, { id: "wooden-handle", qty: 4 }, { id: "sharpening-stone", qty: 4 }],
@@ -54,6 +55,13 @@ function upgradeChance(nextLevel) {
 
 function upgradeCost(item) {
   const nextLevel = Math.min(SMITH_CONFIG.maxUpgradeLevel, (Number(item?.upgradeLevel) || 0) + 1);
+  const template=findTemplateById(item?.templateId ?? item?.icon);
+  if(template?.itemTier && typeof CONTENT_100!=="undefined"){
+    const tier=template.itemTier, materials=[{id:template.smeltMaterialId,qty:2+Math.floor(nextLevel/3)}];
+    if(nextLevel>=4){const essence=materials.find(m=>m.id===`t${tier}-essence`);if(essence)essence.qty+=Math.ceil(nextLevel/3);else materials.push({id:`t${tier}-essence`,qty:Math.ceil(nextLevel/3)});}
+    if(nextLevel>=10)materials.push({id:`t${tier}-core`,qty:1});
+    return {gold:Math.round(50*nextLevel*Math.pow(1.55,tier-1)),materials,nextLevel,chance:upgradeChance(nextLevel)};
+  }
   if (nextLevel <= 3) return { gold: nextLevel * 50, materials: [{ id: "iron-rivets", qty: 2 }, { id: "sharpening-stone", qty: 1 }], nextLevel, chance: 1 };
   const scale = Math.max(1, Math.ceil(nextLevel / 3));
   const materials = [{ id: "iron-rivets", qty: scale }];
@@ -69,12 +77,13 @@ function repairCost(item) {
   const missing = max - current;
   // V prvním pásmu stojí oprava jen gold; pozdější materiálové opravy se
   // přidají spolu s vyššími recepty, aby start nepůsobil jako slepá ulička.
-  return { missing, gold: Math.max(1, Math.ceil(missing / 5)), materials: [] };
+  const tier=findTemplateById(item?.templateId ?? item?.icon)?.itemTier ?? 1;
+  return { missing, gold: Math.max(1, Math.ceil(missing / 5*Math.pow(1.55,tier-1))), materials: [] };
 }
 
 function smeltYield(item) {
   const baseBySlot = { weapon: "iron-rivets", armor: "metal-buckle", helmet: "metal-buckle", gloves: "thread-spool", boots: "leather-padding", pants: "cloth-padding", charm: "quartz", wings: "wing-dust" };
-  const materialId = baseBySlot[item?.slot] ?? "iron-rivets";
+  const materialId = findTemplateById(item?.templateId ?? item?.icon)?.smeltMaterialId ?? baseBySlot[item?.slot] ?? "iron-rivets";
   const rank = qualityRank(item?.quality);
   const amount = Math.max(1, 1 + Math.floor(rank / 2) + Math.floor((Number(item?.upgradeLevel) || 0) / 5));
   const quality = QUALITY_IDS[Math.min(rank, QUALITY_IDS.length - 2)] ?? "common";

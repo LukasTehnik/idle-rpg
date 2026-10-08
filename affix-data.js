@@ -171,9 +171,9 @@ function buildAffixDefinition(type, row) {
     signatureGroup: extras.signatureGroup ?? null,
     boundFamily: extras.boundFamily === true,
     tradeable: true, learnable: true, enabled: true,
-    enabledOnEquipmentDrops: tier === 1,
+    enabledOnEquipmentDrops: typeof CONTENT_100 !== "undefined" || tier === 1,
     enabledOnScrollDrops: false,
-    enabledOnSmeltRecovery: tier === 1,
+    enabledOnSmeltRecovery: typeof CONTENT_100 !== "undefined" || tier === 1,
     // Historický alias; znamená pouze přímý drop svitku.
     enabledInLiveDrops: false,
     definitionVersion: 1,

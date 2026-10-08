@@ -78,11 +78,11 @@ function renderTelemetry() {
   const itemRows = Object.entries(data.equipment || {}).map(([quality, qty]) => `<li>${quality} equipment <b>${fmt.format(telemetryRate(qty, data))}/h</b></li>`);
   drops.innerHTML = materialRows.length || itemRows.length ? `<h3 class="balance-subtitle">Observed rewards / hour</h3><ul>${[...materialRows, ...itemRows].join("")}</ul>` : "";
 }
-function history() { try { return JSON.parse(localStorage.getItem(TELEMETRY_HISTORY_KEY) || "[]"); } catch { return []; } }
-function renderHistory() { $("#telemetryHistory").innerHTML = history().map((entry) => `<li><b>${new Date(entry.at).toLocaleString("cs-CZ")}</b> · ${fmt.format(entry.killsPerHour)} kills/h · ${fmt.format(entry.xpPerHour)} XP/h · ${fmt.format(entry.goldPerHour)} gold/h</li>`).join("") || "<li>Žádný snapshot.</li>"; }
+function readTelemetryHistory() { try { return JSON.parse(localStorage.getItem(TELEMETRY_HISTORY_KEY) || "[]"); } catch { return []; } }
+function renderHistory() { $("#telemetryHistory").innerHTML = readTelemetryHistory().map((entry) => `<li><b>${new Date(entry.at).toLocaleString("cs-CZ")}</b> · ${fmt.format(entry.killsPerHour)} kills/h · ${fmt.format(entry.xpPerHour)} XP/h · ${fmt.format(entry.goldPerHour)} gold/h</li>`).join("") || "<li>Žádný snapshot.</li>"; }
 function captureTelemetry() {
   const data = readTelemetry(); if (!data?.activeMs || data.mode !== "recording") return;
-  const entries = history(); entries.unshift({ at: Date.now(), killsPerHour: telemetryRate(data.kills, data), xpPerHour: telemetryRate(data.xp, data), goldPerHour: telemetryRate(data.gold, data), waves: data.waves, activeMs: data.activeMs }); localStorage.setItem(TELEMETRY_HISTORY_KEY, JSON.stringify(entries.slice(0, 20)));
+  const entries = readTelemetryHistory(); entries.unshift({ at: Date.now(), killsPerHour: telemetryRate(data.kills, data), xpPerHour: telemetryRate(data.xp, data), goldPerHour: telemetryRate(data.gold, data), waves: data.waves, activeMs: data.activeMs }); localStorage.setItem(TELEMETRY_HISTORY_KEY, JSON.stringify(entries.slice(0, 20)));
   const completed = { ...data, mode: "completed", completedAt: Date.now(), lastActiveAt: 0, pausedAt: 0 }; localStorage.setItem(TELEMETRY_KEY, JSON.stringify(completed)); localStorage.setItem(TELEMETRY_COMMAND_KEY, JSON.stringify({ action: "stop", at: Date.now() }));
   $("#measurementFeedback").textContent = "Run byl ukončen a uložen mezi snapshoty. Pro další test klikni START NEW MEASUREMENT."; renderTelemetry(); renderHistory();
 }

@@ -93,7 +93,8 @@ const GLOBAL_MATERIAL_SOURCES = Object.freeze({
   "steel-ingot": { locationId: "magma", enemyIds: ["magma-e02", "magma-e04"] },
 });
 
-const MATERIALS = Object.freeze({
+const MATERIAL_BASE_DEFS = Object.freeze({
+  ...(typeof CONTENT_100 !== "undefined" ? CONTENT_100.materials : {}),
   "wing-dust": {
     id: "wing-dust", name: "Prach z křídel", asset: "assets/materials/wing-dust.png",
     defaultQuality: "common", category: "material", stackable: true, tradeable: true,
@@ -206,6 +207,8 @@ const MATERIALS = Object.freeze({
     })];
   })),
 });
+
+const MATERIALS = typeof CONTENT_100 === "undefined" ? MATERIAL_BASE_DEFS : Object.freeze(Object.fromEntries(Object.entries(MATERIAL_BASE_DEFS).map(([id,material])=>[id,Object.freeze({...material,sourceEnemyIds:[...new Set([...(material.sourceEnemyIds ?? []),...Object.values(CONTENT_100.enemies).filter((enemy)=>enemy.materialDrops.some((drop)=>drop.templateId===id)).map((enemy)=>enemy.id)])]})])));
 
 const MATERIAL_CATEGORY_LABELS = Object.freeze({
   material: "Materiál",

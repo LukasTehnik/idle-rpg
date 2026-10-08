@@ -121,6 +121,16 @@ const initialState = () => ({
 let state = loadState();
 let gameLoopId = null;
 let timerLoopId = null;
+// Transient triggers reset per farming run; never leak into player saves.
+let contentEffects = {run:null,lastRegen:0,cooldowns:{},revived:false,invulnerableUntil:0};
+function contentTrigger(statId,now=performance.now()) {
+  if(contentEffects.run!==state.run){contentEffects={run:state.run,lastRegen:now,cooldowns:{},revived:false,invulnerableUntil:0};}
+  const effects=computeAffixTotals(Object.values(state.equipment).filter(Boolean)).modifiers.filter((m)=>m.statId===statId);
+  const effect=effects.sort((a,b)=>b.value-a.value)[0]; if(!effect)return null;
+  if(now<(contentEffects.cooldowns[statId] ?? 0))return null;
+  if(Math.random()>=(effect.params?.chance ?? 100)/100)return null;
+  contentEffects.cooldowns[statId]=now+(effect.params?.cooldown ?? 0)*1000; return effect;
+}
 
 // Internal wave-economy telemetry. This deliberately lives outside the player
 // save: it is only used by balance-lab.html and cannot affect progression.
@@ -282,7 +292,7 @@ const ui = {
   tab: "all", // all | equipment | materials | scrolls
   search: "", type: "all", quality: "all", flag: "all", origin: "all", sort: "newest",
   selectedMapLocationId: null, // jen náhled na mapě; aktivní lokace je state.activeLocationId
-  smithTab: "forge", smithRecipeId: "forge-iron-sword", smithPrefixId: "", smithSuffixId: "", smithItemId: "",
+  smithTab: "forge", smithRecipeId: "forge-iron-sword", smithPrefixId: "", smithSuffixId: "", smithItemId: "", smithTierFilter:"1", smithSlotFilter:"",
   selectedMapAreaId: null, // filtr oblasti v detailu mapy; nikdy se neukládá do savu
   locTab: "info", // info | enemies | loot
   highlightEnemyId: null,
@@ -650,7 +660,7 @@ async function syncFromCloud() {
   }
 }
 
-function xpNeeded(level = state.level) { return Math.round(50 * Math.pow(level, 1.35)); }
+function xpNeeded(level = state.level) { return typeof CONTENT_100 !== "undefined" ? content100XpNeeded(level) : Math.round(50 * Math.pow(level, 1.35)); }
 function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 function randomDecimal(min, max) { return Math.round((min + Math.random() * (max - min)) * 10) / 10; }
 function clampPercent(value, max) { return Math.max(0, Math.min(100, (value / max) * 100)); }
@@ -757,16 +767,17 @@ function getPlayerStats(equipment = state.equipment) {
     }),
     { maxHp: state.player.baseMaxHp, minDamage: state.player.baseMinDamage, maxDamage: state.player.baseMaxDamage, critChance: state.player.baseCritChance, defense: 0, attackSpeed: 0 },
   );
-  // Prototype 0.6: affixy z nasazených itemů. Počítají se jen staty s živým výpočtem (calc:"active");
-  // staty bez základu (obrana, elementy, trigger efekty …) zůstávají jen jako data.
+  // Affix totals and template-derived set bonuses are computed once per loadout.
   // Součty řeší computeAffixTotals (unikátní affixy, signature skupiny, nevýhody po bonusech) a registr (capy).
-  if (!items.some((item) => item.prefix || item.suffix)) return base;
+  const setTotals=typeof CONTENT_100 !== "undefined" ? content100SetBonuses(items).totals : {};
+  base.maxHp+=setTotals.maxHp ?? 0; base.minDamage+=setTotals.damageMin ?? 0; base.maxDamage+=setTotals.damageMax ?? 0;
+  base.defense+=setTotals.defense ?? 0; base.attackSpeed+=setTotals.attackSpeed ?? 0;
   const { totals } = computeAffixTotals(items);
   const crit = applyStatCap("crit_chance", base.critChance * 100 + (totals.crit_chance ?? 0)).effective / 100;
   const maxHp = Math.max(1, base.maxHp + (totals.max_hp ?? 0));
   const minDamage = Math.max(0, base.minDamage + (totals.damage_min ?? 0));
   const maxDamage = Math.max(minDamage, base.maxDamage + (totals.damage_max ?? 0));
-  return { maxHp, minDamage, maxDamage, critChance: Math.max(0, crit), defense: base.defense, attackSpeed: base.attackSpeed };
+  return { maxHp, minDamage, maxDamage, critChance: Math.max(0, crit), defense: Math.max(0,base.defense+(totals.defense ?? 0)), attackSpeed: Math.max(-90,base.attackSpeed+(totals.attack_speed ?? 0)), affixTotals:totals };
 }
 
 function render() {
@@ -775,8 +786,8 @@ function render() {
   state.player.hp = Math.min(state.player.hp, stats.maxHp);
   setText("level", state.level);
   setText("xp", state.xp);
-  setText("xpGoal", goal);
-  setBar("xp", clampPercent(state.xp, goal));
+  setText("xpGoal", state.level>=100 ? "MAX" : goal);
+  setBar("xp", state.level>=100 ? 100 : clampPercent(state.xp, goal));
   setText("kills", state.kills);
   setText("drops", state.drops);
   setText("gold", fmtGold(state.carriedGold));
@@ -951,8 +962,15 @@ function playerAttack() {
   if (!target) { enterWaveCooldown(performance.now()); return; }
   const critical = Math.random() < stats.critChance;
   let damage = randomInt(stats.minDamage, stats.maxDamage);
-  if (critical) damage *= 2;
-  damage = Math.max(1, damage - (enemyCfg.defense ?? 0));
+  damage = typeof CONTENT_100 !== "undefined" ? content100Damage({damage,critical,stats:{...stats,hp:state.player.hp},enemy:enemyCfg,targetHp:target.hp,kills:state.run.kills}) : Math.max(1,damage*(critical ? 2 : 1)-(enemyCfg.defense ?? 0));
+  if(typeof CONTENT_100!=="undefined") {
+    const trueDamage=critical ? contentTrigger("trigger_true_damage_on_crit") : null;
+    if(trueDamage)damage+=trueDamage.value;
+    const extra=critical ? contentTrigger("trigger_extra_attack_on_crit") : null;
+    if(extra)damage+=content100Damage({damage:randomInt(stats.minDamage,stats.maxDamage),stats:{...stats,hp:state.player.hp},enemy:enemyCfg,targetHp:target.hp,kills:state.run.kills});
+    const heal=contentTrigger("trigger_heal_on_damage");
+    if(heal)state.player.hp=Math.min(stats.maxHp,state.player.hp+content100Healing(heal.value,stats.affixTotals));
+  }
   if (critical) state.stats.highestCrit = Math.max(state.stats.highestCrit, damage);
   target.hp = Math.max(0, target.hp - damage);
   state.enemy.maxHp = target.maxHp; state.enemy.hp = target.hp;
@@ -969,20 +987,23 @@ function playerAttack() {
 // Odměna za jedno zabití — původní logika z defeatEnemy (XP, zlato, kořist,
 // drobné doléčení). Nemění fázi; tu řeší enterWaveCooldown až po vybití vlny.
 function awardKill(enemyCfg) {
-  telemetryKill(enemyCfg);
   state.kills += 1;
   discoverEnemy(enemyCfg.id).kills += 1;
-  state.xp += enemyCfg.xp;
-  addCarriedGold(enemyCfg.gold ?? 0);
+  const rewardStats=getPlayerStats().affixTotals ?? {};
+  const earnedXp=state.level>=100 ? 0 : Math.max(0,Math.round(enemyCfg.xp*(1+(rewardStats.xp_gain ?? 0)/100)));
+  const earnedGold=Math.max(0,Math.round((enemyCfg.gold ?? 0)*(1+(rewardStats.gold_find ?? 0)/100)));
+  telemetryKill({...enemyCfg,xp:earnedXp,gold:earnedGold});
+  state.xp += earnedXp;
+  addCarriedGold(earnedGold);
   state.run.kills += 1;
-  state.run.xpEarned += enemyCfg.xp;
-  state.run.goldEarned += enemyCfg.gold ?? 0;
+  state.run.xpEarned += earnedXp;
+  state.run.goldEarned += earnedGold;
   applyLevelUps();
   const stats = getPlayerStats();
-  const healing = Math.max(1, Math.round(stats.maxHp * CONFIG.betweenFightHealPercent));
+  const healing = typeof CONTENT_100 !== "undefined" ? content100Healing(stats.maxHp * CONFIG.betweenFightHealPercent+(rewardStats.heal_on_kill ?? 0),rewardStats,true) : Math.max(1, Math.round(stats.maxHp * CONFIG.betweenFightHealPercent));
   state.player.hp = Math.min(stats.maxHp, state.player.hp + healing);
   const dropsBefore = state.drops;
-  if (Math.random() < (enemyCfg.dropChance ?? CONFIG.dropChance)) generateDrop(enemyCfg);
+  if (Math.random() < Math.min(1,(enemyCfg.dropChance ?? CONFIG.dropChance)+(rewardStats.equipment_drop_chance ?? 0)/100)) generateDrop(enemyCfg);
   rollEquipmentDrops(enemyCfg);
   rollMaterialDrops(enemyCfg);
   // Úlomek jádra: vzácný drop z každého boje (0,09 %).
@@ -992,7 +1013,7 @@ function awardKill(enemyCfg) {
     addLog(`Vzácný nález: úlomek jádra! Celkem ${fmtGold(state.coreFragments)}.`, "level-up");
     showNoticeToast("Úlomek jádra", `Vzácný drop (0,09 %) — celkem ${fmtGold(state.coreFragments)}`, "gold");
   }
-  lastKillLoot = { xp: enemyCfg.xp, gold: enemyCfg.gold ?? 0, item: state.drops > dropsBefore, core: gotCore };
+  lastKillLoot = { xp: earnedXp, gold: earnedGold, item: state.drops > dropsBefore, core: gotCore };
   if (ui.page === "obchodnik") renderMerchant();
   if (ui.page === "bestiar") renderBestiary();
 }
@@ -1000,7 +1021,7 @@ function awardKill(enemyCfg) {
 function enterWaveCooldown(now) {
   telemetryWaveCleared(now);
   state.phase = "searching";
-  state.respawnTotalMs = CONFIG.waveRespawnMs;
+  state.respawnTotalMs = Math.max(750,CONFIG.waveRespawnMs+(getPlayerStats().affixTotals?.search_time ?? 0)*1000);
   state.phaseEndsAt = now + state.respawnTotalMs;
   const secs = Math.ceil(state.respawnTotalMs / 1000);
   elements.encounterMessage.textContent = `Vlna vybita. Další za ${secs} s`;
@@ -1016,8 +1037,14 @@ function enemyAttack() {
   const attackers = Math.min(alive.length, CONFIG.waveMeleeCount);
   let total = 0;
   for (let i = 0; i < attackers; i += 1) total += randomInt(enemyCfg.minDamage, enemyCfg.maxDamage);
-  total = Math.max(1, total - getPlayerStats().defense);
+  const stats=getPlayerStats(),t=stats.affixTotals ?? {};
+  if(performance.now()<contentEffects.invulnerableUntil)return;
+  if(Math.random()<Math.min(.35,Math.max(0,(t.dodge_chance ?? 0)/100))) { addLog("Dodged.","system"); return; }
+  const defense=stats.defense+(state.player.hp<=stats.maxHp*.3 ? t.low_hp_defense ?? 0 : 0);
+  const resist=enemyCfg.element ? t[`${enemyCfg.element}_resistance`] ?? 0 : 0;
+  total = Math.max(1,Math.round((total-defense)*Math.max(0,1+(t.damage_taken ?? 0)/100)*Math.max(0,1-resist/100)));
   state.player.hp = Math.max(0, state.player.hp - total);
+  if(state.player.hp===0 && !contentEffects.revived){const survive=contentTrigger("survive_lethal_once");if(survive){contentEffects.revived=true;state.player.hp=1;contentEffects.invulnerableUntil=performance.now()+(survive.params?.invulnerableSeconds ?? 2)*1000;}}
   if (window.CombatField) window.CombatField.playerStruck();
   addLog(`${enemyCfg.name}${attackers > 1 ? ` ×${attackers}` : ""} tě zasáhl za ${total}.`, "enemy");
   maybeEatFood(); // nouzová porce může zabránit smrti
@@ -1032,7 +1059,7 @@ function maybeEatFood() {
   if (state.player.hp >= stats.maxHp) return;
   if (state.player.hp > stats.maxHp * FOOD_CONFIG.autoEatBelow) return;
   state.food -= 1;
-  const heal = Math.max(1, Math.round(stats.maxHp * FOOD_CONFIG.healPercent));
+  const heal = typeof CONTENT_100 !== "undefined" ? content100Healing(stats.maxHp * FOOD_CONFIG.healPercent,stats.affixTotals) : Math.max(1, Math.round(stats.maxHp * FOOD_CONFIG.healPercent));
   const before = state.player.hp;
   state.player.hp = Math.min(stats.maxHp, state.player.hp + heal);
   const gained = state.player.hp - before;
@@ -1042,7 +1069,7 @@ function maybeEatFood() {
 }
 
 function applyLevelUps() {
-  while (state.xp >= xpNeeded()) {
+  while (state.xp >= xpNeeded() && (typeof CONTENT_100 === "undefined" || state.level < CONTENT_100.maxLevel)) {
     state.xp -= xpNeeded();
     state.level += 1;
     state.player.baseMaxHp += 15;
@@ -1059,8 +1086,9 @@ function defeatPlayer() {
   telemetryDeath(performance.now());
   state.wave = []; state.waveKilled = 0;
   if (window.CombatField) window.CombatField.clearWave();
-  state.phaseEndsAt = performance.now() + CONFIG.playerRespawnMs;
-  elements.encounterMessage.textContent = "Návrat k výpravě za 5 s";
+  state.respawnTotalMs=Math.max(2000,CONFIG.playerRespawnMs+(getPlayerStats().affixTotals?.revive_time ?? 0)*1000);
+  state.phaseEndsAt = performance.now() + state.respawnTotalMs;
+  elements.encounterMessage.textContent = `Návrat k výpravě za ${Math.ceil(state.respawnTotalMs/1000)} s`;
   state.stats.deaths += 1;
   discoverEnemy(state.currentEnemyId).deaths += 1;
   // Odolnost je záměrně pomalá a pouze eventová: žádný offline rozpad ani
@@ -1110,24 +1138,27 @@ function resolveDropPool(enemyCfg) {
 // Kvalita sama staty NEMĚNÍ: násobič statů (ITEM_QUALITY_ROLL) patří jen zděděnému hodu,
 // pevná kvalita (např. legendary) používá základní rozsah šablony × 1 — balance je mimo rozsah 0.5.1.
 function rollDroppedAffixes(item, enemyCfg) {
-  // Scrolly z tavení a jejich šance nejsou v této fázi zapnuté. Toto řeší
-  // pouze přirozený prefix/suffix na nalezeném, ne-craftěném itemu.
+  // Natural affixes: composition first, then compatible tier and weighted definition.
   if (!(enemyCfg?.affixTierPool || enemyCfg?.affixTier) || item?.craftedAt) return item;
   const composition = rollAffixComposition();
   if (composition === "none") return item;
   let result = { ...item };
   const types = composition === "both" ? ["prefix", "suffix"] : [composition];
   for (const type of types) {
-    const affixTier = rollAffixTierFromPool(enemyCfg.affixTierPool ?? (enemyCfg.affixTier ? { [enemyCfg.affixTier]: 100 } : null));
+    const tierPool=enemyCfg.affixTierPool ?? (enemyCfg.affixTier ? { [enemyCfg.affixTier]:100 } : {});
+    const available=AFFIX_DEFINITIONS.filter(a=>a.type===type && a.enabledOnEquipmentDrops && a.allowedSlots.includes(result.slot) && checkAffixOnItem(result,a.id).ok && (typeof CONTENT_100==="undefined" || content100AffixEligible(a,enemyCfg,result)));
+    const usablePool=Object.fromEntries(Object.entries(tierPool).filter(([tier])=>available.some(a=>a.tier===Number(tier))));
+    const affixTier = rollAffixTierFromPool(usablePool);
     if (!affixTier) continue;
-    const candidates = AFFIX_DEFINITIONS.filter((affix) => (
+    const candidates = available.filter((affix) => (
       affix.type === type
       && affix.tier === affixTier
       && affix.allowedSlots.includes(result.slot)
       && affix.enabledOnEquipmentDrops === true
+      && (typeof CONTENT_100 === "undefined" || content100AffixEligible(affix,enemyCfg,result))
     ));
     if (!candidates.length) continue;
-    const affix = candidates[randomInt(0, candidates.length - 1)];
+    const affix = typeof CONTENT_100 !== "undefined" ? content100PickWeighted(candidates.map((value)=>({value,weight:content100AffixWeight(value)}))) : candidates[randomInt(0, candidates.length - 1)];
     const applied = applyAffixToItem(result, affix.id);
     if (applied.ok) result = applied.item;
   }
@@ -1136,8 +1167,8 @@ function rollDroppedAffixes(item, enemyCfg) {
 
 function createItem(enemyCfg, fixed = null) {
   const template = fixed ? findTemplateById(fixed.templateId) : (() => { const pool = resolveDropPool(enemyCfg); return pool[randomInt(0, pool.length - 1)]; })();
-  const quality = fixed ? normalizeQuality(fixed.quality, { where: `drop ${fixed.templateId}` }) : (enemyCfg?.equipmentQualityProfile ? rollEquipmentQuality(enemyCfg.equipmentQualityProfile) : rollLegacyQuality());
-  const itemTier = normalizeItemTier(enemyCfg?.itemTier ?? 1);
+  const quality = fixed ? normalizeQuality(fixed.quality, { where: `drop ${fixed.templateId}` }) : (enemyCfg?.equipmentQualityProfile ? (typeof CONTENT_100!=="undefined" ? content100Quality(PROGRESSION_ECONOMY.equipmentQualityProfiles[enemyCfg.equipmentQualityProfile] ?? PROGRESSION_ECONOMY.equipmentQualityProfiles.start,applyStatCap("magic_find",getPlayerStats().affixTotals?.magic_find ?? 0).effective) : rollEquipmentQuality(enemyCfg.equipmentQualityProfile)) : rollLegacyQuality());
+  const itemTier = normalizeItemTier(template.itemTier ?? enemyCfg?.itemTier ?? 1);
   const rolled = rollItemStats(template, { quality, itemTier });
   const item = {
     id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
@@ -1210,7 +1241,7 @@ function rollMaterialDrops(enemyCfg) {
     // Safety net: a material may only drop from an enemy that is listed as a
     // source of it (guards e.g. "Oko Matky" = Matka děr only).
     if (!material.sourceEnemyIds.includes(enemyCfg.id)) continue;
-    if (Math.random() >= drop.chance) continue;
+    if (Math.random() >= Math.min(1,drop.chance*(1+(getPlayerStats().affixTotals?.material_find ?? 0)/100))) continue;
     const quality = drop.qualityProfile ? rollMaterialQuality(drop.qualityProfile) : drop.quality;
     addMaterial(drop.templateId, randomInt(drop.quantity[0], drop.quantity[1]), enemyCfg.id, quality);
   }
@@ -1282,6 +1313,13 @@ function renderRecentDrops() {
 
 function statRows(item) {
   const rows = [];
+  const set=findTemplateById(item.templateId ?? item.icon)?.setId;
+  if(set && typeof CONTENT_100!=="undefined"){
+    const definition=CONTENT_100.sets[set];
+    rows.push(["Set",definition.name]);
+    const count=Object.values(state.equipment).filter((entry)=>entry && findTemplateById(entry.templateId ?? entry.icon)?.setId===set).length;
+    for(const bonus of definition.bonuses)rows.push([`${bonus.pieces} pieces (${count>=bonus.pieces ? "active" : "inactive"})`,Object.entries(bonus.stats).map(([key,value])=>`${key} +${value}`).join(", ")]);
+  }
   const display = (key, suffix = "") => {
     const base = item.stats?.[key] ?? 0; const effective = getItemBonus(item, key);
     return effective !== base ? `+${fmtNum(effective)}${suffix} (základ ${fmtNum(base)})` : `+${fmtNum(base)}${suffix}`;
@@ -2133,6 +2171,12 @@ function updateCountdown(now) {
 function tick(now) {
   telemetryTick(now);
   if (!state.running) return;
+  if(contentEffects.run!==state.run)contentEffects={run:state.run,lastRegen:now,cooldowns:{},revived:false,invulnerableUntil:0};
+  if(typeof CONTENT_100!=="undefined" && state.phase!=="dead") {
+    const stats=getPlayerStats();const elapsed=Math.max(0,Math.min(1000,now-contentEffects.lastRegen))/1000;
+    state.player.hp=Math.min(stats.maxHp,state.player.hp+content100Healing((stats.affixTotals?.hp_regen ?? 0)*elapsed,stats.affixTotals,false,false));
+  }
+  contentEffects.lastRegen=now;
   if (state.phase === "fighting") {
     const attackInterval = Math.max(650, CONFIG.playerAttackMs / (1 + getPlayerStats().attackSpeed / 100));
     if (now - state.lastPlayerAttackAt >= attackInterval) { state.lastPlayerAttackAt = now; playerAttack(); }
@@ -3144,7 +3188,7 @@ function combatWidgetView() {
   if (!enemyCfg) return { mode: "none", status: "ŽÁDNÝ AKTIVNÍ BOJ", short: "ŽÁDNÝ AKTIVNÍ BOJ" };
   const now = performance.now();
   const searching = state.phase === "searching" || state.phase === "dead";
-  const total = state.phase === "dead" ? CONFIG.playerRespawnMs : (state.respawnTotalMs || CONFIG.waveRespawnMs);
+  const total = state.respawnTotalMs || (state.phase === "dead" ? CONFIG.playerRespawnMs : CONFIG.waveRespawnMs);
   const reference = state.running ? now : (state.pausedAt ?? now);
   const msLeft = Math.max(0, state.phaseEndsAt - reference);
   const secondsLeft = Math.ceil(msLeft / 1000);
@@ -3276,15 +3320,19 @@ function forgeBaseItem(recipe, quality) {
   });
 }
 function knownAffixesFor(type, item) {
-  return state.knownAffixes.map((id) => getAffix(id)).filter((affix) => affix?.type === type && checkAffixOnItem(item, affix.id).ok);
+  return state.knownAffixes.map((id) => getAffix(id)).filter((affix) => affix?.type === type && affix.requiredItemLevel<=state.level && checkAffixOnItem(item, affix.id).ok);
 }
 function forgeSelectedRecipe() { return getForgeRecipe(ui.smithRecipeId) ?? FORGE_RECIPES[0]; }
+function visibleForgeRecipes(){return FORGE_RECIPES.filter(r=>(!ui.smithTierFilter||String(r.tier)===ui.smithTierFilter)&&(!ui.smithSlotFilter||findTemplateById(r.templateId)?.slot===ui.smithSlotFilter));}
+function forgeFilterHtml(){return `<div class="smith-filters"><label class="field"><span>Item tier</span><select data-smith-field="tier-filter"><option value="">All tiers</option>${Array.from({length:10},(_,i)=>`<option value="${i+1}" ${ui.smithTierFilter===String(i+1)?"selected":""}>${i+1} · Lv ${i*10+1}–${(i+1)*10}</option>`).join("")}</select></label><label class="field"><span>Slot</span><select data-smith-field="slot-filter"><option value="">All slots</option>${Object.entries(SLOT_META).map(([id,s])=>`<option value="${id}" ${ui.smithSlotFilter===id?"selected":""}>${s.label}</option>`).join("")}</select></label></div>`;}
 function doForge() {
   const recipe = forgeSelectedRecipe(); const requirements = requirementsFor(recipe);
+  if(state.level < (recipe.requiredLevel ?? 1)) return showNoticeToast("Forge",`Requires level ${recipe.requiredLevel}.`,"danger");
   if (inventoryFreeSlots() === 0) return showNoticeToast("Kovář", "Inventář je plný.", "danger");
   if (!hasRequirements(requirements)) return showNoticeToast("Kovář", "Chybí potřebné materiály.", "danger");
   if (state.carriedGold < recipe.gold) return showNoticeToast("Kovář", "Nemáš dost neseného zlata.", "danger");
   const prefixId = ui.smithPrefixId || null; const suffixId = ui.smithSuffixId || null;
+  if([prefixId,suffixId].filter(Boolean).some((id)=>(getAffix(id)?.requiredItemLevel ?? 1)>state.level))return showNoticeToast("Forge","Your level is too low for this scroll.","danger");
   const quality = qualityFromRequirements(requirements);
   let item = forgeBaseItem(recipe, quality);
   for (const id of [prefixId, suffixId].filter(Boolean)) {
@@ -3386,7 +3434,7 @@ function renderForgeSmith() {
   const prefixChoices = knownAffixesFor("prefix", preview); const withPrefix = ui.smithPrefixId ? (applyAffixToItem(preview, ui.smithPrefixId).item ?? preview) : preview;
   const suffixChoices = knownAffixesFor("suffix", withPrefix);
   const chance = forgeChance({ prefixId: ui.smithPrefixId, suffixId: ui.smithSuffixId });
-  elements.smithContent.innerHTML = `<div class="smith-grid"><section class="panel smith-recipes"><p class="eyebrow">BASE ITEM</p><h3 class="section-title">Recepty</h3>${FORGE_RECIPES.map((entry) => `<button class="smith-recipe ${entry.id === recipe.id ? "active" : ""}" data-smith-recipe="${entry.id}" type="button"><span>${entry.label}</span><small>TIER ${entry.tier} · ${entry.gold} gold</small></button>`).join("")}</section><section class="panel smith-work"><p class="eyebrow">KOVÁNÍ</p><h3 class="section-title">${recipe.label}</h3><div class="smith-requirements"><h4>Materiály</h4><ul>${requirements.map(materialRequirementText).join("")}</ul><p>Gold <b class="${state.carriedGold >= recipe.gold ? "ok" : "missing"}">${fmtGold(state.carriedGold)}/${recipe.gold}</b></p></div><div class="smith-affixes"><label class="field"><span class="field-label">Prefix (volitelný)</span><select data-smith-field="prefix"><option value="">Bez prefixu</option>${prefixChoices.map((affix) => `<option value="${affix.id}" ${ui.smithPrefixId === affix.id ? "selected" : ""}>${affix.displayName}</option>`).join("")}</select></label><label class="field"><span class="field-label">Suffix (volitelný)</span><select data-smith-field="suffix"><option value="">Bez suffixu</option>${suffixChoices.map((affix) => `<option value="${affix.id}" ${ui.smithSuffixId === affix.id ? "selected" : ""}>${affix.displayName}</option>`).join("")}</select></label></div><p class="smith-probability">Úspěch <strong>${Math.round(chance * 100)} %</strong> · quality se odvodí z nejlepších dostupných variant materiálů.</p><button class="btn primary" data-smith-action="forge" type="button">UKOVAT PŘEDMĚT</button></section><aside class="panel smith-preview"><p class="eyebrow">VÝSLEDEK</p><div class="smith-preview-icon q-slot q-common"></div><h3>${recipe.label}</h3><p class="muted">Sériové číslo po úspěchu: #${String(state.smith.serial + 1).padStart(6, "0")}</p><p class="muted">Všechny naučené svitky jsou použitelné opakovaně; při kování se nespotřebují.</p></aside></div><section class="panel smith-log"><h3 class="section-title">Poslední práce</h3>${smithHistoryHtml()}</section>`;
+elements.smithContent.innerHTML = `<div class="smith-grid"><section class="panel smith-recipes"><p class="eyebrow">BASE ITEM</p><h3 class="section-title">Recepty</h3>${forgeFilterHtml()}<div class="smith-recipe-list">${visibleForgeRecipes().map((entry) => `<button class="smith-recipe ${entry.id === recipe.id ? "active" : ""}" data-smith-recipe="${entry.id}" type="button"><span>${entry.label}</span><small>TIER ${entry.tier} · ${entry.gold} gold</small></button>`).join("")}</div></section><section class="panel smith-work"><p class="eyebrow">KOVÁNÍ</p><h3 class="section-title">${recipe.label}</h3><div class="smith-requirements"><h4>Materiály</h4><ul>${requirements.map(materialRequirementText).join("")}</ul><p>Gold <b class="${state.carriedGold >= recipe.gold ? "ok" : "missing"}">${fmtGold(state.carriedGold)}/${recipe.gold}</b></p></div><div class="smith-affixes"><label class="field"><span class="field-label">Prefix (volitelný)</span><select data-smith-field="prefix"><option value="">Bez prefixu</option>${prefixChoices.map((affix) => `<option value="${affix.id}" ${ui.smithPrefixId === affix.id ? "selected" : ""}>${affix.displayName}</option>`).join("")}</select></label><label class="field"><span class="field-label">Suffix (volitelný)</span><select data-smith-field="suffix"><option value="">Bez suffixu</option>${suffixChoices.map((affix) => `<option value="${affix.id}" ${ui.smithSuffixId === affix.id ? "selected" : ""}>${affix.displayName}</option>`).join("")}</select></label></div><p class="smith-probability">Úspěch <strong>${Math.round(chance * 100)} %</strong> · quality se odvodí z nejlepších dostupných variant materiálů.</p><button class="btn primary" data-smith-action="forge" type="button">UKOVAT PŘEDMĚT</button></section><aside class="panel smith-preview"><p class="eyebrow">VÝSLEDEK</p><div class="smith-preview-icon q-slot q-common"></div><h3>${recipe.label}</h3><p class="muted">Sériové číslo po úspěchu: #${String(state.smith.serial + 1).padStart(6, "0")}</p><p class="muted">Všechny naučené svitky jsou použitelné opakovaně; při kování se nespotřebují.</p></aside></div><section class="panel smith-log"><h3 class="section-title">Poslední práce</h3>${smithHistoryHtml()}</section>`;
   renderItemIcon($(".smith-preview-icon", elements.smithContent), preview); applyQualityVisuals($(".smith-preview-icon", elements.smithContent), { ...preview, quality: DEFAULT_QUALITY });
 }
 function forgeBaseItemPreview(recipe) { const template = findTemplateById(recipe.templateId); return composeItem(recipe.templateId, { ...template, quality: DEFAULT_QUALITY, stats: Object.fromEntries(Object.entries(template.rolls ?? {}).map(([key, range]) => [key, range[1]])), prefix: null, suffix: null }); }
@@ -3466,7 +3514,8 @@ elements.smithContent?.addEventListener("click", (event) => {
 });
 elements.smithContent?.addEventListener("change", (event) => {
   const field = event.target.dataset.smithField; if (!field) return;
-  if (field === "prefix") { ui.smithPrefixId = event.target.value; ui.smithSuffixId = ""; }
+  if(field==="tier-filter"||field==="slot-filter"){ui[field==="tier-filter"?"smithTierFilter":"smithSlotFilter"]=event.target.value;const recipes=visibleForgeRecipes();if(recipes.length)ui.smithRecipeId=recipes[0].id;ui.smithPrefixId="";ui.smithSuffixId="";}
+  else if (field === "prefix") { ui.smithPrefixId = event.target.value; ui.smithSuffixId = ""; }
   else if (field === "suffix") ui.smithSuffixId = event.target.value;
   else if (field === "item") ui.smithItemId = event.target.value;
   renderSmith();
@@ -3685,6 +3734,7 @@ function applyTestItems() {
   const picks = [];
   QUALITY_IDS.forEach((quality, qi) => [0, 1].forEach((k) => picks.push({ templateId: withArt[(qi * 2 + k * 5) % withArt.length].templateId, quality })));
   picks.push({ templateId: "moth-wings", quality: "legendary" }, { templateId: "moth-wings", quality: "epic" });
+  picks.push({ templateId: "greatsword-angels", quality: "mythic" }, { templateId: "greatsword-angels", quality: "legendary" });
   for (const fixed of picks) {
     if (!findTemplateById(fixed.templateId) || state.inventory.length >= CONFIG.inventoryCapacity) continue;
     const item = createItem(enemy, fixed);

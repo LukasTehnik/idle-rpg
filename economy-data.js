@@ -21,9 +21,11 @@ const PROGRESSION_ECONOMY = Object.freeze({
   equipmentDropChance: 0.03, // 15 kusů / h při 500 killech
   affixComposition: Object.freeze({ none: 0.76, prefix: 0.11, suffix: 0.11, both: 0.02 }),
   materialQualityProfiles: Object.freeze({
+    ...(typeof CONTENT_100 !== "undefined" ? CONTENT_100.materialProfiles : {}),
     start: Object.freeze({ common: 0.90, rare: 0.09, epic: 0.01 }),
   }),
   equipmentQualityProfiles: Object.freeze({
+    ...(typeof CONTENT_100 !== "undefined" ? CONTENT_100.profiles : {}),
     start: Object.freeze({ common: 0.935, rare: 0.058, epic: 0.0065, legendary: 0.0005 }),
   }),
   // T1 je záměrně jediný povolený tier pro první živé dropy. Vyšší tiery,
@@ -74,7 +76,7 @@ const POWER_WEIGHTS = Object.freeze({ damageMin: 2, damageMax: 2, maxHp: 0.5, cr
 const SELL_GOLD_PER_POWER = 0.5;
 // Kvality bez uvedeného násobku (legendary, mythic, god) se zatím počítají s 1 — ceny pro ně
 // nejsou součástí 0.5.1 (viz docs/item-visual-rarity-rules.md, „Out of Scope“).
-const SELL_QUALITY_FACTOR = Object.freeze({ common: 1, rare: 1.5, epic: 2.5 });
+const SELL_QUALITY_FACTOR = Object.freeze({ common: 1, rare: 1.5, epic: 2.5, legendary:4, mythic:6, god:10 });
 
 function itemPower(item) {
   const stats = item?.stats ?? {};

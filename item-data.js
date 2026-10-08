@@ -58,7 +58,7 @@ const ITEM_TEMPLATE_DEFS = [
   { name: "Měděný prsten", slot: "charm", icon: "copper-ring", rolls: { damageMax: [1, 3], critChance: [0.3, 1.2] } },
   {
     name: "Meč andělských čepelí", slot: "weapon", icon: "greatsword-angels",
-    image: "assets/icons/items/greatsword-angels.png", glowColor: "#3ad6ff",
+    image: "assets/icons/items/greatsword-angels-pixel.png", iconScale: 1.45, glowColor: "#3ad6ff",
     rolls: { damageMin: [2, 4], damageMax: [4, 7], critChance: [0.4, 1.2] },
     tradeable: false,
     flavorText: "Čepel prý ukovali z pera padlého serafa. Vzduch kolem ní tiše praská modrým výbojem.",
@@ -211,7 +211,7 @@ const ITEM_TEMPLATE_DEFS = [
 // `templateId` je stabilní identifikátor šablony (sbírka, bestiář a uložené
 // instance itemů na něj odkazují). Je shodný s `icon` klíčem, který je unikátní
 // a nikdy se nepřejmenovává — název šablony se změnit smí.
-const ITEM_TEMPLATES = Object.freeze(ITEM_TEMPLATE_DEFS.map((template) => Object.freeze({ ...template, templateId: template.icon })));
+const ITEM_TEMPLATES = Object.freeze([...ITEM_TEMPLATE_DEFS, ...(typeof CONTENT_100 !== "undefined" ? CONTENT_100.items : [])].map((template) => Object.freeze({ ...template, templateId: template.icon })));
 
 // Finds the template a dropped/equipped item instance was created from
 // (matched by icon, which is unique per template). Used by the item detail
@@ -227,7 +227,10 @@ function findItemTemplate(item) {
 // zář určuje výhradně kvalita (viz quality-data.js a docs/item-visual-rarity-rules.md).
 // `glowColor` zůstává v datech jen jako historická poznámka k signature itemům.
 function renderItemIcon(container, item) {
-  container.innerHTML = item.image ? `<img src="${item.image}" alt="" />` : (ICONS[item.icon] ?? "");
+  // `iconScale` (jen volitelně u šablony): obrázek se zvětší přes rámeček ikony (přečuhuje).
+  const iconScale = item.iconScale ?? (item.templateId ? findTemplateById(item.templateId)?.iconScale : null);
+  const scale = item.image && iconScale > 1 ? ` class="icon-oversize" style="--icon-scale:${iconScale}"` : "";
+  container.innerHTML = item.image ? `<img src="${item.image}" alt=""${scale} />` : (ICONS[item.icon] ?? "");
   container.classList.remove("item-glow");
   container.style.removeProperty("--glow-color");
 }

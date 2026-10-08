@@ -1,4 +1,10 @@
-# Idle RPG — Prototype 0.8 (Blacksmithing)
+# Idle RPG — Content milestone: Level 1–100
+
+Ten location bands, forty additional fixed farming targets, 135 new equipment templates, forty tier materials, five seven-piece sets and equipment sources for all 64 existing affixes are connected to the existing smithing and wave-combat systems.
+
+Open [Content Atlas](content-100.html) from [dev tools](dev-tools.html) to inspect live drops, quality profiles, recipes, affix tiers and set bonuses. Specification, working balance and validation: [docs/content-milestone-level-100.md](docs/content-milestone-level-100.md). New names are English; legacy names/UI are retained. Release numbering is intentionally left to the release owner.
+
+## Historical prototype summary (0.8)
 
 Sedmý hratelný prototyp prohlížečového idle RPG. **0.8** přidává první hratelný kovářský loop: cílené materiály → recept → vlastní item se sériovým číslem → upgrade, oprava nebo tavba. Vybraný nepřítel se po porážce vrací na stejný spot. Pracovní balance je popsán v [`docs/balance-framework.md`](docs/balance-framework.md); rozsah kovářství v [`docs/prototype-0.8-smithy.md`](docs/prototype-0.8-smithy.md).
 

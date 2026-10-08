@@ -109,7 +109,9 @@ const STAT_DEFINITIONS = Object.freeze([
   { id: "survive_lethal_once", displayName: "Survive lethal damage", valueType: "triggered", operation: "trigger", format: "triggerSurvive", stackingRule: "unique_equipped", cap: null, enabled: true, version: 1, polarity: "positive", comparison: "higherIsBetter", calc: "prepared", unit: "", system: "run-expedition-triggers" },
 ]);
 
-const STATS = Object.freeze(Object.fromEntries(STAT_DEFINITIONS.map((definition) => [definition.id, definition])));
+// Content 100 wires these definitions into the live combat/reward loop.
+// The historical test fixture without content keeps its original readiness.
+const STATS = Object.freeze(Object.fromEntries(STAT_DEFINITIONS.map((definition) => [definition.id, typeof CONTENT_100 !== "undefined" ? {...definition,calc:"active"} : definition])));
 
 // --- Formátování --------------------------------------------------------------
 function statNumber(value, digits = 2) {

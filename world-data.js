@@ -158,7 +158,8 @@ const ENEMY_TYPE_LABELS = Object.freeze({
   common: "COMMON", uncommon: "UNCOMMON", rare: "RARE", elite: "ELITE", boss: "BOSS",
 });
 
-const ENEMIES = Object.freeze({
+const LEGACY_ENEMIES = Object.freeze({
+  ...(typeof CONTENT_100 !== "undefined" ? CONTENT_100.enemies : {}),
   goblin: {
     id: "goblin", locationId: "okraj-stareho-lesa", name: "Goblin", level: 1, type: "common", image: null,
     maxHp: 48, minDamage: 5, maxDamage: 8, defense: 0, xp: 10, gold: 1,
@@ -409,6 +410,18 @@ const ENEMIES = Object.freeze({
   },
 });
 
+// Preserve source IDs and their art; retune existing non-Goblin spots to the
+// same progression as the new world. Goblin remains the original starter.
+const ENEMIES = typeof CONTENT_100 === "undefined" ? LEGACY_ENEMIES : Object.freeze(Object.fromEntries(Object.entries(LEGACY_ENEMIES).map(([id,enemy])=>{
+  if(id.startsWith("c100-") || id==="goblin") return [id,enemy];
+  const band=CONTENT_100.locations.find((location)=>location.id===enemy.locationId);
+  if(!band)return [id,enemy];
+  const role=enemy.type==="boss" ? 4 : enemy.type==="elite" ? 3 : 1;
+  const model=CONTENT_100.enemies[`c100-t${band.itemTier}-e${role}`];
+  const materialDrops=(enemy.materialDrops ?? []).map((drop)=>({...drop,chance:Math.min(drop.chance,.16),qualityProfile:`c100-t${band.itemTier}`}));
+  return [id,{...enemy,...model,id,name:enemy.name,image:enemy.image,materialDrops,dropPool:[...new Set([...(enemy.dropPool ?? []),...model.dropPool])]}];
+})));
+
 // Prototype 0.7: oblast je lehká datová vrstva mezi lokací a nepřítelem.
 // Nepřítel zůstává jedním konkrétním cílem farmení; area pouze zpřehledňuje
 // mapu a obsah. Všechny oblasti jsou nyní dostupné, bez odemykání a poplatků.
@@ -428,6 +441,7 @@ const AREA_DEFS = [
   { id: "core-nursery", locationId: "elektrika", name: "Líheň jádra", shortDescription: "Nejhlubší komora zarostlého serveru.", enemyIds: ["elektrika-e05"], order: 3 },
 ];
 
+if (typeof CONTENT_100 !== "undefined") AREA_DEFS.push(...CONTENT_100.areas);
 const AREAS = Object.freeze(Object.fromEntries(AREA_DEFS.map((area) => [area.id, Object.freeze({ ...area, status: area.status ?? "available" })])));
 const ENEMY_AREA_IDS = Object.freeze(Object.fromEntries(AREA_DEFS.flatMap((area) => area.enemyIds.map((enemyId) => [enemyId, area.id]))));
 function getAreasForLocation(locationId) { return Object.values(AREAS).filter((area) => area.locationId === locationId).sort((a, b) => a.order - b.order); }
@@ -453,7 +467,11 @@ function finalizeLocations(defs) {
   }
   return Object.freeze(result);
 }
-const LOCATIONS = finalizeLocations(LOCATION_DEFS);
+const CONTENT_LOCATION_DEFS = typeof CONTENT_100 === "undefined" ? LOCATION_DEFS : CONTENT_100.locations.map((location) => {
+  const legacy = LOCATION_DEFS.find((entry) => entry.id === location.id);
+  return {...legacy,...location,backgroundAsset:legacy?.backgroundAsset ?? null,enemyIds:[...(legacy?.enemyIds ?? []),...location.enemyIds],itemIds:[...new Set([...(legacy?.itemIds ?? []),...location.itemIds])]};
+});
+const LOCATIONS = finalizeLocations(CONTENT_LOCATION_DEFS);
 
 function pluralizeNepritel(count) {
   if (count === 1) return "nepřítel";

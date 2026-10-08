@@ -57,7 +57,9 @@
       <div id="catMeta" class="kv-list kv-list-meta"></div>
     </aside>
 
+    <script src="content-100-data.js"></script>
     <script src="quality-data.js"></script>
+    <script src="itemization-data.js"></script>
     <script src="item-data.js"></script>
     <script src="economy-data.js"></script>
     <script src="material-data.js"></script>
@@ -100,7 +102,7 @@
 
         const slot = document.createElement("span");
         slot.className = "catalog-slot";
-        slot.textContent = SLOT_META[item.slot]?.label ?? item.slot;
+        slot.textContent = (SLOT_META[item.slot]?.label ?? item.slot)+(item.itemTier ? ` · T${item.itemTier} · Lv ${item.requiredLevel}` : "");
         card.appendChild(slot);
 
         if (item.quality) {
@@ -120,7 +122,10 @@
 
         const rolls = document.createElement("div");
         rolls.className = "catalog-rolls";
-        Object.entries(item.rolls).forEach(([key, range]) => {
+        const low=rollItemStats(item,{quality:item.quality??"common",itemTier:item.itemTier??1,rng:()=>0}).baseStats;
+        const high=rollItemStats(item,{quality:item.quality??"common",itemTier:item.itemTier??1,rng:()=>1}).baseStats;
+        Object.keys(low).forEach((key) => {
+          const range=[low[key],high[key]];
           const row = document.createElement("div");
           const label = document.createElement("span");
           label.textContent = ROLL_LABELS[key] ?? key;

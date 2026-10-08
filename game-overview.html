@@ -68,6 +68,7 @@
     </main>
 
     <!-- Pouze datové soubory. Záměrně se NENAČÍTÁ app.js ani cloud-sync.js: stránka nesmí sahat na save ani na Supabase. -->
+    <script src="content-100-data.js"></script>
     <script src="quality-data.js"></script>
     <script src="itemization-data.js"></script>
     <script src="item-data.js"></script>
@@ -121,7 +122,7 @@
       const templateList = list(D.templates);
       const materialList = Object.values(D.materials ?? {});
       const affixList = list(D.affixes);
-      const qualityLabel = (id) => D.qualities?.[id]?.label ?? String(id).toUpperCase();
+      const overviewQualityLabel = (id) => D.qualities?.[id]?.label ?? String(id).toUpperCase();
       const slotLabel = (id) => D.slots?.[id]?.label ?? id;
       const enemyName = (id) => D.enemies?.[id]?.name ?? null;
       const locationName = (id) => D.locations?.[id]?.name ?? null;
@@ -129,7 +130,7 @@
       const templateName = (id) => templateList.find((t) => t.templateId === id)?.name ?? null;
       const materialName = (id) => D.materials?.[id]?.name ?? null;
       const profileOf = (kind, id) => D.economy?.[kind]?.[id];
-      const distribution = (profile, base = 1) => entries(profile).map(([q, p]) => `${tag(qualityLabel(q))}${pct(Number(p) * base)}`).join(" ");
+      const distribution = (profile, base = 1) => entries(profile).map(([q, p]) => `${tag(overviewQualityLabel(q))}${pct(Number(p) * base)}`).join(" ");
 
       // ---------------------------------------------------------------- kontrola chybějících definic
       const issues = [];
@@ -278,8 +279,8 @@
             finalCell = profile ? distribution(profile, Number(raw.chance)) : MISSING;
           } else {
             const q = raw.quality ?? material?.defaultQuality;
-            qualityCell = has(q) ? `${tag(qualityLabel(q))}${has(raw.quality) ? "" : '<span class="muted">(default materiálu)</span>'}` : MISSING;
-            finalCell = has(q) ? `${tag(qualityLabel(q))}${pct(raw.chance)}` : MISSING;
+            qualityCell = has(q) ? `${tag(overviewQualityLabel(q))}${has(raw.quality) ? "" : '<span class="muted">(default materiálu)</span>'}` : MISSING;
+            finalCell = has(q) ? `${tag(overviewQualityLabel(q))}${pct(raw.chance)}` : MISSING;
           }
           rows.push([
             material ? `${esc(material.name)} ${code(raw.templateId)}` : `${code(raw.templateId)} ${MISSING}`,
@@ -302,7 +303,7 @@
             if (!(Number(e.dropChance) > 0)) equipmentQuality = '<span class="muted">bez equipment dropu</span>';
             else if (eqProfile) equipmentQuality = `${code(e.equipmentQualityProfile)} ${distribution(eqProfile, Number(e.dropChance))}`;
             else if (has(e.equipmentQualityProfile)) equipmentQuality = `${code(e.equipmentQualityProfile)} ${MISSING}`;
-            else if (D.legacyRoll) equipmentQuality = `<span class="muted">legacy ITEM_QUALITY_ROLL:</span> ${entries(D.legacyRoll).map(([q, v]) => `${tag(qualityLabel(q))}${num((Number(v.weight) / 100) * Number(e.dropChance) * 100, 3)} %`).join(" ")}`;
+            else if (D.legacyRoll) equipmentQuality = `<span class="muted">legacy ITEM_QUALITY_ROLL:</span> ${entries(D.legacyRoll).map(([q, v]) => `${tag(overviewQualityLabel(q))}${num((Number(v.weight) / 100) * Number(e.dropChance) * 100, 3)} %`).join(" ")}`;
             else equipmentQuality = MISSING;
             return [
               `${esc(e.name)}<br>${code(e.id)}`, tag(D.enemyTypes?.[e.type] ?? e.type ?? "?"), or(e.level, num), or(e.maxHp, num),
@@ -348,7 +349,7 @@
         });
         const qualityRows = list(D.qualityIds).map((id) => {
           const rule = D.qualityRules?.[id];
-          return [esc(qualityLabel(id)), or(D.qualities?.[id]?.rank, num), rule ? num(rule.primaryMultiplier) : MISSING, rule ? esc(rule.secondaryCount) : MISSING];
+          return [esc(overviewQualityLabel(id)), or(D.qualities?.[id]?.rank, num), rule ? num(rule.primaryMultiplier) : MISSING, rule ? esc(rule.secondaryCount) : MISSING];
         });
         const tierRows = entries(D.tierRules).map(([t, r]) => [`T${esc(t)}`, num(r.primaryMultiplier), num(r.secondaryMultiplier)]);
         const secondaryRows = list(D.secondaryPool).map((s) => [code(s.id), entries(s.stats).map(([k, v]) => `<div>${statRange(k, v)}</div>`).join("")]);
@@ -375,9 +376,9 @@
           const used = list(D.recipes).filter((r) => (r.materials ?? []).some((x) => x.id === m.id));
           const hasSource = drops.length || list(m.sourceEnemyIds).length;
           return [
-            `${esc(m.name)}<br>${code(m.id)}`, tag(D.materialCategories?.[m.category] ?? m.category ?? "?"), or(m.defaultQuality, (q) => tag(qualityLabel(q))),
+            `${esc(m.name)}<br>${code(m.id)}`, tag(D.materialCategories?.[m.category] ?? m.category ?? "?"), or(m.defaultQuality, (q) => tag(overviewQualityLabel(q))),
             hasSource ? [
-              ...drops.map(({ e, d }) => `<div>${esc(e.name)} ${code(e.id)} · ${pct(d.chance)}${d.qualityProfile ? ` · profil ${code(d.qualityProfile)}` : ` · ${esc(qualityLabel(d.quality ?? m.defaultQuality))}`}</div>`),
+              ...drops.map(({ e, d }) => `<div>${esc(e.name)} ${code(e.id)} · ${pct(d.chance)}${d.qualityProfile ? ` · profil ${code(d.qualityProfile)}` : ` · ${esc(overviewQualityLabel(d.quality ?? m.defaultQuality))}`}</div>`),
               ...list(m.sourceEnemyIds).filter((id) => !drops.some(({ e }) => e.id === id)).map((id) => `<div>${enemyRef(id)} ${tag("jen v sourceEnemyIds, bez drop záznamu", "bad")}</div>`),
             ].join("") : MISSING,
             has(m.sourceLocationId) ? esc(locationName(m.sourceLocationId) ?? m.sourceLocationId) + (locationName(m.sourceLocationId) ? "" : ` ${MISSING}`) : MISSING,
@@ -455,9 +456,9 @@
         const equipProfile = profileOf("equipmentQualityProfiles", "start");
         const qualityRows = entries(equipProfile).map(([q, p]) => {
           const rate = has(perHour) ? perHour * Number(p) : undefined;
-          return [tag(qualityLabel(q)), pct(p), has(rate) ? `${num(rate, 4)} ks` : MISSING, has(rate) && rate > 0 ? `${num(1 / rate, 1)} h` : MISSING];
+          return [tag(overviewQualityLabel(q)), pct(p), has(rate) ? `${num(rate, 4)} ks` : MISSING, has(rate) && rate > 0 ? `${num(1 / rate, 1)} h` : MISSING];
         });
-        const matRows = entries(profileOf("materialQualityProfiles", "start")).map(([q, p]) => [tag(qualityLabel(q)), pct(p)]);
+        const matRows = entries(profileOf("materialQualityProfiles", "start")).map(([q, p]) => [tag(overviewQualityLabel(q)), pct(p)]);
         const comp = e?.affixComposition;
         const affixed = has(comp) ? entries(comp).filter(([k]) => k !== "none").reduce((s, [, v]) => s + Number(v), 0) : undefined;
         const compRows = entries(comp).map(([k, v]) => [tag(k), pct(v), has(perHour) ? `${num(perHour * Number(v), 4)} ks` : MISSING]);
@@ -469,7 +470,7 @@
         ] : [];
         const dropEnemies = enemyList.filter((x) => Number(x.dropChance) > 0);
         const enemyRows = dropEnemies.map((x) => [`${esc(x.name)} ${code(x.id)}`, esc(locationName(x.locationId) ?? x.locationId), pct(x.dropChance), or(x.itemTier, (v) => `T${esc(v)}`), has(x.equipmentQualityProfile) ? code(x.equipmentQualityProfile) : '<span class="muted">legacy ITEM_QUALITY_ROLL</span>', affixPoolText(x)]);
-        const legacyRows = entries(D.legacyRoll).map(([q, v]) => [tag(qualityLabel(q)), `${num(v.weight)} %`, num(v.statMultiplier)]);
+        const legacyRows = entries(D.legacyRoll).map(([q, v]) => [tag(overviewQualityLabel(q)), `${num(v.weight)} %`, num(v.statMultiplier)]);
         return `
           <h2>Tempo a equipment drop</h2>
           ${note("Odvozené hodnoty jsou jen jednoduchý součin hodnot z <code>PROGRESSION_ECONOMY</code>: kills/h × šance equipmentu. Jiná tempa nejsou v datech definována, proto se nezobrazují.")}

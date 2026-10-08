@@ -348,7 +348,7 @@ function applyStatCap(statId, raw) {
 
 // Výsledné časy po uplatnění minimálních hodnot (útok 0,65 s, hledání 0,75 s, návrat 2 s).
 function computeEffectiveTimes(totals, bases = AFFIX_DEFAULT_BASES) {
-  const attackRaw = bases.attackInterval * (1 - (totals.attack_speed ?? 0) / 100);
+  const attackRaw = typeof CONTENT_100!=="undefined" ? bases.attackInterval/(1+Math.max(-90,totals.attack_speed ?? 0)/100) : bases.attackInterval * (1 - (totals.attack_speed ?? 0) / 100);
   const searchRaw = bases.searchTime + (totals.search_time ?? 0);
   const reviveRaw = bases.reviveTime + (totals.revive_time ?? 0);
   const floor = (value, id) => Math.max(STATS[id].cap.min, Math.round(value * 1000) / 1000);

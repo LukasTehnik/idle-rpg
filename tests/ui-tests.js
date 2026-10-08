@@ -159,7 +159,7 @@ const SAVE_KEY = "idle-rpg-prototype-v02";
   // Prototype 0.10: affixy na dropech smí nést JEN startovní Goblin (affixTier 1) a jen
   // T1 kompatibilní se slotem. Ostatní nepřátelé affixy nenesou; svitky z tavení a
   // „živé" affixy (enabledInLiveDrops) zůstávají vypnuté.
-  await test("dropy: affixy jen z Goblina (T1, správný slot); jinde žádné; žádné svitky", async () => {
+  await test("dropy: kompatibilní affixy napříč světem; žádné přímé svitky", async () => {
     const page = await newPage();
     await page.goto(`${BASE}/index.html`); await page.waitForTimeout(300);
     const r = await page.evaluate(() => {
@@ -168,13 +168,13 @@ const SAVE_KEY = "idle-rpg-prototype-v02";
         for (let i = 0; i < 300; i += 1) {
           const item = createItem(enemy); const affixes = [item.prefix, item.suffix].filter(Boolean);
           if (enemy.id === "goblin") { if (affixes.length) goblinWithAffix += 1; } else if (affixes.length) otherWithAffix += 1;
-          for (const a of affixes) { const d = AFFIXES[a.affixId]; if (d.tier !== 1) badTier += 1; if (!d.allowedSlots.includes(item.slot)) badSlot += 1; }
+          for (const a of affixes) { const d = AFFIXES[a.affixId]; if (!enemy.affixTierPool?.[d.tier]) badTier += 1; if (!content100AffixEligible(d,enemy,item)) badSlot += 1; }
         }
       }
       return { otherWithAffix, goblinWithAffix, badTier, badSlot, scrolls: state.affixScrolls.length, live: getLiveDropAffixIds().length };
     });
     // 300 Goblinů × 24 % ≈ 72 s affixem; rozumné pásmo 40–110.
-    assert(r.otherWithAffix === 0 && r.badTier === 0 && r.badSlot === 0 && r.scrolls === 0 && r.live === 0 && r.goblinWithAffix > 40 && r.goblinWithAffix < 110, JSON.stringify(r));
+    assert(r.otherWithAffix > 100 && r.badTier === 0 && r.badSlot === 0 && r.scrolls === 0 && r.live === 0 && r.goblinWithAffix > 40 && r.goblinWithAffix < 110, JSON.stringify(r));
   });
 
   console.log("Interní affix katalog (desktop)");
