@@ -1,0 +1,13 @@
+{
+  "name": "idle-rpg-prototype",
+  "private": true,
+  "description": "Idle RPG prototype. Hra sama nemá žádné závislosti; package.json slouží jen jako spouštěč vývojářských nástrojů.",
+  "scripts": {
+    "balance:sim": "node tools/balance-sim/run-simulation.js",
+    "balance:report": "node tools/balance-sim/report.js",
+    "balance:test": "node tools/balance-sim/tests/regression.js",
+    "balance:baseline": "node tools/balance-sim/run-simulation.js --save-baseline",
+    "balance:check": "node tools/balance-sim/run-simulation.js --compare-baseline",
+    "balance:verify": "npm run balance:test && npm run balance:check"
+  }
+}
