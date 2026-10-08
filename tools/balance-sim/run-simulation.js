@@ -8,6 +8,9 @@
 //   --save-baseline          po běhu uloží report jako baseline (reports/balance-sim/baseline/report.json)
 //   --compare-baseline       po běhu porovná s baseline; bez --seeds/--scenario převezme seedy i scénáře z baseline
 //   --baseline <soubor>      jiná cesta k baseline
+//   --trace                  uloží i záznam událostí pro Simulation Viewer (<out>/trace/<scénář>-seed-N.json)
+//   --trace-detail <druh>    standard (výchozí: bez jednotlivých zabití) | full (každé zabití + minisnímky po 60 s)
+//   --sample-seconds N       perioda minisnímků v trace (výchozí 0, u full 60)
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -19,7 +22,7 @@ const DEFAULT_OUT = path.join(REPO_ROOT, "reports", "balance-sim", "latest");
 const DEFAULT_BASELINE = path.join(REPO_ROOT, "reports", "balance-sim", "baseline", "report.json");
 
 function parseArgs(argv) {
-  const o = { scenarios: [], seeds: null, out: DEFAULT_OUT, root: REPO_ROOT, jobs: null, strict: false, quiet: false, saveBaseline: false, compareBaseline: false, baseline: DEFAULT_BASELINE, worker: false, seed: null, help: false };
+  const o = { scenarios: [], seeds: null, out: DEFAULT_OUT, root: REPO_ROOT, jobs: null, strict: false, quiet: false, trace: false, traceDetail: "standard", sampleSeconds: null, saveBaseline: false, compareBaseline: false, baseline: DEFAULT_BASELINE, worker: false, seed: null, help: false };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i]; const next = () => { const v = argv[++i]; if (v === undefined) throw new Error(`Přepínač ${a} vyžaduje hodnotu.`); return v; };
     if (a === "--scenario" || a === "--scenarios") o.scenarios.push(...next().split(",").map((s) => s.trim()).filter(Boolean));
@@ -29,6 +32,9 @@ function parseArgs(argv) {
     else if (a === "--root") o.root = path.resolve(next());
     else if (a === "--jobs") o.jobs = Number(next());
     else if (a === "--strict") o.strict = true;
+    else if (a === "--trace") o.trace = true;
+    else if (a === "--trace-detail") { o.traceDetail = next(); o.trace = true; if (!["standard", "full"].includes(o.traceDetail)) throw new Error("--trace-detail čeká standard nebo full."); }
+    else if (a === "--sample-seconds") o.sampleSeconds = Number(next());
     else if (a === "--save-baseline") o.saveBaseline = true;
     else if (a === "--compare-baseline") o.compareBaseline = true;
     else if (a === "--baseline") o.baseline = path.resolve(next());
@@ -57,14 +63,32 @@ function plan(options) {
 async function runWorker(options) {
   const { simulateSeed } = require("./lib/run");
   const { checkpoints, maxHours } = plan(options);
-  const result = await simulateSeed({ root: options.root, seed: options.seed, checkpoints, maxHours, onProgress: options.quiet ? null : (p) => process.stderr.write(`  seed ${p.seed}: ${p.hours} h, level ${p.level}, ${p.kills} zabití, ${p.deaths} smrtí\n`) });
+  const trace = options.trace ? { detail: options.traceDetail, sampleSeconds: options.sampleSeconds ?? undefined } : null;
+  const result = await simulateSeed({ root: options.root, seed: options.seed, checkpoints, maxHours, trace, onProgress: options.quiet ? null : (p) => process.stderr.write(`  seed ${p.seed}: ${p.hours} h, level ${p.level}, ${p.kills} zabití, ${p.deaths} smrtí\n`) });
   fs.mkdirSync(path.join(options.out, "raw"), { recursive: true });
-  fs.writeFileSync(path.join(options.out, "raw", `seed-${options.seed}.json`), JSON.stringify(result));
+  const { trace: traceData, ...raw } = result;
+  fs.writeFileSync(path.join(options.out, "raw", `seed-${options.seed}.json`), JSON.stringify(raw));
+  if (traceData) writeTraces(options, raw, traceData);
+}
+
+// Pro každý scénář uloží trace zkrácený na jeho checkpoint + malý soubor *.meta.json pro seznam ve Vieweru.
+function writeTraces(options, raw, trace) {
+  const dir = path.join(options.out, "trace"); fs.mkdirSync(dir, { recursive: true });
+  for (const [scenarioId, snap] of Object.entries(raw.results)) {
+    const end = snap.traceEnd; const sc = getScenario(scenarioId);
+    const meta = { scenario: scenarioId, title: sc?.title ?? scenarioId, seed: trace.seed, reached: snap.reached, detail: trace.detail, sampleMs: trace.sampleMs, gameFingerprint: trace.gameFingerprint, endHours: snap.virtualHours, level: snap.snap.level, events: end.events, frames: end.frames, ticks: end.ticks };
+    const file = `${scenarioId}-seed-${trace.seed}`;
+    const body = { schema: trace.schema, kind: trace.kind, meta, seed: trace.seed, gameFingerprint: trace.gameFingerprint, detail: trace.detail, cycleMs: trace.cycleMs, sampleMs: trace.sampleMs, scenario: { id: scenarioId, title: meta.title, checkpoint: sc?.checkpoint ?? null }, dictionary: trace.dictionary,
+      events: trace.events.slice(0, end.events), ticks: trace.ticks.slice(0, end.ticks), frames: trace.frames.slice(0, end.frames) };
+    fs.writeFileSync(path.join(dir, `${file}.json`), JSON.stringify(body)); fs.writeFileSync(path.join(dir, `${file}.meta.json`), JSON.stringify(meta));
+  }
 }
 
 function spawnWorker(options, seed) {
   const args = [__filename, "--worker", "--seed", String(seed), "--out", options.out, "--root", options.root, "--scenario", plan(options).scenarios.map((s) => s.id).join(",")];
   if (options.quiet) args.push("--quiet");
+  if (options.trace) args.push("--trace-detail", options.traceDetail);
+  if (options.sampleSeconds !== null) args.push("--sample-seconds", String(options.sampleSeconds));
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, args, { stdio: ["ignore", "inherit", "inherit"] });
     child.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`Běh se seedem ${seed} selhal (kód ${code}).`))));

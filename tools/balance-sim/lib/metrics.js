@@ -69,6 +69,18 @@ function targetStats(snapshot) {
   return { changeCount: m.targetChangeCount, reasons, byTarget: rows, changes: m.targetChanges };
 }
 
+
+// Průběh po 10 hodinách herního času (z hodinových snímků): level, zabití, smrti, gold, dropy podle kvality, dropy s affixem, materiály
+function timelineStats(snapshot, every = 10) {
+  const rows = [];
+  for (const s of snapshot.series) {
+    if (Math.round(s.tHours) % every !== 0) continue;
+    rows.push({ hour: Math.round(s.tHours), level: s.level, kills: s.kills, deaths: s.deaths, goldEarned: s.goldEarned, goldFromSales: s.goldFromSales, bank: s.bank, carried: s.carried,
+      drops: s.drops?.total ?? null, rare: s.drops?.byQ?.rare ?? 0, epic: s.drops?.byQ?.epic ?? 0, legendary: s.drops?.byQ?.legendary ?? 0, withAffix: s.drops?.affixed ?? null, materials: s.matsFound ?? null });
+  }
+  return rows.filter((r, i, a) => a.findIndex((q) => q.hour === r.hour) === i);
+}
+
 function computeMetrics(snapshot, options = {}) {
   const { m, snap, stats } = snapshot; const hours = snapshot.virtualHours;
   const timeToLevel = {}; for (const level of LEVEL_MILESTONES) timeToLevel[level] = m.levelAt[level] ?? null;
@@ -76,6 +88,7 @@ function computeMetrics(snapshot, options = {}) {
   const spentTotal = sum(spent), balance = snap.carried + snap.bank;
   const gold = { earned: snap.goldEarned, fromSales: snap.goldFromSales, spent, spentTotal, lostToDeath: snap.goldLostToDeath, balance, unreconciled: snap.goldEarned - spentTotal - snap.goldLostToDeath - balance };
   const matByTier = {}; for (const [id, qty] of Object.entries(m.matGain)) { const t = materialTier(id); matByTier[t] = (matByTier[t] || 0) + qty; }
+  const matByKind = {}; for (const [id, qty] of Object.entries(m.matGain)) { const kind = id.replace(/^t\d+-/, ''); matByKind[kind] = (matByKind[kind] || 0) + qty; }
   const gear = {};
   for (let tier = 1; tier <= 10; tier += 1) {
     const four = m.gearTier[tier] ?? null, one = m.gearTierAny[tier] ?? null, levelOk = tier === 1 ? 1 : (m.levelAt[10 * (tier - 1) + 1] ?? null);
@@ -89,14 +102,15 @@ function computeMetrics(snapshot, options = {}) {
     kills: snap.kills, deaths: snap.deaths, killsPerHour: Math.round(snap.kills / Math.max(hours, 1e-9)), deathsPerHour: r1(snap.deaths / Math.max(hours, 1e-9)),
     timeToLevel: Object.fromEntries(Object.entries(timeToLevel).map(([k, v]) => [k, r1(v)])),
     bands, gold,
-    materials: { found: sum(m.matGain), byTier: matByTier, smeltRecovered: sum(m.smeltGain) },
+    materials: { found: sum(m.matGain), byTier: matByTier, byKind: matByKind, smeltRecovered: sum(m.smeltGain) },
     crafting: { forged: m.forge.ok, forgeFailed: m.forge.fail, forgedByTier: m.forge.byTier, upgrades: m.upgrade.ok, upgradeFailures: m.upgrade.fail, repairs: m.repairs, smelts: m.smelts, itemsSold: m.sold, scrollsLearned: m.scrollsLearned, repairGold: m.spend.repair },
-    drops: { total: m.dropsTotal, byQuality: m.dropsByQ, byTier: m.dropsByTier, withAffix: m.dropsAffixed, affixesByTier: m.affixDropsByTier, affixesByKind: m.affixDropsByKind, first },
-    gearTier: gear,
+    drops: { total: m.dropsTotal, byQuality: m.dropsByQ, byTier: m.dropsByTier, withAffix: m.dropsAffixed, affixesByTier: m.affixDropsByTier, affixesByKind: m.affixDropsByKind, byQualityAffix: m.dropsByQAffix ?? {}, first },
+    gearTier: gear, timeline: timelineStats(snapshot),
     targets: targetStats(snapshot), boss: bossStats(snapshot, options),
     firstHour: snapshot.series[0] ? { kills: snapshot.series[0].kills, deaths: snapshot.series[0].deaths } : null,
     errors: snapshot.errors, stalled: snapshot.stalled, rngCalls: snapshot.rngCalls,
     itemsFound: stats.itemsFound, materialsFound: stats.materialsFound,
+    coreFragments: snap.core ?? 0, unclaimedAtEnd: snap.unclaimed ?? 0,
   };
 }
 

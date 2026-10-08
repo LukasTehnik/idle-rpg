@@ -1,0 +1,624 @@
+{
+ "_comment": "Seznam systémů hry ovlivňujících progres a jak s nimi simulátor nakládá. Viz coverage.js (hlavička). Statusy: covered | measured | ignored | gap.",
+ "signals": {
+  "script:app.js": {
+   "status": "covered",
+   "bot": [
+    "performSale"
+   ],
+   "metric": [
+    "level",
+    "kills"
+   ]
+  },
+  "script:content-100-data.js": {
+   "status": "covered",
+   "bot": [
+    "ENEMIES"
+   ],
+   "metric": [
+    "level"
+   ]
+  },
+  "script:quality-data.js": {
+   "status": "covered",
+   "bot": [
+    "qualityRank"
+   ],
+   "metric": [
+    "byQuality"
+   ]
+  },
+  "script:itemization-data.js": {
+   "status": "covered",
+   "bot": [
+    "itemTier"
+   ],
+   "metric": [
+    "byTier"
+   ]
+  },
+  "script:item-data.js": {
+   "status": "covered",
+   "bot": [
+    "SLOT_META"
+   ],
+   "metric": [
+    "gearTier"
+   ]
+  },
+  "script:economy-data.js": {
+   "status": "covered",
+   "bot": [
+    "smeltYield"
+   ],
+   "metric": [
+    "gold"
+   ]
+  },
+  "script:balance-data.js": {
+   "status": "covered",
+   "bot": [
+    "ENEMIES"
+   ],
+   "metric": [
+    "deathsPerHour"
+   ]
+  },
+  "script:material-data.js": {
+   "status": "covered",
+   "bot": [
+    "MATERIALS"
+   ],
+   "metric": [
+    "byKind"
+   ]
+  },
+  "script:world-data.js": {
+   "status": "covered",
+   "bot": [
+    "ENEMIES"
+   ],
+   "metric": [
+    "targets"
+   ]
+  },
+  "script:stat-data.js": {
+   "status": "covered",
+   "bot": [
+    "getPlayerStats"
+   ],
+   "metric": [
+    "level"
+   ]
+  },
+  "script:affix-data.js": {
+   "status": "covered",
+   "bot": [
+    "getAffix"
+   ],
+   "metric": [
+    "affixesByTier"
+   ]
+  },
+  "script:affix-logic.js": {
+   "status": "covered",
+   "bot": [
+    "getAffix"
+   ],
+   "metric": [
+    "affixesByKind"
+   ]
+  },
+  "script:smith-data.js": {
+   "status": "covered",
+   "bot": [
+    "requirementsFor"
+   ],
+   "metric": [
+    "forged"
+   ]
+  },
+  "script:scroll-ui.js": {
+   "status": "ignored",
+   "reason": "Vykreslení svitků (UI), nemění stav hry."
+  },
+  "script:combat-field.js": {
+   "status": "ignored",
+   "reason": "Vizuální bojové pole; v simulátoru vypnuté (window.CombatField = null), boj počítá app.js."
+  },
+  "script:cloud-sync.js": {
+   "status": "ignored",
+   "reason": "Cloudové ukládání a přihlášení; simulátor běží bez přihlášení a nemění progres."
+  },
+  "state:level": {
+   "status": "covered",
+   "bot": [
+    "level"
+   ],
+   "metric": [
+    "level"
+   ]
+  },
+  "state:xp": {
+   "status": "covered",
+   "bot": [
+    "xp"
+   ],
+   "metric": [
+    "timeToLevel"
+   ]
+  },
+  "state:kills": {
+   "status": "covered",
+   "bot": [
+    "kills"
+   ],
+   "metric": [
+    "kills"
+   ]
+  },
+  "state:carriedGold": {
+   "status": "covered",
+   "bot": [
+    "carriedGold"
+   ],
+   "metric": [
+    "gold"
+   ]
+  },
+  "state:bankGold": {
+   "status": "covered",
+   "bot": [
+    "bankGold"
+   ],
+   "metric": [
+    "balance"
+   ]
+  },
+  "state:food": {
+   "status": "covered",
+   "bot": [
+    "buyFood"
+   ],
+   "metric": [
+    "food"
+   ]
+  },
+  "state:inventory": {
+   "status": "covered",
+   "bot": [
+    "inventory"
+   ],
+   "metric": [
+    "itemsSold"
+   ]
+  },
+  "state:affixScrolls": {
+   "status": "covered",
+   "bot": [
+    "affixScrolls"
+   ],
+   "metric": [
+    "scrollsGot"
+   ]
+  },
+  "state:knownAffixes": {
+   "status": "covered",
+   "bot": [
+    "knownAffixes",
+    "learnScroll"
+   ],
+   "metric": [
+    "scrollsLearned"
+   ]
+  },
+  "state:smith": {
+   "status": "covered",
+   "bot": [
+    "doForge"
+   ],
+   "metric": [
+    "forged"
+   ]
+  },
+  "state:materials": {
+   "status": "covered",
+   "bot": [
+    "materials"
+   ],
+   "metric": [
+    "byKind"
+   ]
+  },
+  "state:equipment": {
+   "status": "covered",
+   "bot": [
+    "equipItem"
+   ],
+   "metric": [
+    "gearTier"
+   ]
+  },
+  "state:currentEnemyId": {
+   "status": "covered",
+   "bot": [
+    "currentEnemyId"
+   ],
+   "metric": [
+    "targets"
+   ]
+  },
+  "state:activeLocationId": {
+   "status": "covered",
+   "bot": [
+    "enterLocation"
+   ],
+   "metric": [
+    "targets"
+   ]
+  },
+  "state:run": {
+   "status": "covered",
+   "bot": [
+    "targetEnemyId"
+   ],
+   "metric": [
+    "targets"
+   ]
+  },
+  "state:player": {
+   "status": "covered",
+   "bot": [
+    "getPlayerStats"
+   ],
+   "metric": [
+    "deathsPerHour"
+   ]
+  },
+  "state:phase": {
+   "status": "covered",
+   "bot": [
+    "phase"
+   ],
+   "metric": [
+    "deaths"
+   ]
+  },
+  "state:running": {
+   "status": "covered",
+   "bot": [
+    "running"
+   ],
+   "metric": [
+    "killsPerHour"
+   ]
+  },
+  "state:stats": {
+   "status": "covered",
+   "bot": [
+    "stats"
+   ],
+   "metric": [
+    "earned"
+   ]
+  },
+  "state:drops": {
+   "status": "measured",
+   "metric": [
+    "drops"
+   ],
+   "reason": "Počet dropů se jen měří."
+  },
+  "state:coreFragments": {
+   "status": "measured",
+   "metric": [
+    "coreFragments"
+   ],
+   "reason": "Úlomky jádra mají zdroj (vzácný drop), ale zatím žádné využití; bot je jen sbírá, simulátor je měří (coreFragments v metrikách)."
+  },
+  "state:unclaimed": {
+   "status": "measured",
+   "metric": [
+    "unclaimedAtEnd"
+   ],
+   "reason": "Kořist nad kapacitu inventáře; bot ji nevyzvedává (inventář uvolňuje prodejem), simulátor měří, kolik jí zbylo."
+  },
+  "state:elapsedSeconds": {
+   "status": "ignored",
+   "reason": "Zobrazený herní čas; simulátor má virtuální čas."
+  },
+  "state:buyback": {
+   "status": "ignored",
+   "reason": "Zpětný odkup prodaných itemů; bot neprodává omylem."
+  },
+  "state:lootRules": {
+   "status": "ignored",
+   "reason": "Pravidla auto-prodeje (výchozí vypnuto); bot prodává sám přes performSale."
+  },
+  "state:lootLog": {
+   "status": "ignored",
+   "reason": "Záznam prodejů pro zobrazení."
+  },
+  "state:collection": {
+   "status": "ignored",
+   "reason": "Sbírka šablon: jen zobrazení, žádný bonus."
+  },
+  "state:bestiary": {
+   "status": "ignored",
+   "reason": "Bestiář: jen zobrazení, žádný bonus."
+  },
+  "state:recentDrops": {
+   "status": "ignored",
+   "reason": "Seznam posledních dropů v UI."
+  },
+  "state:enemy": {
+   "status": "ignored",
+   "reason": "Transientní stav souboje."
+  },
+  "state:wave": {
+   "status": "ignored",
+   "reason": "Transientní stav souboje (neukládá se)."
+  },
+  "state:waveTotal": {
+   "status": "ignored",
+   "reason": "Transientní stav souboje."
+  },
+  "state:waveKilled": {
+   "status": "ignored",
+   "reason": "Transientní stav souboje."
+  },
+  "state:waveSeq": {
+   "status": "ignored",
+   "reason": "Transientní stav souboje."
+  },
+  "state:respawnTotalMs": {
+   "status": "ignored",
+   "reason": "Transientní stav souboje."
+  },
+  "state:lastPlayerAttackAt": {
+   "status": "ignored",
+   "reason": "Časovač souboje."
+  },
+  "state:lastEnemyAttackAt": {
+   "status": "ignored",
+   "reason": "Časovač souboje."
+  },
+  "state:phaseEndsAt": {
+   "status": "ignored",
+   "reason": "Časovač souboje."
+  },
+  "cfg:LOOT_CONFIG.inventoryCapacity": {
+   "status": "ignored",
+   "reason": "Ladicí hodnota. Hru čte skutečný herní kód, který simulátor spouští; měřený dopad je v report.json. Nový klíč ale vyžaduje kontrolu bota."
+  },
+  "cfg:LOOT_CONFIG.buybackLimit": {
+   "status": "ignored",
+   "reason": "Ladicí hodnota. Hru čte skutečný herní kód, který simulátor spouští; měřený dopad je v report.json. Nový klíč ale vyžaduje kontrolu bota."
+  },
+  "cfg:LOOT_CONFIG.lootLogLimit": {
+   "status": "ignored",
+   "reason": "Ladicí hodnota. Hru čte skutečný herní kód, který simulátor spouští; měřený dopad je v report.json. Nový klíč ale vyžaduje kontrolu bota."
+  },
+  "cfg:LOOT_CONFIG.deathGoldLossRate": {
+   "status": "covered",
+   "bot": [
+    "goldLostToDeath"
+   ],
+   "metric": [
+    "lostToDeath"
+   ]
+  },
+  "cfg:LOOT_CONFIG.unclaimedListPreview": {
+   "status": "ignored",
+   "reason": "Ladicí hodnota. Hru čte skutečný herní kód, který simulátor spouští; měřený dopad je v report.json. Nový klíč ale vyžaduje kontrolu bota."
+  },
+  "cfg:PROGRESSION_ECONOMY.expectedKillsPerHour": {
+   "status": "ignored",
+   "reason": "Ladicí hodnota. Hru čte skutečný herní kód, který simulátor spouští; měřený dopad je v report.json. Nový klíč ale vyžaduje kontrolu bota."
+  },
+  "cfg:PROGRESSION_ECONOMY.equipmentDropChance": {
+   "status": "ignored",
+   "reason": "Ladicí hodnota. Hru čte skutečný herní kód, který simulátor spouští; měřený dopad je v report.json. Nový klíč ale vyžaduje kontrolu bota."
+  },
+  "cfg:PROGRESSION_ECONOMY.affixComposition": {
+   "status": "ignored",
+   "reason": "Ladicí hodnota. Hru čte skutečný herní kód, který simulátor spouští; měřený dopad je v report.json. Nový klíč ale vyžaduje kontrolu bota."
+  },
+  "cfg:PROGRESSION_ECONOMY.materialQualityProfiles": {
+   "status": "ignored",
+   "reason": "Ladicí hodnota. Hru čte skutečný herní kód, který simulátor spouští; měřený dopad je v report.json. Nový klíč ale vyžaduje kontrolu bota."
+  },
+  "cfg:PROGRESSION_ECONOMY.equipmentQualityProfiles": {
+   "status": "ignored",
+   "reason": "Ladicí hodnota. Hru čte skutečný herní kód, který simulátor spouští; měřený dopad je v report.json. Nový klíč ale vyžaduje kontrolu bota."
+  },
+  "cfg:PROGRESSION_ECONOMY.liveEquipmentAffixTier": {
+   "status": "ignored",
+   "reason": "Ladicí hodnota. Hru čte skutečný herní kód, který simulátor spouští; měřený dopad je v report.json. Nový klíč ale vyžaduje kontrolu bota."
+  },
+  "cfg:PROGRESSION_ECONOMY.smeltScrollRecoveryChance": {
+   "status": "ignored",
+   "reason": "Ladicí hodnota. Hru čte skutečný herní kód, který simulátor spouští; měřený dopad je v report.json. Nový klíč ale vyžaduje kontrolu bota."
+  },
+  "cfg:FOOD_CONFIG.id": {
+   "status": "ignored",
+   "reason": "Ladicí hodnota. Hru čte skutečný herní kód, který simulátor spouští; měřený dopad je v report.json. Nový klíč ale vyžaduje kontrolu bota."
+  },
+  "cfg:FOOD_CONFIG.name": {
+   "status": "ignored",
+   "reason": "Ladicí hodnota. Hru čte skutečný herní kód, který simulátor spouští; měřený dopad je v report.json. Nový klíč ale vyžaduje kontrolu bota."
+  },
+  "cfg:FOOD_CONFIG.price": {
+   "status": "covered",
+   "bot": [
+    "buyFood",
+    "food"
+   ],
+   "metric": [
+    "food"
+   ]
+  },
+  "cfg:FOOD_CONFIG.healPercent": {
+   "status": "covered",
+   "bot": [
+    "buyFood",
+    "food"
+   ],
+   "metric": [
+    "food"
+   ]
+  },
+  "cfg:FOOD_CONFIG.autoEatBelow": {
+   "status": "covered",
+   "bot": [
+    "buyFood",
+    "food"
+   ],
+   "metric": [
+    "food"
+   ]
+  },
+  "cfg:WAVE_BALANCE.version": {
+   "status": "ignored",
+   "reason": "Ladicí hodnota. Hru čte skutečný herní kód, který simulátor spouští; měřený dopad je v report.json. Nový klíč ale vyžaduje kontrolu bota."
+  },
+  "cfg:WAVE_BALANCE.defaults": {
+   "status": "ignored",
+   "reason": "Ladicí hodnota. Hru čte skutečný herní kód, který simulátor spouští; měřený dopad je v report.json. Nový klíč ale vyžaduje kontrolu bota."
+  },
+  "cfg:WAVE_BALANCE.waveClearMs": {
+   "status": "ignored",
+   "reason": "Ladicí hodnota. Hru čte skutečný herní kód, který simulátor spouští; měřený dopad je v report.json. Nový klíč ale vyžaduje kontrolu bota."
+  },
+  "cfg:WAVE_BALANCE.killsPerHour": {
+   "status": "ignored",
+   "reason": "Ladicí hodnota. Hru čte skutečný herní kód, který simulátor spouští; měřený dopad je v report.json. Nový klíč ale vyžaduje kontrolu bota."
+  },
+  "cfg:WAVE_BALANCE.chanceForHours": {
+   "status": "ignored",
+   "reason": "Ladicí hodnota. Hru čte skutečný herní kód, který simulátor spouští; měřený dopad je v report.json. Nový klíč ale vyžaduje kontrolu bota."
+  },
+  "cfg:WAVE_BALANCE.hoursForChance": {
+   "status": "ignored",
+   "reason": "Ladicí hodnota. Hru čte skutečný herní kód, který simulátor spouští; měřený dopad je v report.json. Nový klíč ale vyžaduje kontrolu bota."
+  },
+  "cfg:WAVE_BALANCE.percentileHours": {
+   "status": "ignored",
+   "reason": "Ladicí hodnota. Hru čte skutečný herní kód, který simulátor spouští; měřený dopad je v report.json. Nový klíč ale vyžaduje kontrolu bota."
+  },
+  "cfg:COMBAT_BALANCE.version": {
+   "status": "ignored",
+   "reason": "Ladicí hodnota. Hru čte skutečný herní kód, který simulátor spouští; měřený dopad je v report.json. Nový klíč ale vyžaduje kontrolu bota."
+  },
+  "cfg:COMBAT_BALANCE.byType": {
+   "status": "ignored",
+   "reason": "Ladicí hodnota. Hru čte skutečný herní kód, který simulátor spouští; měřený dopad je v report.json. Nový klíč ale vyžaduje kontrolu bota."
+  },
+  "cfg:COMBAT_BALANCE.hpFor": {
+   "status": "ignored",
+   "reason": "Ladicí hodnota. Hru čte skutečný herní kód, který simulátor spouští; měřený dopad je v report.json. Nový klíč ale vyžaduje kontrolu bota."
+  },
+  "fn:collectItemModifiers": {
+   "status": "ignored",
+   "reason": "Výpočet modifikátorů, nic nemění."
+  },
+  "fn:equipItem": {
+   "status": "covered",
+   "bot": [
+    "equipItem"
+   ],
+   "metric": [
+    "gearTier"
+   ]
+  },
+  "fn:buyFood": {
+   "status": "covered",
+   "bot": [
+    "buyFood"
+   ],
+   "metric": [
+    "food"
+   ]
+  },
+  "fn:bankTransfer": {
+   "status": "covered",
+   "bot": [
+    "bankTransfer"
+   ],
+   "metric": [
+    "balance"
+   ]
+  },
+  "fn:enterLocation": {
+   "status": "covered",
+   "bot": [
+    "enterLocation"
+   ],
+   "metric": [
+    "targets"
+   ]
+  },
+  "fn:doForge": {
+   "status": "covered",
+   "bot": [
+    "doForge"
+   ],
+   "metric": [
+    "forged"
+   ]
+  },
+  "fn:doUpgrade": {
+   "status": "covered",
+   "bot": [
+    "doUpgrade"
+   ],
+   "metric": [
+    "upgrades"
+   ]
+  },
+  "fn:doRepair": {
+   "status": "covered",
+   "bot": [
+    "doRepair"
+   ],
+   "metric": [
+    "repairs"
+   ]
+  },
+  "fn:doSmelt": {
+   "status": "covered",
+   "bot": [
+    "doSmelt"
+   ],
+   "metric": [
+    "smelts"
+   ]
+  },
+  "fn:learnScroll": {
+   "status": "covered",
+   "bot": [
+    "learnScroll"
+   ],
+   "metric": [
+    "scrollsLearned"
+   ]
+  },
+  "fn:unequipItem": {
+   "status": "ignored",
+   "reason": "Bot nikdy nesundává výbavu bez náhrady (equipItem ji vymění)."
+  },
+  "fn:claimUnclaimed": {
+   "status": "ignored",
+   "reason": "Vyzvednutí kořisti nad kapacitu; viz state:unclaimed (měří se)."
+  },
+  "fn:autoSellDrop": {
+   "status": "ignored",
+   "reason": "Auto-prodej vypnutý ve výchozím stavu (lootRules); bot prodává přes performSale."
+  },
+  "fn:buyBack": {
+   "status": "ignored",
+   "reason": "Zpětný odkup; bot neprodává omylem."
+  }
+ }
+}

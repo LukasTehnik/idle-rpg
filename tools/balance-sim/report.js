@@ -45,6 +45,14 @@ function aggregate(ms) {
   for (const q of keysOf(ms, (m) => m.drops.byQuality)) a.drops.byQuality[q] = stat(pickAll(ms, (m) => m.drops.byQuality[q] ?? 0));
   for (const t of keysOf(ms, (m) => m.drops.affixesByTier)) a.drops.affixesByTier[t] = stat(pickAll(ms, (m) => m.drops.affixesByTier[t] ?? 0));
   for (const q of ["rare", "epic", "legendary"]) a.drops.first[q] = { tHours: stat(pickAll(ms, (m) => m.drops.first[q]?.tHours)), level: stat(pickAll(ms, (m) => m.drops.first[q]?.level)) };
+  a.drops.byQualityAffix = {};
+  for (const q of keysOf(ms, (m) => m.drops.byQualityAffix)) a.drops.byQualityAffix[q] = { total: stat(pickAll(ms, (m) => m.drops.byQualityAffix[q]?.total ?? 0)), affixed: stat(pickAll(ms, (m) => m.drops.byQualityAffix[q]?.affixed ?? 0)), prefix: stat(pickAll(ms, (m) => m.drops.byQualityAffix[q]?.prefix ?? 0)), suffix: stat(pickAll(ms, (m) => m.drops.byQualityAffix[q]?.suffix ?? 0)) };
+  a.materials.byKind = {}; for (const k of keysOf(ms, (m) => m.materials.byKind)) a.materials.byKind[k] = stat(pickAll(ms, (m) => m.materials.byKind[k] ?? 0));
+  a.timeline = {};
+  for (const hour of [...new Set(ms.flatMap((m) => (m.timeline ?? []).map((r) => r.hour)))].sort((x, y) => x - y)) {
+    const rows = ms.map((m) => (m.timeline ?? []).find((r) => r.hour === hour) ?? null);
+    a.timeline[hour] = {}; for (const f of ["level", "kills", "deaths", "goldEarned", "goldFromSales", "drops", "rare", "epic", "legendary", "withAffix", "materials"]) a.timeline[hour][f] = stat(pickAll(rows, (r) => r[f]));
+  }
   a.gearTier = {}; for (let t = 1; t <= 10; t += 1) a.gearTier[t] = { atLeast4: stat(pickAll(ms, (m) => m.gearTier[t].atLeast4?.tHours)), lagHours: stat(pickAll(ms, (m) => m.gearTier[t].lagHours)) };
   a.targets = { changeCount: stat(pickAll(ms, (m) => m.targets.changeCount)), reasons: {} };
   for (const r of keysOf(ms, (m) => m.targets.reasons)) a.targets.reasons[r] = stat(pickAll(ms, (m) => m.targets.reasons[r] ?? 0));
@@ -52,8 +60,13 @@ function aggregate(ms) {
   return a;
 }
 
+const coverageMod = require("./coverage");
+const coverageSummary = (c) => coverageMod.summaryLine(c);
+function coverageCheck() { try { return coverageMod.evaluate(); } catch (e) { return { stale: true, ok: false, unclassified: [], invalid: [{ id: "coverage", why: e.message }], gaps: [], orphans: [], problems: [], total: 0, covered: 0, measured: 0, ignored: 0 }; } }
+
 function buildReport(runs, meta = {}) {
   const sortedRuns = [...runs].sort((a, b) => a.seed - b.seed); const scenarios = [];
+  const coverage = coverageCheck(); // hlídač: nový systém hry bez strategie bota a metrik = scénáře jsou neaktuální
   for (const sc of SCENARIOS) {
     const rows = sortedRuns.filter((r) => r.results?.[sc.id]).map((r) => {
       const metrics = computeMetrics(r.results[sc.id], sc.spiral); return { seed: r.seed, metrics, checks: sc.evaluate(metrics) };
@@ -66,12 +79,13 @@ function buildReport(runs, meta = {}) {
       const bad = per.filter((c) => c.status !== "pass").map((c) => c.seed);
       checks.push({ id, label: worst.label, status: worst.status, detail: worst.detail + (bad.length && bad.length < per.length ? ` [seedy: ${bad.join(", ")}]` : ""), seeds: per.map((c) => ({ seed: c.seed, status: c.status, detail: c.detail })) });
     }
+    checks.push({ id: "bot-coverage", label: "Bot pokrývá všechny systémy hry", status: coverage.stale ? "fail" : "pass", detail: coverage.stale ? coverageSummary(coverage)+" – viz banner na začátku reportu" : coverageSummary(coverage), seeds: [] });
     scenarios.push({ id: sc.id, title: sc.title, description: sc.description, seeds: rows.map((r) => r.seed), checks, aggregate: aggregate(rows.map((r) => r.metrics)), runs: rows.map((r) => ({ seed: r.seed, checks: r.checks.map(({ id, status, detail }) => ({ id, status, detail })), metrics: r.metrics })) });
   }
   const all = scenarios.flatMap((s) => s.checks);
   const summary = { pass: all.filter((c) => c.status === "pass").length, warn: all.filter((c) => c.status === "warn").length, fail: all.filter((c) => c.status === "fail").length };
   const fingerprints = [...new Set(sortedRuns.map((r) => r.gameFingerprint?.sha1))];
-  return { schema: 1, tool: "balance-sim", gameFingerprint: fingerprints.length === 1 ? fingerprints[0] : fingerprints, seeds: sortedRuns.map((r) => r.seed), summary, scenarios, meta: { wallSeconds: sortedRuns.map((r) => r.wallSeconds), ...meta } };
+  return { schema: 1, tool: "balance-sim", stale: coverage.stale, coverage, gameFingerprint: fingerprints.length === 1 ? fingerprints[0] : fingerprints, seeds: sortedRuns.map((r) => r.seed), summary, scenarios, meta: { wallSeconds: sortedRuns.map((r) => r.wallSeconds), ...meta } };
 }
 
 // ---------- Markdown ----------
@@ -85,7 +99,10 @@ const table = (head, rows) => [`| ${head.join(" | ")} |`, `|${head.map(() => "--
 
 function renderMarkdown(report) {
   const out = []; const seeds = report.seeds.join(", ");
-  out.push("# Balance simulace", "", `Otisk hry: \`${Array.isArray(report.gameFingerprint) ? report.gameFingerprint.join(", ") : report.gameFingerprint}\` · seedy: ${seeds} · hodnoty = medián (min–max) přes seedy · časy v hodinách herního času`, "",
+  const cov = report.coverage; const banner = [];
+  if (report.stale) banner.push("> ⛔ **NEAKTUÁLNÍ – výsledky nelze brát jako měřítko balancu.** Hra obsahuje systémy, které bot nepoužívá nebo simulátor neměří:", ...coverageMod.describe(cov).map((l) => "> - " + l), "> Doplň strategii bota (`lib/bot-page.js`), metriky (`lib/metrics.js`) a záznam v `coverage-manifest.json`, pak simulaci spusť znovu.", "");
+  else banner.push(`_Pokrytí bota: ${coverageSummary(cov)}._`, "");
+  out.push("# Balance simulace", "", ...banner, `Otisk hry: \`${Array.isArray(report.gameFingerprint) ? report.gameFingerprint.join(", ") : report.gameFingerprint}\` · seedy: ${seeds} · hodnoty = medián (min–max) přes seedy · časy v hodinách herního času`, "",
     `Kontroly: ✅ ${report.summary.pass} · ⚠️ ${report.summary.warn} · ❌ ${report.summary.fail}`, "");
   for (const sc of report.scenarios) {
     const a = sc.aggregate; out.push(`## ${sc.title} (\`${sc.id}\`)`, "", `_${sc.description}_`, "");
@@ -99,6 +116,10 @@ function renderMarkdown(report) {
       [[fmt(a.materials.found, 0), fmt(a.materials.smeltRecovered, 0), fmt(a.crafting.forged, 0), fmt(a.crafting.forgeFailed, 0), fmt(a.crafting.upgrades, 0), fmt(a.crafting.upgradeFailures, 0), fmt(a.crafting.repairs, 0), fmt(a.crafting.smelts, 0), fmt(a.crafting.itemsSold, 0), fmt(a.crafting.scrollsLearned, 0)]]), "");
     const firsts = ["rare", "epic", "legendary"].filter((q) => a.drops.first[q].tHours);
     out.push("**První drop:** " + (["rare", "epic", "legendary"].map((q) => a.drops.first[q].tHours ? `${q} ${fmt(a.drops.first[q].tHours)} h (level ${fmt(a.drops.first[q].level, 0)})` : `${q} –`).join(" · ")), "");
+    const qa = Object.entries(a.drops.byQualityAffix);
+    if (qa.length) out.push("**Dropy podle kvality a affixu**", "", table(["Kvalita", "Dropů", "s affixem", "prefix", "suffix"], qa.map(([q, v]) => [q, fmt(v.total, 0), fmt(v.affixed, 0), fmt(v.prefix, 0), fmt(v.suffix, 0)])), "");
+    if (Object.keys(a.materials.byKind).length) out.push("**Materiály podle druhu (nasbíráno)**", "", table(Object.keys(a.materials.byKind), [Object.values(a.materials.byKind).map((v) => fmt(v, 0))]), "");
+    if (Object.keys(a.timeline).length) out.push("**Průběh po 10 hodinách (kumulativně)**", "", table(["Hodina", "Level", "Zabití", "Smrtí", "Gold získáno", "Rare", "Epic", "Legendary", "S affixem", "Materiály"], Object.entries(a.timeline).map(([h, v]) => [h, fmt(v.level, 0), fmt(v.kills, 0), fmt(v.deaths, 0), fmt(v.goldEarned, 0), fmt(v.rare, 0), fmt(v.epic, 0), fmt(v.legendary, 0), fmt(v.withAffix, 0), fmt(v.materials, 0)])), "");
     const tiers = Object.keys(a.drops.affixesByTier);
     out.push(`**Affix dropy:** ${fmt(a.drops.withAffix, 0)} kusů s affixem z ${fmt(a.drops.total, 0)} dropů` + (tiers.length ? " · podle tieru: " + tiers.map((t) => `T${t} ${fmt(a.drops.affixesByTier[t], 0)}`).join(", ") : ""), "");
     const gears = Object.entries(a.gearTier).filter(([, v]) => v.atLeast4);

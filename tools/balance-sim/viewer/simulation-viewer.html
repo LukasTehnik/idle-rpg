@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulation Viewer</title>
+<link rel="stylesheet" href="viewer.css">
+</head>
+<body>
+<h1>Simulation Viewer</h1>
+<p class="sub">Interní nástroj balance-sim. Přehrává záznam (trace) z CLI simulace; neobsahuje žádnou herní logiku a nemění uloženou hru ani herní data.</p>
+
+<div id="coverageBanner" class="banner bad" role="alert" hidden></div>
+
+<section class="bar" aria-label="Záznam a nová simulace">
+  <label>Záznam
+    <select id="traceSelect"><option value="">(žádný)</option></select>
+  </label>
+  <label>nebo soubor <input id="fileInput" type="file" accept="application/json,.json"></label>
+  <span class="muted">|</span>
+  <label>Scénář <select id="scenarioSelect"></select></label>
+  <label>Seed <input id="seedInput" type="number" min="1" max="9999" value="1" style="width:5.5em"></label>
+  <label>Detail <select id="detailSelect"><option value="standard">standard</option><option value="full">full (každé zabití)</option></select></label>
+  <button id="runBtn" class="primary">Spustit simulaci</button>
+  <span id="runStatus" class="muted" role="status"></span>
+</section>
+
+<section class="bar" aria-label="Ovládání přehrávání">
+  <div class="group">
+    <button id="playBtn" class="primary">Start</button>
+    <button id="pauseBtn">Pauza</button>
+    <button id="resetBtn">Reset</button>
+  </div>
+  <div class="group" role="group" aria-label="Rychlost" id="speedGroup">
+    <button data-speed="1" aria-pressed="true">1×</button><button data-speed="10" aria-pressed="false">10×</button><button data-speed="100" aria-pressed="false">100×</button><button data-speed="max" aria-pressed="false">Maximum</button>
+  </div>
+  <div class="group"><button id="stepBackBtn" title="Událost zpět">◀ událost</button><button id="stepBtn" title="Další událost">událost ▶</button></div>
+  <div class="grow"><input id="timeSlider" type="range" min="0" max="1" step="1" value="0" aria-label="Virtuální čas"><span class="clock" id="clock">0:00:00</span></div>
+</section>
+
+<div id="empty" class="card empty">Vyberte záznam, nahrajte soubor trace, nebo spusťte novou simulaci. Záznam vzniká příkazem <code>npm run balance:sim -- --scenario early-game --seeds 1 --trace</code>.</div>
+
+<div id="app" hidden>
+<div id="warnings"></div>
+<div class="grid">
+  <section class="card" aria-labelledby="h-char">
+    <h2 id="h-char">Postava</h2>
+    <div class="tiles" id="charTiles"></div>
+    <div>XP <span id="xpText" class="muted"></span></div><div class="meter"><i id="xpBar" style="width:0"></i></div>
+    <div>HP <span id="hpText" class="muted"></span></div><div class="meter hp"><i id="hpBar" style="width:0"></i></div>
+    <h2>Gold</h2><dl class="kv" id="goldKv"></dl>
+    <h2 style="margin-top:12px">Materiály</h2><div id="materials"></div>
+    <h2 style="margin-top:12px">Výbava</h2><table id="equipTable"></table>
+  </section>
+
+  <section class="card" aria-labelledby="h-act">
+    <h2 id="h-act">Aktuální činnost</h2>
+    <div id="where"></div>
+    <div class="decision" id="decision"></div>
+    <div class="tiles" id="rateTiles"></div>
+    <h2>Kandidáti na cíl (odhad bota)</h2><table id="candTable"></table>
+    <h2 style="margin-top:12px">Poslední změna cíle</h2><div id="lastTarget" class="muted"></div>
+  </section>
+
+  <section class="card" aria-labelledby="h-log">
+    <h2 id="h-log">Události</h2>
+    <h2>Poslední dropy</h2><ul class="drops" id="recentDrops"></ul>
+    <div class="filters" id="filters"></div>
+    <ol class="log" id="log" aria-live="off"></ol>
+  </section>
+</div>
+
+<div class="charts">
+  <section class="card"><h2>Level v čase</h2><div class="legend" id="lg-level"></div><svg class="chart" id="chart-level" viewBox="0 0 520 230" role="img" aria-label="Level v čase"></svg></section>
+  <section class="card"><h2>Smrtí za hodinu podle levelového pásma</h2><svg class="chart" id="chart-bands" viewBox="0 0 520 230" role="img" aria-label="Smrti za hodinu podle pásma"></svg></section>
+  <section class="card"><h2>Gold v čase</h2><div class="legend" id="lg-gold"></div><svg class="chart" id="chart-gold" viewBox="0 0 520 230" role="img" aria-label="Gold v čase"></svg></section>
+  <section class="card"><h2>Tier výbavy podle levelu</h2><div class="legend" id="lg-gear"></div><svg class="chart" id="chart-gear" viewBox="0 0 520 230" role="img" aria-label="Tier výbavy podle levelu"></svg></section>
+</div>
+
+<div class="grid" style="margin-top:12px;grid-template-columns:1fr 1fr">
+  <section class="card"><h2>Souhrn záznamu</h2><div id="summary"></div></section>
+  <section class="card"><h2>Živý browser run (kontrola ekvivalence)</h2>
+    <p class="sub">Spustí skutečnou vykreslenou hru v rámečku se stejným botem, seedem a virtuálními hodinami a porovná ji se záznamem. Uložená hra se nemění (úložiště hry je jen v paměti).</p>
+    <label>Délka <input id="liveMinutes" type="number" min="10" max="240" step="10" value="30" style="width:5em"> virtuálních minut</label>
+    <button id="liveBtn">Spustit živý run</button> <span id="liveStatus" class="muted" role="status"></span>
+    <div id="liveResult"></div><div id="liveFrame"></div>
+  </section>
+</div>
+</div>
+<div id="tooltip" role="tooltip"></div>
+<button id="themeBtn" style="position:fixed;right:12px;top:10px" aria-label="Přepnout světlý/tmavý vzhled">Vzhled</button>
+
+<script src="../lib/trace-summary.js"></script>
+<script src="live-run.js"></script>
+<script src="viewer.js"></script>
+</body>
+</html>

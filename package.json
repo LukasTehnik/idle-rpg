@@ -8,6 +8,10 @@
     "balance:test": "node tools/balance-sim/tests/regression.js",
     "balance:baseline": "node tools/balance-sim/run-simulation.js --save-baseline",
     "balance:check": "node tools/balance-sim/run-simulation.js --compare-baseline",
-    "balance:verify": "npm run balance:test && npm run balance:check"
+    "balance:verify": "npm run balance:coverage && npm run balance:test && npm run balance:check",
+    "balance:trace": "node tools/balance-sim/run-simulation.js --trace",
+    "balance:viewer": "node tools/balance-sim/viewer/server.js",
+    "balance:test:viewer": "node tools/balance-sim/tests/viewer.js",
+    "balance:coverage": "node tools/balance-sim/tests/coverage.js"
   }
 }

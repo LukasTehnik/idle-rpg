@@ -18,10 +18,7 @@ function requireJsdom() {
   }
 }
 
-function mulberry32(seed) {
-  let a = seed | 0;
-  return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-}
+const { install: installVirtualTime, mulberry32 } = require("./virtual-time");
 
 // Seznam funkcí, které jen kreslí / ukládají. V simulaci jsou prázdné, aby běh nebyl pomalý. Logiku hry nemění;
 // regresní test (tests/regression.js) proti Chromiu hlídá, že na těchto funkcích herní logika nezávisí.
@@ -43,8 +40,7 @@ async function loadGame({ root = REPO_ROOT, seed = 1, stubUi = true, file = "ind
   const errors = [];
   const virtualConsole = new VirtualConsole();
   virtualConsole.on("jsdomError", (e) => { if (!/canvas|Not implemented:.*scroll/i.test(e.message)) errors.push(e.message); });
-  const clock = { now: 0, epoch: 1.8e12, timers: [], seq: 1, rngCalls: 0 };
-  const rng = mulberry32(seed);
+  let vt = null;
   const dom = new JSDOM(fs.readFileSync(path.join(root, file), "utf8"), {
     url: `http://localhost/${file}?nologin`, runScripts: "dangerously", resources: new LocalResources(), pretendToBeVisual: true, virtualConsole,
     beforeParse(w) {
@@ -55,16 +51,7 @@ async function loadGame({ root = REPO_ROOT, seed = 1, stubUi = true, file = "ind
       w.CSS = { escape: (s) => s }; w.scrollTo = () => {}; w.HTMLElement.prototype.scrollIntoView = () => {};
       w.HTMLCanvasElement.prototype.getContext = () => new Proxy({ measureText: () => ({ width: 10 }) }, { get: (t, p) => t[p] ?? (() => {}) });
       if (w.HTMLDialogElement) { w.HTMLDialogElement.prototype.showModal = function () { this.open = true; }; w.HTMLDialogElement.prototype.close = function () { this.open = false; }; }
-      w.confirm = () => true;
-      w.Math.random = () => { clock.rngCalls++; return rng(); };
-      Object.defineProperty(w.performance, "now", { value: () => clock.now, configurable: true });
-      w.Date.now = () => clock.epoch + clock.now;
-      const add = (fn, ms, repeat) => { const id = clock.seq++; const delay = Math.max(1, ms | 0); clock.timers.push({ id, fn, ms: delay, due: clock.now + delay, repeat, seq: id }); return id; };
-      w.setInterval = (fn, ms) => add(fn, ms, true);
-      w.setTimeout = (fn, ms) => add(fn, ms ?? 0, false);
-      w.clearInterval = w.clearTimeout = (id) => { clock.timers = clock.timers.filter((t) => t.id !== id); };
-      w.requestAnimationFrame = (fn) => (stubUi ? 0 : add(() => fn(clock.now), 16, false));
-      w.cancelAnimationFrame = w.clearTimeout;
+      vt = installVirtualTime(w, { seed, stubUi, errors });
     },
   });
   const w = dom.window;
@@ -75,19 +62,7 @@ async function loadGame({ root = REPO_ROOT, seed = 1, stubUi = true, file = "ind
     await new Promise((resolve) => setTimeout(resolve, 40));
   }
   if (!w.eval("typeof state!=='undefined' && typeof startLoops==='function'")) throw new Error("Hra se nenačetla: " + errors.slice(0, 3).join(" | "));
-  // Posune virtuální čas a vykoná všechny timery, které za tu dobu uplynou (deterministicky, podle času a pořadí vzniku).
-  const advance = (ms) => {
-    const target = clock.now + ms;
-    for (;;) {
-      let best = null;
-      for (const t of clock.timers) if (t.due <= target && (!best || t.due < best.due || (t.due === best.due && t.seq < best.seq))) best = t;
-      if (!best) break;
-      clock.now = best.due;
-      if (best.repeat) { best.due += best.ms; best.seq = clock.seq++; } else clock.timers = clock.timers.filter((t) => t !== best);
-      try { best.fn(); } catch (e) { errors.push("timer: " + (e.stack || e.message)); }
-    }
-    clock.now = target;
-  };
+  const { clock, advance, rng } = vt;
   const ev = (code) => w.eval(code);
   if (stubUi) ev(`(()=>{const noop=()=>{};for(const n of ${JSON.stringify(UI_ONLY_FUNCTIONS)}) if(typeof globalThis[n]==="function") globalThis[n]=noop; window.CombatField=null;})()`);
   return { dom, w, ev, clock, advance, errors, rng, close: () => w.close() };

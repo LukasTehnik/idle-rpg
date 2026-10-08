@@ -110,6 +110,98 @@ Jiné umístění modulů lze zadat proměnnými `JSDOM_MODULE`, `PLAYWRIGHT_MOD
 V `scenarios.js` přidejte objekt do `SCENARIOS`: `id`, `title`, `description`, `checkpoint: { level, extraHours? }`, `maxHours` a `evaluate(metrics)` vracející pole kontrol `{ id, label, status, detail }`.
 Běh se pro scénář nespouští zvlášť, jen se přidá checkpoint do existujícího běhu seedu. Metriky se počítají v `lib/metrics.js`; nové číslo přidejte tam a do `aggregate()` v `report.js`.
 
+## Hlídač pokrytí: simulátor nesmí ignorovat nový systém (`npm run balance:coverage`)
+
+Když hra dostane nový systém ovlivňující progres (nová měna, prestiž, nový typ craftu, nový drop…), bot o něm neví. Takový běh by vypadal věrohodně, ale měřil by hru bez tohoto systému. Proto `coverage.js` porovnává hru s ručně udržovaným `coverage-manifest.json`.
+
+**Co se hlídá (statický sken zdrojáků):** skripty z `index.html` (včetně `app.js` načítaného přes `cloud-sync.js`), klíče uloženého stavu (`initialState`), klíče ekonomických konfigurací (`LOOT_CONFIG`, `PROGRESSION_ECONOMY`, `FOOD_CONFIG`, `WAVE_BALANCE`, `COMBAT_BALANCE`) a funkce, kterými hráč jedná (`doForge`, `buyFood`, `bankTransfer`, …; vzor `ACTION_FN` v `coverage.js`).
+
+**Stavy záznamu v manifestu:**
+
+| Stav | Význam | Kontroluje se |
+|---|---|---|
+| `covered` | bot systém používá a měří | `bot`: názvy musí existovat v `lib/bot-page.js`; `metric`: musí existovat v `lib/metrics.js` |
+| `measured` | zatím nejde nic dělat (např. měna bez využití), ale měří se | `metric` + důvod (`reason`) |
+| `ignored` | nemá vliv na progres (UI, transientní stav) | povinný `reason` |
+| `gap` | vědomě nepokryto | povinný `reason`; scénáře jsou NEAKTUÁLNÍ |
+
+**Co se stane při nové věci ve hře:**
+
+- Signál bez záznamu v manifestu, neplatný záznam nebo nenalezená konfigurace → `npm run balance:coverage` **selže** (kód 1) a `npm run balance:verify` se zastaví.
+- Report (`report.md`, `report.json`) má na začátku výrazný banner **NEAKTUÁLNÍ** s výpisem chybějících systémů, `report.json` má `stale: true` a každý scénář má kontrolu `bot-coverage` ve stavu ❌, takže `npm run balance:sim` skončí kódem 1. Simulation Viewer ukazuje stejný banner nahoře.
+- Totéž platí pro `gap`: test projde (je to vědomý dluh), ale reporty zůstanou NEAKTUÁLNÍ, dokud gap nezmizí.
+- Nápověda: `node tools/balance-sim/coverage.js --init` vypíše kostru pro nové signály.
+
+**Jak to opravit:** 1) nauč bota systém používat v `lib/bot-page.js` (jen přes skutečné herní funkce), 2) přidej metriku do `lib/metrics.js` a report, 3) zapiš záznam `covered` do manifestu a spusť `npm run balance:coverage`. Pokud systém progres neovlivňuje, zapiš `ignored` s důvodem.
+
+**Omezení (poctivě):** hlídač pozná *objevení* nového skriptu, klíče stavu, konfigurace nebo akce. Nepozná změnu pravidel uvnitř existující funkce ani nové chování schované pod známým klíčem (to zachytí jen regresní test shody a porovnání s baseline). Kontrola `covered` ověřuje, že odkazované názvy v botovi a metrikách existují, ne že je používají smysluplně. Funkce s netypickým názvem (mimo vzor `ACTION_FN`) hlídač přehlédne, ale nový klíč stavu nebo skript, který k ní patří, ho obvykle odhalí.
+
+## Simulation Viewer (vizuální přehrávání běhu)
+
+Interní browser UI, které ukazuje, co bot dělá, proč mění cíl a jak se vyvíjí postava. **Není součástí hry ani dev-tools pro hráče**: žije v `tools/balance-sim/viewer/` a hra o něm neví.
+
+```bash
+npm run balance:trace -- --scenario early-game --seeds 1        # CLI uloží trace (reports/balance-sim/latest/trace/)
+npm run balance:viewer                                          # lokální server → http://127.0.0.1:8787/
+```
+
+Ve Vieweru lze vybrat existující záznam, nahrát soubor trace (funguje i bez serveru: otevřete `viewer/simulation-viewer.html`) nebo zadat scénář + seed a spustit novou simulaci (server spustí stejné CLI, výsledek se uloží do `reports/balance-sim/viewer-runs/`). Krátké scénáře (`early-game`) trvají asi minutu; `level-1-100` desítky minut.
+Adresa s přednačteným záznamem: `http://127.0.0.1:8787/?trace=/reports/balance-sim/latest/trace/early-game-seed-1.json`.
+
+### Co Viewer ukazuje
+
+1. **Ovládání:** výběr záznamu / scénáře a seedu, Start, Pauza, Reset, rychlosti 1× (1 virtuální sekunda za reálnou), 10×, 100× a Maximum (asi 1 virtuální hodina na snímek), posuvník času a krok po jedné události (tlačítka, šipky ←/→; mezerník = Start/Pauza).
+2. **Stav postavy:** virtuální čas, level, XP, HP, zabití, smrti, gold získaný / utracený (kování, upgrady, opravy, jídlo) / ztracený smrtí / aktuální, materiály, nasazené itemy (tier, kvalita, upgrade, affixy).
+3. **Aktuální činnost:** lokace › oblast › cíl, **vysvětlení rozhodnutí bota** (proč zůstává / proč mění cíl, skóre a práh), očekávané XP/h, zabití/h, smrti/h a zabití na jeden život podle odhadu bota a **naměřené** hodnoty za poslední hodinu, tabulka pěti nejlepších kandidátů.
+4. **Události:** živý log (zabití, smrt, drop, výbava, kování, upgrade, oprava, tavení, svitek, prodej, jídlo, změna cíle, lokace, level, materiály, varování) s filtry, poslední dropy s raritou, červené upozornění na **opakované smrti** (≥ 5 smrtí za zásah bota a ≥ 0,5 smrti na zabití) a **smrtící spirálu** (3 takové zásahy po sobě).
+5. **Grafy** (s tooltipy): level v čase, smrti za hodinu podle levelového pásma, gold v čase, tier výbavy podle levelu (s tierem lokace odpovídajícím levelu). Rostou s kurzorem času.
+6. **Souhrn záznamu** a automatická kontrola, že odpovídá CLI reportu (`report.json` vedle trace).
+
+### Architektura: jeden zdroj pravdy
+
+```
+hra (index.html + app.js)  ←  stejný bot (lib/bot-page.js)  ←  stejný seed a virtuální čas (lib/virtual-time.js)
+        │                              │ emituje trace (události + snímky)
+        ▼                              ▼
+   CLI simulace (jsdom) ─────► reports/…/trace/<scénář>-seed-N.json ─────► Viewer jen přehrává
+                                                                   ╰────► živý browser run: skutečná vykreslená hra se porovná s trace
+```
+
+- **Bot emituje trace.** Zápis do trace jen čte stav hry a nevolá `Math.random`; výsledek simulace je s trace i bez něj bit po bitu stejný (test to ověřuje, včetně počtu volání náhody).
+- **Viewer neobsahuje herní logiku.** Zobrazuje jen data z trace (události, snímky, vysvětlení bota) a z nich odvozuje grafy a souhrny. Souhrn se počítá v `lib/trace-summary.js`, který používá Node (testy) i Viewer; porovnání s metrikami CLI je tamtéž.
+- **Trace je deterministický:** stejný seed a scénář dá stejný soubor (id itemů se do trace neukládají, protože je hra generuje náhodně).
+
+### Formát trace (`schema: 1`)
+
+`{ kind: "balance-sim-trace", schema, seed, gameFingerprint, detail, cycleMs, sampleMs, scenario, dictionary, events, frames, ticks }`
+
+- `events`: `{ t (virtuální ms), type, … }`. Typy: `levelup`, `death`, `drop`, `equip`, `forge`, `upgrade`, `repair`, `smelt`, `sale`, `food`, `learn`, `target` (s důvodem a skóre), `location`, `materials` (souhrn za zásah), `warning`, a jen v `full` i `kill`.
+- `frames`: stavový snímek po každém zásahu bota (každých 10 virtuálních minut): level, XP, HP, zabití, smrti, gold, materiály, výbava, cíl, lokace, oblast, rozhodnutí bota (`decision`) a naměřené hodnoty za poslední hodinu (`measured`).
+- `ticks`: minisnímky `[t, level, xp, hp, kills, deaths, goldEarned, balance, phase]` po `sampleMs` (jen u `--trace-detail full`, výchozí 60 s). Bot zasahuje dál jen každých 10 minut, minisnímky jen čtou stav, takže simulaci neovlivňují.
+- `dictionary`: názvy nepřátel, lokací a materiálů načtené ze hry (Viewer je jen zobrazuje).
+
+CLI přepínače: `--trace` (standard: bez jednotlivých zabití, malé soubory, stačí na grafy a log), `--trace-detail full` (každé zabití a minisnímky po 60 s; `level-1-100` má řádově desítky MB), `--sample-seconds N`.
+
+### Živý browser run (kontrola ekvivalence)
+
+Tlačítko „Spustit živý run“ otevře **skutečnou vykreslenou hru** (`index.html` s plným renderem a canvasem) v rámečku. Server do ní před herní skripty vloží `lib/virtual-time.js` (viz `viewer/live-boot.js`), takže běží na stejných virtuálních hodinách a se stejným seedem. Do rámečku se vloží stejný bot a odehraje se prvních N virtuálních minut (výchozí 20). Výsledné snímky a události se porovnají s trace: musí být shodné do posledního čísla. Rozdíl ukáže první odlišné pole.
+To je rychlá kontrola „simulace (jsdom bez UI) = vykreslená hra“ přímo ve Vieweru; důkladná kontrola proti Chromiu s Playwrightem je v `tests/regression.js`.
+Uložená hra se nemění: úložiště hry (`localStorage`, `sessionStorage`) je v rámečku jen v paměti. Živý běh vyžaduje server (`npm run balance:viewer`).
+
+### Bezpečnost a nemodifikace
+
+Server poslouchá jen na `127.0.0.1`, kontroluje hlavičku `Host`, povoluje jen `GET`/`HEAD` a jeden `POST /api/run` (s kontrolou `Origin`, scénář musí být ze seznamu, seed 1–9999). Statické soubory servíruje jen ze seznamu povolených cest (viewer, tři soubory z `lib/`, soubory hry v kořeni, `assets/`, `reports/**/*.json`), ne `package.json`, `.git` ani `node_modules`. Nikdy nezapisuje do herních souborů; zapisuje jen CLI do `reports/balance-sim/`.
+
+### Test Vieweru (`npm run balance:test:viewer`)
+
+Spustí stejný scénář a seed čtyřikrát (CLI ×3, jednou s `--trace` dvakrát a jednou bez, a jednou přes API Vieweru) a ověří:
+- oba trace z CLI jsou bit po bitu stejné a stejný je i trace vytvořený přes Viewer,
+- trace nezměnil výsledek simulace (včetně počtu volání náhody),
+- souhrn z trace sedí s metrikami CLI reportu na každé číslo, a to jak v Node, tak spočítaný přímo ve Vieweru v Chromiu,
+- ovládání (Start, Pauza, Reset, rychlosti, krok po události, posuvník), vykreslení stavu, činnosti bota, logu a čtyř grafů, tooltipy a bez chyb v konzoli,
+- živý browser run je shodný s trace a záměrně pozměněný trace nebo trace s chybějící událostí je odhalen (`--quick` živý run přeskočí),
+- Viewer nezměnil uloženou hru v `localStorage` ani žádný herní soubor v repozitáři, server odmítá cizí cesty, metody, `Host` i `Origin`.
+
 ## Struktura
 
 ```
@@ -117,11 +209,18 @@ tools/balance-sim/
   README.md           tento soubor
   scenarios.js        scénáře, kontroly a GUARDRAILS
   run-simulation.js   CLI: běhy po seedech (paralelně), uložení surových dat, report, baseline
+  coverage.js         hlídač pokrytí: nový systém hry bez bota/metrik = NEAKTUÁLNÍ
+  coverage-manifest.json  klasifikace systémů hry (covered/measured/ignored/gap)
   report.js           JSON + Markdown report, porovnání dvou reportů
-  lib/harness.js      jsdom + virtuální čas + seedovaný Math.random
+  lib/virtual-time.js virtuální čas + seedovaný Math.random (sdílené jsdom i prohlížečem)
+  lib/harness.js      jsdom + volání virtual-time.js
+  lib/trace-summary.js souhrn z trace a porovnání s metrikami CLI (sdílí Node i Viewer)
   lib/bot-page.js     bot (běží uvnitř hry, volá jen herní funkce)
   lib/run.js          jeden běh seedu s checkpointy
   lib/metrics.js      výpočet metrik z checkpointu
   tests/regression.js regresní test proti Chromiu
+  tests/coverage.js   rychlý test hlídače pokrytí (bez prohlížeče)
+  tests/viewer.js     test trace a Simulation Vieweru
+  viewer/             Simulation Viewer: simulation-viewer.html, viewer.js/css, live-run.js, live-boot.js, server.js
   package.json        závislosti nástroje (jsdom, playwright)
 ```
